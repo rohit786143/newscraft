@@ -1,0 +1,2877 @@
+<!DOCTYPE html>
+<html lang="hi" style="width:100vw; height:100vh; margin:0; padding:0; overflow:hidden;"
+  class="bg-slate-950 text-slate-100">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PressCraft Pro — Professional Multi-Page A3 Broadsheet Publishing Studio</title>
+  <meta name="description"
+    content="Professional print-ready multi-page A3 broadsheet newspaper and e-paper publishing studio with fixed 297x420mm geometry, page manager, independent typography, and full PDF export.">
+
+  <!-- Google Fonts Stack -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&family=Martel:wght@300;400;700;900&family=Noto+Serif+Devanagari:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Rozha+One&family=Tiro+Devanagari+Hindi:ital@0;1&family=Yatra+One&display=swap"
+    rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Export Libraries: html-to-image, jsPDF, html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            paper: '#fcfbfa',
+            paperBorder: '#d9d2c9',
+            ink: '#111111',
+            accentRed: '#880000',
+          },
+          fontFamily: {
+            rozha: ['"Rozha One"', 'serif'],
+            yatra: ['"Yatra One"', 'cursive'],
+            tiro: ['"Tiro Devanagari Hindi"', 'serif'],
+            martel: ['"Martel"', 'serif'],
+            noto: ['"Noto Serif Devanagari"', 'serif'],
+            playfair: ['"Playfair Display"', 'serif'],
+            cinzel: ['"Cinzel"', 'serif'],
+            garamond: ['"EB Garamond"', 'serif'],
+            sans: ['"Inter"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* The Authentic Physical Broadsheet (A3 Standard 297mm x 420mm) */
+    .newspaper-page {
+      width: 297mm;
+      min-height: 420mm;
+      height: 420mm;
+      background-color: #fcfbfa;
+      color: #111111;
+      padding: 6mm 8mm 10mm 8mm;
+      /* 40% reduced top space from 10mm to 6mm */
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px #cbd5e1;
+      margin: 20px auto;
+      box-sizing: border-box;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      line-height: 1.38;
+    }
+
+    /* Precision Devanagari Typography & Explicit Unitless Line-Heights */
+    .newspaper-page h1,
+    .newspaper-page h2,
+    .newspaper-page h3,
+    .newspaper-page h4 {
+      line-height: 1.18 !important;
+      margin-top: 0;
+      padding-bottom: 2px;
+      letter-spacing: 0.01em;
+      word-spacing: 0.02em;
+    }
+
+    .newspaper-page p {
+      line-height: 1.38 !important;
+      margin-top: 0;
+      margin-bottom: 4px;
+      letter-spacing: 0.01em;
+      text-align: justify !important;
+      text-justify: inter-word !important;
+      word-break: normal !important;
+    }
+
+    /* Standard Newspaper Paragraph Flow with Balanced Splitting & Full Justification */
+    .story-paragraph {
+      text-align: justify !important;
+      text-justify: inter-word !important;
+      text-align-last: left !important;
+      word-break: normal !important;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      line-height: 1.38 !important;
+      margin-top: 0;
+      margin-bottom: 4px;
+      display: block;
+      orphans: 2;
+      widows: 2;
+    }
+
+    .story-paragraph:last-child {
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    /* Clearfix for Float Containers */
+    .clearfix::after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+
+    /* Double Line Rules */
+    .double-line {
+      border-top: 3px double #000;
+      border-bottom: 1px solid #000;
+      padding: 3px 0;
+      margin: 4px 0;
+    }
+
+    /* Standard Vertical Newspaper Columns with Automatic Equal Height Balancing */
+    .broadsheet-cols-1 {
+      column-count: 1;
+      column-fill: auto;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .broadsheet-cols-2 {
+      column-count: 2 !important;
+      column-rule: 1px solid #d4cebe;
+      column-gap: 14px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+      display: block;
+      width: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .broadsheet-cols-3 {
+      column-count: 3 !important;
+      column-rule: 1px solid #d4cebe;
+      column-gap: 12px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+      display: block;
+      width: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .slot-width-12 {
+      width: 100% !important;
+      clear: both !important;
+      float: none !important;
+      display: block;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+    }
+
+    .slot-width-8 {
+      width: calc(66.666% - 5px) !important;
+      float: left !important;
+      margin-right: 5px;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+    }
+
+    .slot-width-4 {
+      width: calc(33.333% - 5px) !important;
+      float: right !important;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+    }
+
+    .slot-width-6 {
+      width: calc(50% - 5px) !important;
+      float: left !important;
+      margin-right: 5px;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+    }
+
+    .slot-width-3 {
+      width: calc(25% - 5px) !important;
+      float: left !important;
+      margin-right: 5px;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+    }
+
+    /* News Slot Card Visual Styling */
+    .news-slot-wrapper {
+      position: relative;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+    }
+
+    .news-slot-wrapper:hover {
+      background-color: rgba(59, 130, 246, 0.015);
+    }
+
+    /* Grid Overlay */
+    .show-grid .newspaper-page {
+      background-image: linear-gradient(to right, rgba(0, 100, 255, 0.05) 1px, transparent 1px);
+      background-size: 12.5% 100%;
+    }
+
+    /* Sidebar Transition */
+    .sidebar-collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      opacity: 0;
+      padding: 0 !important;
+      overflow: hidden !important;
+      border: none !important;
+    }
+
+    /* Custom Scrollbars */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+
+    /* Print & Export Rules */
+    @media print {
+      body {
+        background: #fff !important;
+        color: #000 !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .newspaper-page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 297mm !important;
+        height: 420mm !important;
+        page-break-after: always;
+      }
+
+      #zoomContainer {
+        transform: scale(1) !important;
+      }
+    }
+  </style>
+</head>
+
+<body style="width:100vw; height:100vh; margin:0; padding:0; overflow:hidden;"
+  class="flex flex-col select-none bg-slate-950 font-sans">
+
+  <!-- TOP PROFESSIONAL PUBLISHING TOOLBAR (COMPACT & BALANCED) -->
+  <header
+    class="no-print h-13 bg-slate-950 border-b border-slate-800/80 flex items-center justify-between px-3.5 z-30 shrink-0 gap-2 select-none">
+
+    <!-- Left: Sidebar Toggle, Sleek Compact Logo & Auto-Save Indicator -->
+    <div class="flex items-center gap-2">
+      <button onclick="toggleSidebar()" id="sidebarToggleBtn"
+        class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition text-xs font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
+        title="Toggle Controls Sidebar">
+        <i class="fa-solid fa-bars" id="sidebarIcon"></i>
+        <span class="hidden sm:inline text-[11px]">Sidebar</span>
+      </button>
+
+      <!-- Sleek Compact PressCraft Logo -->
+      <div class="flex items-center gap-2 px-2.5 py-1 bg-slate-900 border border-slate-800 rounded-lg shadow-sm">
+        <span
+          class="w-5 h-5 rounded bg-gradient-to-tr from-red-600 to-rose-600 flex items-center justify-center text-white font-extrabold font-serif text-[11px] shadow-sm">P</span>
+        <div class="flex items-center gap-1">
+          <span class="font-extrabold text-white text-xs tracking-tight font-serif">PressCraft</span>
+          <span
+            class="text-[9px] font-bold text-red-400 uppercase bg-red-950/80 px-1 py-0.2 rounded border border-red-800/50">Studio</span>
+        </div>
+      </div>
+
+      <!-- Compact Auto-Save Indicator -->
+      <div id="autoSaveBadge"
+        class="hidden xl:flex items-center gap-1.5 text-[10.5px] bg-slate-900 border border-slate-800 text-slate-300 px-2 py-1 rounded-lg">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="autoSaveText" class="text-slate-400">Saved</span>
+      </div>
+    </div>
+
+    <!-- Center Section: Multi-Page Navigator & Zoom (+/-) Controls -->
+    <div class="flex items-center gap-2">
+      <!-- Multi-Page Quick Navigation Bar -->
+      <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg shadow-sm">
+        <button onclick="navigatePage(-1)"
+          class="p-1 text-slate-400 hover:text-white text-[10px] px-1 hover:bg-slate-800 rounded transition"
+          title="Previous Page">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
+        <div class="flex items-center gap-1">
+          <span class="text-[10.5px] text-slate-400 font-semibold">पृष्ठ:</span>
+          <select id="topPageSelector" onchange="switchPage(parseInt(this.value))"
+            class="bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs rounded px-1.5 py-0.5 outline-none font-mono cursor-pointer">
+            <!-- Dynamic Page Options Injected Here -->
+          </select>
+        </div>
+
+        <button onclick="navigatePage(1)"
+          class="p-1 text-slate-400 hover:text-white text-[10px] px-1 hover:bg-slate-800 rounded transition"
+          title="Next Page">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- Zoom In / Out (+) & (-) Controls -->
+      <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 shadow-sm">
+        <button onclick="zoomOut()"
+          class="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 rounded text-xs font-bold transition"
+          title="Zoom Out (-)">
+          <i class="fa-solid fa-minus text-[10px]"></i>
+        </button>
+        <span id="zoomDisplayLabel"
+          class="text-amber-400 font-mono text-[10.5px] font-bold px-1.5 min-w-[36px] text-center select-none">Fit</span>
+        <button onclick="zoomIn()"
+          class="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 rounded text-xs font-bold transition"
+          title="Zoom In (+)">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+        </button>
+        <button onclick="setZoom('fit')"
+          class="px-1.5 py-0.5 ml-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-[10px] font-bold transition"
+          title="Fit to Screen">
+          Fit
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Section: User Profile, Export Actions & Logout -->
+    <div class="flex items-center gap-1.5">
+
+      <!-- User / Subscription Profile Pill -->
+      <div id="userProfileBadge"
+        class="hidden sm:flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 text-xs select-none">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="navUserName" class="font-bold text-slate-200 truncate max-w-[110px] text-[11px]">Himachal News</span>
+        <span id="navUserPlan"
+          class="text-[9.5px] text-amber-300 font-bold font-mono bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-800/60">30
+          दिन</span>
+      </div>
+
+      <!-- Admin Portal Link (shown if admin logged in) -->
+      <button id="navAdminBtn" onclick="window.location.href='/admin'"
+        class="hidden px-2 py-1 bg-red-950 hover:bg-red-900 text-red-300 text-[11px] font-bold rounded-lg border border-red-800 transition shadow-sm">
+        ⚙️ Admin
+      </button>
+
+      <!-- Grid Overlay -->
+      <button onclick="toggleGrid()" title="Toggle Grid Overlay"
+        class="p-1.5 px-2 text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-xs transition">
+        <i class="fa-solid fa-table-columns"></i>
+      </button>
+
+      <!-- PNG Export (Current Page) -->
+      <button onclick="exportPNG()"
+        class="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white text-[11.5px] font-bold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-file-image text-xs"></i> <span class="hidden md:inline">PNG</span>
+      </button>
+
+      <!-- Complete All-Pages PDF Export -->
+      <button onclick="exportPDF()"
+        class="px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-[11.5px] font-extrabold rounded-lg shadow-md shadow-red-600/20 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-file-pdf text-xs"></i> <span class="hidden md:inline">Export PDF</span>
+      </button>
+
+      <!-- Logout Button -->
+      <button onclick="handleUserLogout()" title="लॉगआउट करें (Sign Out)"
+        class="p-1.5 px-2 text-slate-400 hover:text-red-400 hover:bg-rose-950/40 border border-slate-800 rounded-lg text-xs transition flex items-center gap-1 cursor-pointer">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- FLOATING RE-OPEN SIDEBAR BUTTON -->
+    <button id="floatingOpenSidebarBtn" onclick="toggleSidebar()"
+      class="hidden no-print absolute left-4 top-4 z-40 bg-blue-700 hover:bg-blue-600 text-white p-2.5 rounded-r-xl shadow-xl transition-all text-xs font-bold flex items-center gap-2">
+      <i class="fa-solid fa-pen-to-square"></i>
+      <span>Open Publishing Studio</span>
+    </button>
+
+    <!-- PROFESSIONAL MULTI-PAGE TABBED SIDEBAR -->
+    <aside id="studioSidebar"
+      class="no-print w-96 transition-all duration-300 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-20 overflow-hidden max-h-[calc(100vh-3.5rem)]">
+
+      <!-- Sidebar Header -->
+      <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+        <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-blue-400"></i> PressCraft Studio Hub
+        </h2>
+        <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white text-xs p-1" title="Collapse Sidebar">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+      </div>
+
+      <!-- MAIN NAVIGATION TABS -->
+      <div class="grid grid-cols-4 bg-slate-950 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+        <button onclick="switchTab('tab-pages')" id="nav-tab-pages"
+          class="py-2.5 px-1 border-b-2 border-blue-500 text-blue-400 bg-slate-900 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-copy text-xs"></i>
+          <span>पेज सूची</span>
+        </button>
+        <button onclick="switchTab('tab-news')" id="nav-tab-news"
+          class="py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-newspaper text-xs"></i>
+          <span>खबरें</span>
+        </button>
+        <button onclick="switchTab('tab-editor')" id="nav-tab-editor"
+          class="py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-font text-xs"></i>
+          <span>स्टाइल</span>
+        </button>
+        <button onclick="switchTab('tab-masthead')" id="nav-tab-masthead"
+          class="py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-heading text-xs"></i>
+          <span>हेडर</span>
+        </button>
+      </div>
+
+      <!-- TAB CONTENT PANELS -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 text-xs">
+
+        <!-- ================= TAB 1: PAGES MANAGER (MULTI-PAGE ARCHITECTURE) ================= -->
+        <div id="tab-pages" class="space-y-3">
+
+          <div
+            class="bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border border-blue-700/60 p-3 rounded-xl shadow-md flex justify-between items-center">
+            <div>
+              <span class="font-bold text-white text-xs block">नया अखबार पृष्ठ जोड़ें</span>
+              <span class="text-[10px] text-blue-200 block mt-0.5">A3 Fixed 29.7 × 42 cm Page</span>
+            </div>
+            <button onclick="addNewPage()"
+              class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition hover:scale-105">
+              <i class="fa-solid fa-plus-circle"></i>
+              <span>+ Add Page</span>
+            </button>
+          </div>
+
+          <!-- LIST OF ALL NEWSPAPER PAGES -->
+          <div class="space-y-2" id="pagesListContainer">
+            <!-- Dynamic Page Cards Injected Here -->
+          </div>
+
+        </div>
+
+        <!-- ================= TAB 2: NEWS SLOTS FOR CURRENT PAGE ================= -->
+        <div id="tab-news" class="space-y-3 hidden">
+
+          <!-- Add News Slot Action -->
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+            <div>
+              <span class="font-bold text-white text-xs block">इस पेज पर खबर जोड़ें</span>
+              <span class="text-[10px] text-slate-400 block" id="currentEditingPageLabel">Page 1 Editor</span>
+            </div>
+            <button onclick="addNewSectionToCurrentPage()"
+              class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition hover:scale-105">
+              <i class="fa-solid fa-plus-circle"></i>
+              <span>+ खबर जोड़ें</span>
+            </button>
+          </div>
+
+          <!-- ACTIVE SECTIONS LIST CONTAINER -->
+          <div class="space-y-2.5" id="sidebarSectionsContainer">
+            <!-- Dynamic News Cards Injected Here -->
+          </div>
+
+        </div>
+
+        <!-- ================= TAB 3: GLOBAL TYPOGRAPHY & STYLES ================= -->
+        <div id="tab-editor" class="space-y-3 hidden">
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-3">
+            <span class="font-bold text-slate-200 text-xs block border-b border-slate-700 pb-1">
+              🔤 By Default Fonts (सभी पृष्ठों के लिए)
+            </span>
+
+            <div>
+              <label class="text-slate-400 text-[10px] block mb-1">Headline Default Font (शीर्षक फ़ॉन्ट)</label>
+              <select id="defaultHeadlineFontSelect" onchange="setDefaultHeadlineFont(this.value)"
+                class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white text-xs outline-none">
+                <option value="'Rozha One', serif">Rozha One (शाही देवानागरी)</option>
+                <option value="'Yatra One', cursive">Yatra One (क्लासिक बोल्ड)</option>
+                <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari Hindi</option>
+                <option value="'Martel', serif">Martel Serif</option>
+                <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
+                <option value="'Playfair Display', serif">Playfair Display</option>
+                <option value="'Cinzel', serif">Cinzel (Heritage)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-slate-400 text-[10px] block mb-1">Body Text Default Font (विवरण फ़ॉन्ट)</label>
+              <select id="defaultBodyFontSelect" onchange="setDefaultBodyFont(this.value)"
+                class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white text-xs outline-none">
+                <option value="'Martel', serif">Martel Serif (समाचार पत्र मानक)</option>
+                <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
+                <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari Hindi</option>
+                <option value="'EB Garamond', serif">EB Garamond</option>
+                <option value="'Inter', sans-serif">Inter (Modern Sans)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 4: MASTHEAD & HEADER FULL EDITOR ================= -->
+        <div id="tab-masthead" class="space-y-3 hidden">
+
+          <!-- 1. NEWSPAPER MAIN TITLE & TYPOGRAPHY -->
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-2.5">
+            <span
+              class="text-amber-400 font-bold text-xs block border-b border-slate-700 pb-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-heading text-red-400"></i> अखबार का नाम (Title & Typography)
+            </span>
+
+            <div>
+              <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">अखबार का मुख्य नाम</label>
+              <input type="text" id="inputPaperTitle" oninput="updatePaperMetaField('title', this.value)"
+                value="दिव्य हिमाचल"
+                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-sm focus:border-blue-500 outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">फ़ॉन्ट फ़ैमिली (Font)</label>
+                <select id="inputPaperTitleFont" onchange="updatePaperMetaField('titleFont', this.value)"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+                  <option value="'Rozha One', serif">Rozha One (शाही)</option>
+                  <option value="'Yatra One', cursive">Yatra One (बोल्ड)</option>
+                  <option value="'Tiro Devanagari Hindi', serif">Tiro Hindi</option>
+                  <option value="'Martel', serif">Martel Serif</option>
+                  <option value="'Noto Serif Devanagari', serif">Noto Serif</option>
+                  <option value="'Playfair Display', serif">Playfair Display</option>
+                  <option value="'Cinzel', serif">Cinzel (Heritage)</option>
+                  <option value="'Inter', sans-serif">Inter (Sans)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">साइज़ (Points)</label>
+                <input type="number" step="0.5" min="20" max="120" id="inputPaperTitleSize"
+                  oninput="updatePaperMetaField('titleSize', this.value + 'px')" value="56"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-xs font-bold outline-none">
+              </div>
+            </div>
+
+            <!-- Title Formatting: Bold, Italic, Underline, Alignment & Color -->
+            <div>
+              <label class="text-slate-400 text-[10px] block mb-1 font-semibold">स्टाइल व अलाइनमेंट (Styles &
+                Color)</label>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="togglePaperMetaBool('titleBold')" id="btnTitleBold"
+                    class="w-7 h-7 bg-blue-600 text-white rounded text-xs font-bold flex items-center justify-center"
+                    title="Bold"><i class="fa-solid fa-bold"></i></button>
+                  <button type="button" onclick="togglePaperMetaBool('titleItalic')" id="btnTitleItalic"
+                    class="w-7 h-7 bg-slate-800 text-slate-300 rounded text-xs font-bold flex items-center justify-center"
+                    title="Italic"><i class="fa-solid fa-italic"></i></button>
+                  <button type="button" onclick="togglePaperMetaBool('titleUnderline')" id="btnTitleUnderline"
+                    class="w-7 h-7 bg-slate-800 text-slate-300 rounded text-xs font-bold flex items-center justify-center"
+                    title="Underline"><i class="fa-solid fa-underline"></i></button>
+                </div>
+
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updatePaperMetaField('titleAlign', 'left')" id="btnTitleAlignLeft"
+                    class="w-7 h-7 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center justify-center"
+                    title="Left"><i class="fa-solid fa-align-left"></i></button>
+                  <button type="button" onclick="updatePaperMetaField('titleAlign', 'center')" id="btnTitleAlignCenter"
+                    class="w-7 h-7 bg-blue-600 text-white rounded text-xs flex items-center justify-center"
+                    title="Center"><i class="fa-solid fa-align-center"></i></button>
+                  <button type="button" onclick="updatePaperMetaField('titleAlign', 'right')" id="btnTitleAlignRight"
+                    class="w-7 h-7 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center justify-center"
+                    title="Right"><i class="fa-solid fa-align-right"></i></button>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <input type="color" id="inputPaperTitleColor"
+                    onchange="updatePaperMetaField('titleColor', this.value)" value="#111111"
+                    class="w-7 h-7 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. TAGLINE / MOTTO SETTINGS -->
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-2">
+            <span
+              class="text-amber-400 font-bold text-xs block border-b border-slate-700 pb-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-quote-left text-emerald-400"></i> टैगलाइन / मोटो (Tagline Editor)
+            </span>
+
+            <div>
+              <input type="text" id="inputTagline" oninput="updatePaperMetaField('tagline', this.value)"
+                value="हिमाचल प्रदेश का नंबर 1 दैनिक समाचार पत्र"
+                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">फ़ॉन्ट</label>
+                <select id="inputTaglineFont" onchange="updatePaperMetaField('taglineFont', this.value)"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+                  <option value="'Martel', serif">Martel Serif</option>
+                  <option value="'Noto Serif Devanagari', serif">Noto Serif</option>
+                  <option value="'Tiro Devanagari Hindi', serif">Tiro Hindi</option>
+                  <option value="'Inter', sans-serif">Inter (Sans)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">साइज़ (Points)</label>
+                <input type="number" step="0.5" min="9" max="24" id="inputTaglineSize"
+                  oninput="updatePaperMetaField('taglineSize', this.value + 'px')" value="12"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-xs font-bold outline-none">
+              </div>
+            </div>
+
+            <!-- Tagline Formatting: Alignment & Color -->
+            <div>
+              <label class="text-slate-400 text-[10px] block mb-1 font-semibold">अलाइनमेंट व रंग (Align & Color)</label>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updatePaperMetaField('taglineAlign', 'left')" id="btnTaglineAlignLeft"
+                    class="w-7 h-7 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center justify-center"
+                    title="Left"><i class="fa-solid fa-align-left"></i></button>
+                  <button type="button" onclick="updatePaperMetaField('taglineAlign', 'center')"
+                    id="btnTaglineAlignCenter"
+                    class="w-7 h-7 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center justify-center"
+                    title="Center"><i class="fa-solid fa-align-center"></i></button>
+                  <button type="button" onclick="updatePaperMetaField('taglineAlign', 'right')"
+                    id="btnTaglineAlignRight"
+                    class="w-7 h-7 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center justify-center"
+                    title="Right"><i class="fa-solid fa-align-right"></i></button>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <span class="text-slate-400 text-[10px]">रंग:</span>
+                  <input type="color" id="inputTaglineColor" onchange="updatePaperMetaField('taglineColor', this.value)"
+                    value="#334155" class="w-7 h-7 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. EDITION, WEBSITE, DATE & METADATA BAR -->
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-2">
+            <span
+              class="text-amber-400 font-bold text-xs block border-b border-slate-700 pb-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-calendar-days text-purple-400"></i> संस्करण, वेबसाइट, तिथि व पंजीकरण
+            </span>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">वेबसाइट (Website URL)</label>
+                <input type="text" id="inputWebsite" oninput="updatePaperMetaField('website', this.value)"
+                  value="himachalnews.co" placeholder="himachalnews.co"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-mono">
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">Edition (संस्करण)</label>
+                <input type="text" id="inputEdition" oninput="updatePaperMetaField('edition', this.value)"
+                  value="शिमला - धर्मशाला - मंडी संस्करण"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="text-slate-400 text-[10px] block font-semibold">Date & Day (दिनांक व दिन)</label>
+                <button type="button" onclick="setTodayDateAuto()"
+                  class="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1">
+                  <i class="fa-solid fa-arrows-rotate"></i> आज की तारीख सेट करें
+                </button>
+              </div>
+              <input type="text" id="inputDate" oninput="updatePaperMetaField('date', this.value)"
+                value="सोमवार, 31 अगस्त 2026"
+                class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">Price (मूल्य)</label>
+                <input type="text" id="inputPrice" oninput="updatePaperMetaField('price', this.value)" value="₹ 5.00"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">Volume (वर्ष/अंक)</label>
+                <input type="text" id="inputVol" oninput="updatePaperMetaField('vol', this.value)"
+                  value="वर्ष 24 | अंक 182"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">Reg. No.</label>
+                <input type="text" id="inputRegNo" oninput="updatePaperMetaField('regNo', this.value)"
+                  value="HP/SML/04/2024-26"
+                  class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. WEATHER WIDGET & SIDE EAR ADS (मौसम विजेट व काफिया विज्ञापन) -->
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-3">
+
+            <!-- 4A. Weather Widget Settings (Left Ear: Shimla, Dharamshala, Mandi & Panchang) -->
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-1">
+                <span class="text-cyan-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-cloud-sun text-cyan-400"></i> मौसम व पंचांग (Weather & Panchang)
+                </span>
+                <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="checkShowWeather" onchange="togglePaperMetaBool('showWeather')" checked
+                    class="rounded bg-slate-900 border-slate-700 accent-blue-500">
+                  <span>दिखाएं (Show)</span>
+                </label>
+              </div>
+
+              <div class="grid grid-cols-3 gap-1.5">
+                <div>
+                  <label class="text-slate-400 text-[9.5px] block mb-0.5 font-medium text-center">शिमला</label>
+                  <input type="text" id="inputWeatherShimla" oninput="updatePaperMetaField('weatherShimla', this.value)"
+                    value="21°/16° 🌧️" placeholder="21°/16° 🌧️"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-amber-300 text-[10.5px] text-center outline-none font-mono font-bold">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[9.5px] block mb-0.5 font-medium text-center">धर्मशाला</label>
+                  <input type="text" id="inputWeatherDharamshala"
+                    oninput="updatePaperMetaField('weatherDharamshala', this.value)" value="28°/18° ⛅"
+                    placeholder="28°/18° ⛅"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-amber-300 text-[10.5px] text-center outline-none font-mono font-bold">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[9.5px] block mb-0.5 font-medium text-center">मंडी</label>
+                  <input type="text" id="inputWeatherMandi" oninput="updatePaperMetaField('weatherMandi', this.value)"
+                    value="30°/20° ☀️" placeholder="30°/20° ☀️"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-amber-300 text-[10.5px] text-center outline-none font-mono font-bold">
+                </div>
+              </div>
+
+              <div>
+                <label class="text-slate-400 text-[9.5px] block mb-0.5 font-medium">सूर्योदय / सूर्यास्त / AQI स्ट्रिप
+                  (Bottom Strip)</label>
+                <input type="text" id="inputWeatherAstro" oninput="updatePaperMetaField('weatherAstro', this.value)"
+                  value="सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42"
+                  placeholder="सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42"
+                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-[11px] outline-none">
+              </div>
+
+              <button type="button" onclick="fetchLiveWeather()"
+                class="w-full py-1.5 px-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 shadow transition"
+                title="Fetch live temperature & astro data for Shimla, Dharamshala and Mandi">
+                <i class="fa-solid fa-rotate"></i> तीनों शहरों का मौसम व पंचांग फेच करें (Sync Weather)
+              </button>
+            </div>
+
+            <!-- 4B. Right Ear Ad / सुविचार (Right Ear Panel) -->
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-1">
+                <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-bullhorn text-amber-400"></i> दायां विज्ञापन (Ear Panel Ad)
+                </span>
+                <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="checkShowAds" onchange="togglePaperMetaBool('showAds')" checked
+                    class="rounded bg-slate-900 border-slate-700 accent-blue-500">
+                  <span>दिखाएं (Show)</span>
+                </label>
+              </div>
+
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">विज्ञापन शीर्षक (Heading)</label>
+                <input type="text" id="inputRightAdTitle" oninput="updatePaperMetaField('rightAdTitle', this.value)"
+                  value="सोलन सेविंग्स बैंक" placeholder="कंपनी का नाम / शीर्षक"
+                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-semibold">
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">विवरण / स्लोगन (Subtext)</label>
+                <input type="text" id="inputRightAdText" oninput="updatePaperMetaField('rightAdText', this.value)"
+                  value="एफडी पर 8.5% विशेष ब्याज दर।" placeholder="स्लोगन / विवरण / ऑफर"
+                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-[11px] outline-none">
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- CENTER PREVIEW VIEWPORT AREA WITH FIXED A3 CONTAINER -->
+    <main
+      class="flex-1 overflow-auto bg-slate-950 p-4 md:p-8 flex justify-center items-start custom-scrollbar relative transition-all duration-300"
+      id="canvasViewport">
+
+      <div id="zoomContainer" class="transition-transform duration-200 origin-top">
+
+        <!-- THE FIXED A3 PRINT-READY NEWSPAPER PAGE (297 x 420 mm) -->
+        <div id="newspaperCanvas" class="newspaper-page select-text">
+          <!-- DYNAMIC ACTIVE PAGE CONTENT INJECTED HERE -->
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- JAVASCRIPT PROFESSIONAL MULTI-PAGE STATE ENGINE -->
+  <script>
+    // COMPLETE PROFESSIONAL MULTI-PAGE DATA STATE
+    const defaultStudioState = {
+      activePageIndex: 0,
+      paperMeta: {
+        title: 'हिमाचल न्यूज़',
+        titleFont: "'Rozha One', serif",
+        titleSize: '56px',
+        titleColor: '#dc2626',
+        titleAlign: 'center',
+        titleBold: true,
+        titleItalic: false,
+        titleUnderline: false,
+        website: 'himachalnews.co',
+        tagline: 'हिमाचल प्रदेश का नंबर 1 दैनिक समाचार पत्र',
+        taglineFont: "'Martel', serif",
+        taglineSize: '12px',
+        taglineColor: '#334155',
+        taglineItalic: true,
+        edition: 'शिमला - धर्मशाला - मंडी संस्करण',
+        date: '', // Auto-computed with getFormattedHindiDate()
+        vol: 'वर्ष 24 | अंक 182',
+        regNo: 'HP/SML/04/2024-26',
+        price: '₹ 5.00',
+        showWeather: true,
+        weatherShimla: '21°/16° 🌧️',
+        weatherDharamshala: '28°/18° ⛅',
+        weatherMandi: '30°/20° ☀️',
+        weatherAstro: 'सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42',
+        rightAdTitle: 'सोलन सेविंग्स बैंक',
+        rightAdText: 'एफडी पर 8.5% विशेष ब्याज दर।',
+        rightAdTag: 'विज्ञापन',
+        showAds: true,
+        defaultHeadlineFont: "'Rozha One', serif",
+        defaultBodyFont: "'Martel', serif"
+      },
+      pages: [
+        {
+          id: 'page-1',
+          name: 'मुख्य पृष्ठ (Front Page)',
+          category: 'Front Page',
+          mastheadType: 'full', // 'full' = Big Masthead + Ads, 'compact' = Inner Page Slim Header
+          sections: [
+            {
+              id: 'sec-lead',
+              type: 'lead',
+              layout: 'hero-split',
+              bodyCols: 2,
+              tag: 'सुपर लीड ब्रेकिंग न्यूज़',
+              location: 'शिमला',
+              title: 'शिमला-मनाली फोरलेन प्रोजेक्ट पर केंद्र का बड़ा फैसला: ₹4,500 करोड़ की नई राहत राशि मंजूर',
+              titleFont: "'Rozha One', serif",
+              fontSize: '26px',
+              titleColor: '#111111',
+              titleAlign: 'left',
+              subtitle: 'केंद्रीय भू-भूतल परिवहन मंत्रालय ने जारी की अधिसूचना; अगले महीने से सभी टनल पर कार्य शुरू होगा।',
+              subtitleFont: "'Martel', serif",
+              subtitleSize: '13px',
+              subtitleColor: '#334155',
+              subtitleAlign: 'left',
+              image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80',
+              caption: 'फोटो: कुल्लू घाटी के समीप निर्माणाधीन फोरलेन हाईवे तथा नए बायपास टनल का दृश्य। (प्रेस क्राफ्ट फोटो)',
+              content: 'हिमाचल प्रदेश के बुनियादी ढांचे और पर्यटन उद्योग के लिए आज का दिन ऐतिहासिक साबित हुआ। केंद्र सरकार ने लंबे समय से लंबित शिमला-मनाली राष्ट्रीय राजमार्ग चौड़ीकरण परियोजना के लिए अतिरिक्त 4,500 करोड़ रुपये के विशेष पैकेज को अंतिम स्वीकृति प्रदान कर दी है।\n\nनई दिल्ली में आयोजित उच्चस्तरीय बैठक के बाद केंद्रीय मंत्री ने कहा कि पहाड़ी राज्यों में ऑल-वेदर कनेक्टिविटी हमारी सर्वोच्च प्राथमिकता है। इस परियोजना के पूर्ण होने से चंडीगढ़ से मनाली का सफर मात्र 5 घंटे में पूरा हो सकेगा।',
+              bodyFont: "'Martel', serif",
+              bodySize: '11px',
+              bodyColor: '#111111',
+              bodyAlign: 'justify',
+              dropCap: false,
+              colSpan: 8
+            },
+            {
+              id: 'sec-anchor',
+              type: 'anchor',
+              layout: 'top-img',
+              bodyCols: 1,
+              tag: 'एंकर स्टोरी',
+              location: 'सोलन',
+              title: 'मौसम विभाग की चेतावनी: प्रदेश के 6 जिलों में भारी बारिश का ऑरेंज अलर्ट',
+              titleFont: "'Rozha One', serif",
+              fontSize: '20px',
+              titleColor: '#111111',
+              titleAlign: 'left',
+              subtitle: 'नदी-नालों से दूर रहने की एडवाइजरी जारी',
+              subtitleFont: "'Martel', serif",
+              subtitleSize: '12px',
+              subtitleColor: '#334155',
+              subtitleAlign: 'left',
+              image: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=600&q=80',
+              caption: 'मूसलाधार बारिश का दृश्य',
+              content: 'मौसम विज्ञान केंद्र शिमला ने प्रदेश के मध्य एवं उच्च पर्वतीय क्षेत्रों में भीषण मूसलाधार बारिश तथा भूस्खलन की गंभीर चेतावनी जारी की है। कांगड़ा, मंडी, सोलन और शिमला जिलों के नदी-नालों के जलस्तर में अचानक वृद्धि हो सकती है।\n\nपर्यटकों और स्थानीय नागरिकों को नदी तटों से दूर रहने की सलाह दी गई है।',
+              bodyFont: "'Martel', serif",
+              bodySize: '11px',
+              bodyColor: '#111111',
+              bodyAlign: 'justify',
+              dropCap: false,
+              colSpan: 4
+            },
+            {
+              id: 'sec-sub1',
+              type: 'standard',
+              layout: 'left-img',
+              bodyCols: 1,
+              tag: 'प्रशासनिक फेरबदल',
+              location: 'शिमला',
+              title: 'हिमाचल कैडर के 4 IPS अधिकारियों के तबादले, शिमला को मिला नया एसपी',
+              titleFont: "'Rozha One', serif",
+              fontSize: '16px',
+              titleColor: '#111111',
+              titleAlign: 'left',
+              subtitle: 'गृह विभाग ने देर रात जारी की अधिसूचना',
+              subtitleFont: "'Martel', serif",
+              subtitleSize: '12px',
+              subtitleColor: '#334155',
+              subtitleAlign: 'left',
+              image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80',
+              caption: 'प्रशासनिक भवन',
+              content: 'गृह विभाग ने देर रात प्रशासनिक फेरबदल की सूची जारी कर दी। नए आदेशों के तहत अधिकारियों को नई तैनातियां सौंपी गई हैं। जिलों में कानून व्यवस्था और यातायात प्रबंधन को सुदृढ़ करने के उद्देश्य से यह बदलाव किया गया है।',
+              bodyFont: "'Martel', serif",
+              bodySize: '11px',
+              bodyColor: '#111111',
+              bodyAlign: 'justify',
+              dropCap: false,
+              colSpan: 6
+            },
+            {
+              id: 'sec-sub2',
+              type: 'standard',
+              layout: 'right-img',
+              bodyCols: 1,
+              tag: 'शिक्षा एवं परिणाम',
+              location: 'धर्मशाला',
+              title: 'एचपीयू पीजी प्रवेश परीक्षाओं की मैरिट सूची जारी, काउंसलिंग 5 सितंबर से',
+              titleFont: "'Rozha One', serif",
+              fontSize: '16px',
+              titleColor: '#111111',
+              titleAlign: 'left',
+              subtitle: 'ऑनलाइन पोर्टल पर रोल नंबर से देखें परिणाम',
+              subtitleFont: "'Martel', serif",
+              subtitleSize: '12px',
+              subtitleColor: '#334155',
+              subtitleAlign: 'left',
+              image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80',
+              caption: 'विश्वविद्यालय परिसर',
+              content: 'हिमाचल प्रदेश विश्वविद्यालय ने स्नातकोत्तर पाठ्यक्रमों की प्रथम प्रवेश सूची अपलोड कर दी है। अभ्यर्थी अपने रोल नंबर से मेरिट देख सकते हैं। सफल छात्रों को 5 सितंबर से आयोजित होने वाली काउंसलिंग में उपस्थित होना होगा।',
+              bodyFont: "'Martel', serif",
+              bodySize: '11px',
+              bodyColor: '#111111',
+              bodyAlign: 'justify',
+              dropCap: false,
+              colSpan: 6
+            }
+          ]
+        },
+        {
+          id: 'page-2',
+          name: 'पृष्ठ 2: संपादकीय व प्रादेशिक',
+          category: 'Editorial',
+          mastheadType: 'compact',
+          sections: [
+            {
+              id: 'sec-p2-ed',
+              type: 'lead',
+              layout: 'hero-split',
+              bodyCols: 2,
+              tag: 'संपादकीय दृष्टि',
+              location: 'विशेष आलेख',
+              title: 'पहाड़ी राज्यों में सतत् विकास व पर्यावरण संरक्षण का संतुलन',
+              titleFont: "'Rozha One', serif",
+              fontSize: '24px',
+              titleColor: '#111111',
+              titleAlign: 'left',
+              subtitle: 'बुनियादी ढांचे का विस्तार और प्रकृति के प्रति हमारी जिम्मेदारी',
+              subtitleFont: "'Martel', serif",
+              subtitleSize: '13px',
+              subtitleColor: '#475569',
+              subtitleAlign: 'left',
+              image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80',
+              caption: 'हिमालयी पर्वतमाला एवं पर्यावरण संतुलन',
+              content: 'पहाड़ी क्षेत्रों में सड़कों और सुरंगों का निर्माण निस्संदेह विकास का मार्ग प्रशस्त करता है, परंतु इसके साथ ही भूगर्भीय संतुलन को बनाए रखना भी अत्यंत आवश्यक है। हमें आधुनिक इंजीनियरिंग के साथ पर्यावरण अनुकूल तकनीकों का समावेश करना होगा।\n\nजलस्रोतों का संरक्षण और वृक्षारोपण इस दिशा में महत्वपूर्ण भूमिका निभा सकते हैं। नीति निर्माताओं को स्थानीय आवश्यकताओं और प्राकृतिक संरचना के अनुरूप योजनाएं बनानी चाहिए।',
+              bodyFont: "'Martel', serif",
+              bodySize: '11px',
+              bodyColor: '#111111',
+              bodyAlign: 'justify',
+              dropCap: false,
+              colSpan: 12
+            }
+          ]
+        }
+      ]
+    };
+
+    let studioState = JSON.parse(JSON.stringify(defaultStudioState));
+
+    let currentZoom = 'fit';
+    let gridVisible = false;
+    let sidebarOpen = true;
+    let autoSaveTimeout = null;
+
+    // PERSISTENT STORAGE
+    function autoSave() {
+      if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(() => {
+        try {
+          localStorage.setItem('presscraft_studioState_v3', JSON.stringify(studioState));
+          const badge = document.getElementById('autoSaveBadge');
+          const txt = document.getElementById('autoSaveText');
+          if (badge && txt) {
+            txt.innerText = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          }
+        } catch (e) {
+          console.warn('Auto-save error:', e);
+        }
+      }, 250);
+    }
+
+    function loadSavedData() {
+      try {
+        const saved = localStorage.getItem('presscraft_studioState_v3');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.pages && parsed.pages.length > 0) {
+            parsed.pages.forEach((p) => {
+              p.sections.forEach((s) => {
+                s.dropCap = false; // Turn off dropCap so Hindi words remain unbroken
+                if (s.content) {
+                  // Restore any previously cut first letters
+                  s.content = s.content
+                    .replace(/^माचल प्रदेश/g, 'हिमाचल प्रदेश')
+                    .replace(/^सम विज्ञान केंद्र/g, 'मौसम विज्ञान केंद्र')
+                    .replace(/^कूल दाखिला/g, 'स्कूल दाखिला')
+                    .replace(/^लन \(बद्दी\)/g, 'सोलन (बद्दी)')
+                    .replace(/^ब के नए खरीद/g, 'सेब के नए खरीद')
+                    .replace(/^वाहन फ्लू/g, 'स्वाइन फ्लू')
+                    .replace(/^गल हवाई अड्डा/g, 'गगल हवाई अड्डा')
+                    .replace(/^रिमौर में घटना/g, 'सिरमौर में घटना')
+                    .replace(/^मेरा डैम अलर्ट/g, 'चमेरा डैम अलर्ट')
+                    .replace(/^बीएसई स्कूलों/g, 'सीबीएसई स्कूलों');
+                }
+              });
+            });
+            studioState = parsed;
+            studioState.paperMeta = Object.assign({}, defaultStudioState.paperMeta, parsed.paperMeta || {});
+          }
+        }
+      } catch (e) {
+        console.warn('Error loading studio state:', e);
+      }
+    }
+
+    // MULTI-PAGE MANAGEMENT FUNCTIONS
+    function getCurrentPage() {
+      if (!studioState.pages || studioState.pages.length === 0) {
+        studioState.pages = [JSON.parse(JSON.stringify(defaultStudioState.pages[0]))];
+      }
+      if (studioState.activePageIndex >= studioState.pages.length) {
+        studioState.activePageIndex = 0;
+      }
+      return studioState.pages[studioState.activePageIndex];
+    }
+
+    function switchPage(pageIdx) {
+      if (pageIdx < 0 || pageIdx >= studioState.pages.length) return;
+      studioState.activePageIndex = pageIdx;
+
+      updatePageSelectorsUI();
+      renderActiveCanvasPage();
+      renderSidebarSections();
+      renderPagesList();
+      autoSave();
+    }
+
+    function navigatePage(delta) {
+      const nextIdx = studioState.activePageIndex + delta;
+      if (nextIdx >= 0 && nextIdx < studioState.pages.length) {
+        switchPage(nextIdx);
+      }
+    }
+
+    function addNewPage() {
+      const newPageNumber = studioState.pages.length + 1;
+      const newPageId = 'page-' + Date.now();
+      const newPage = {
+        id: newPageId,
+        name: `पृष्ठ ${newPageNumber}: प्रादेशिक समाचार`,
+        category: 'Regional',
+        mastheadType: 'compact',
+        sections: [
+          {
+            id: 'sec-new-' + Date.now(),
+            type: 'standard',
+            layout: 'top-img',
+            bodyCols: 2,
+            tag: `पेज ${newPageNumber} लीड समाचार`,
+            location: 'प्रदेश',
+            title: `पेज ${newPageNumber} मुख्य समाचार: यहां शीर्षक दर्ज करें`,
+            titleFont: studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif",
+            fontSize: '22px',
+            titleColor: '#111111',
+            titleAlign: 'left',
+            subtitle: 'उप-शीर्षक / संक्षिप्त विवरण यहां लिखें',
+            subtitleFont: "'Martel', serif",
+            subtitleSize: '12.5px',
+            subtitleColor: '#334155',
+            subtitleAlign: 'left',
+            image: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80',
+            caption: 'फोटो विवरण',
+            content: 'यह आपके नए जोड़े गए पेज का समाचार विवरण है।\n\nआप इस पेज के लिए अलग-अलग लेआउट और वर्टिकल कॉलम्स चुन सकते हैं।',
+            bodyFont: studioState.paperMeta.defaultBodyFont || "'Martel', serif",
+            bodySize: '11px',
+            bodyColor: '#111111',
+            bodyAlign: 'justify',
+            dropCap: true,
+            colSpan: 12
+          }
+        ]
+      };
+
+      studioState.pages.push(newPage);
+      studioState.activePageIndex = studioState.pages.length - 1;
+
+      updatePageSelectorsUI();
+      renderActiveCanvasPage();
+      renderSidebarSections();
+      renderPagesList();
+      switchTab('tab-news');
+      autoSave();
+    }
+
+    function deletePage(pageIdx) {
+      if (studioState.pages.length <= 1) {
+        alert('अखबार में कम से कम 1 पेज होना अनिवार्य है!');
+        return;
+      }
+      if (confirm(`क्या आप ${studioState.pages[pageIdx].name} को हटाना चाहते हैं?`)) {
+        studioState.pages.splice(pageIdx, 1);
+        if (studioState.activePageIndex >= studioState.pages.length) {
+          studioState.activePageIndex = studioState.pages.length - 1;
+        }
+        updatePageSelectorsUI();
+        renderActiveCanvasPage();
+        renderSidebarSections();
+        renderPagesList();
+        autoSave();
+      }
+    }
+
+    function updatePageSelectorsUI() {
+      const topSelect = document.getElementById('topPageSelector');
+      if (topSelect) {
+        topSelect.innerHTML = studioState.pages.map((p, idx) => `
+          <option value="${idx}" ${idx === studioState.activePageIndex ? 'selected' : ''}>
+            ${idx + 1}. ${p.name}
+          </option>
+        `).join('');
+      }
+
+      const editLabel = document.getElementById('currentEditingPageLabel');
+      if (editLabel) {
+        editLabel.innerText = `${studioState.activePageIndex + 1}. ${getCurrentPage().name}`;
+      }
+    }
+
+    function renderPagesList() {
+      const container = document.getElementById('pagesListContainer');
+      if (!container) return;
+
+      container.innerHTML = studioState.pages.map((p, idx) => `
+        <div class="border ${idx === studioState.activePageIndex ? 'border-blue-500 bg-slate-900 shadow-md ring-1 ring-blue-500/40' : 'border-slate-800 bg-slate-950 hover:border-slate-700'} rounded-xl p-3 flex justify-between items-center transition">
+          <div onclick="switchPage(${idx})" class="cursor-pointer flex-1">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full ${idx === studioState.activePageIndex ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'} text-[10px] flex items-center justify-center font-bold font-mono">
+                ${idx + 1}
+              </span>
+              <span class="font-bold text-xs ${idx === studioState.activePageIndex ? 'text-blue-300' : 'text-slate-200'}">${p.name}</span>
+            </div>
+            <span class="text-[10px] text-slate-500 block mt-1 ml-7">${p.sections.length} News Slot(s) • A3 Standard</span>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button onclick="switchPage(${idx})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-[10px] font-bold" title="Edit Page">
+              Edit
+            </button>
+            ${studioState.pages.length > 1 ? `
+              <button onclick="deletePage(${idx})" class="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded text-xs px-1.5" title="Delete Page">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // SECTION CRUD ON CURRENT ACTIVE PAGE
+    function addNewSectionToCurrentPage() {
+      const curPage = getCurrentPage();
+      const newId = 'sec-' + Date.now();
+      const newSec = {
+        id: newId,
+        type: 'standard',
+        layout: 'top-img',
+        bodyCols: 2,
+        tag: 'नया समाचार स्लॉट',
+        location: 'स्थान',
+        title: 'खबर का नया मुख्य शीर्षक यहां दर्ज करें',
+        titleFont: studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif",
+        fontSize: '20px',
+        titleColor: '#111111',
+        titleAlign: 'left',
+        subtitle: 'उप-शीर्षक / विवरण यहां लिखें',
+        subtitleFont: "'Martel', serif",
+        subtitleSize: '12px',
+        subtitleColor: '#334155',
+        subtitleAlign: 'left',
+        image: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80',
+        caption: 'फोटो विवरण',
+        content: 'यह समाचार का मुख्य विवरण है।\n\nEnter दबाने पर अपने आप दूसरा पैराग्राफ बन जाएगा।',
+        bodyFont: studioState.paperMeta.defaultBodyFont || "'Martel', serif",
+        bodySize: '11px',
+        bodyColor: '#111111',
+        bodyAlign: 'justify',
+        dropCap: true,
+        colSpan: 6
+      };
+
+      curPage.sections.push(newSec);
+      renderSidebarSections();
+      renderActiveCanvasPage();
+      autoSave();
+
+      setTimeout(() => {
+        toggleAccordion(`acc-${newId}`);
+      }, 100);
+    }
+
+    function deleteSection(secId) {
+      const curPage = getCurrentPage();
+      if (curPage.sections.length <= 1) {
+        alert('पेज पर कम से कम 1 न्यूज़ स्लॉट रहना अनिवार्य है!');
+        return;
+      }
+      if (confirm('क्या आप इस खबर को हटाना चाहते हैं?')) {
+        curPage.sections = curPage.sections.filter(s => s.id !== secId);
+        renderSidebarSections();
+        renderActiveCanvasPage();
+        autoSave();
+      }
+    }
+
+    // DRAG AND DROP REORDERING ENGINE
+    let draggedIndex = null;
+
+    function handleDragStart(e, idx) {
+      draggedIndex = idx;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', idx);
+      const card = document.getElementById(`card-${getCurrentPage().sections[idx].id}`);
+      if (card) card.classList.add('opacity-40', 'border-blue-500');
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDragEnd(e) {
+      const curPage = getCurrentPage();
+      curPage.sections.forEach(s => {
+        const el = document.getElementById(`card-${s.id}`);
+        if (el) el.classList.remove('opacity-40', 'border-blue-500');
+      });
+      draggedIndex = null;
+    }
+
+    function handleDrop(e, targetIdx) {
+      e.preventDefault();
+      if (draggedIndex === null || draggedIndex === targetIdx) return;
+      const curPage = getCurrentPage();
+      const movedItem = curPage.sections.splice(draggedIndex, 1)[0];
+      curPage.sections.splice(targetIdx, 0, movedItem);
+      draggedIndex = null;
+      renderSidebarSections();
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function moveSection(secId, dir) {
+      const curPage = getCurrentPage();
+      const idx = curPage.sections.findIndex(s => s.id === secId);
+      if (idx === -1) return;
+      const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= curPage.sections.length) return;
+
+      const temp = curPage.sections[idx];
+      curPage.sections[idx] = curPage.sections[targetIdx];
+      curPage.sections[targetIdx] = temp;
+
+      renderSidebarSections();
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function updateSectionField(secId, field, val, forceSidebarRerender = false) {
+      const curPage = getCurrentPage();
+      const sec = curPage.sections.find(s => s.id === secId);
+      if (sec) {
+        sec[field] = val;
+
+        // If tag is updated, update the accordion header label text directly without destroying inputs
+        if (field === 'tag') {
+          const cardTag = document.querySelector(`#card-${sec.id} button span.truncate`);
+          if (cardTag) cardTag.textContent = val || 'खबर स्लॉट';
+        }
+
+        // Never re-render sidebar when user is typing in an input or textarea
+        const isEditingText = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        const buttonFields = ['layout', 'titleAlign', 'subtitleAlign', 'bulletBold', 'bulletItalic', 'bulletAlign', 'bodyCols', 'bodyAlign', 'captionBold', 'captionItalic', 'captionAlign'];
+        const shouldRerender = forceSidebarRerender || (!isEditingText && buttonFields.includes(field));
+
+        if (shouldRerender) {
+          // Preserve open accordions before re-rendering sidebar controls
+          const openAccIds = new Set();
+          curPage.sections.forEach(s => {
+            const acc = document.getElementById(`acc-${s.id}`);
+            if (acc && !acc.classList.contains('hidden')) {
+              openAccIds.add(s.id);
+            }
+          });
+
+          // Re-render sidebar controls to update active button blue boxes
+          renderSidebarSections();
+
+          // Restore open accordions
+          openAccIds.forEach(id => {
+            const acc = document.getElementById(`acc-${id}`);
+            if (acc) acc.classList.remove('hidden');
+          });
+        }
+
+        renderActiveCanvasPage();
+        autoSave();
+      }
+    }
+
+    // HANDLE DIRECT SECTION IMAGE FILE UPLOAD
+    function handleSectionImageUpload(secId, file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        updateSectionField(secId, 'image', e.target.result, true);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // RENDER SIDEBAR ACCORDIONS FOR ACTIVE PAGE WITH DRAG & DROP
+    function renderSidebarSections() {
+      const container = document.getElementById('sidebarSectionsContainer');
+      if (!container) return;
+
+      const curPage = getCurrentPage();
+
+      container.innerHTML = curPage.sections.map((sec, i) => `
+        <div class="border border-slate-800 rounded-xl overflow-hidden bg-slate-950 shadow-sm transition-all duration-200" id="card-${sec.id}" draggable="true" ondragstart="handleDragStart(event, ${i})" ondragover="handleDragOver(event)" ondragend="handleDragEnd(event)" ondrop="handleDrop(event, ${i})">
+          
+          <div class="px-2.5 py-2 bg-slate-900 flex justify-between items-center border-b border-slate-800">
+            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+              <span class="cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-200 px-1 py-0.5" title="Drag to reorder"><i class="fa-solid fa-grip-vertical text-xs"></i></span>
+              <button onclick="toggleAccordion('acc-${sec.id}')" class="text-left font-bold text-slate-200 text-xs flex items-center gap-1.5 truncate flex-1 min-w-0">
+                <span class="w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-[10px] flex items-center justify-center font-mono shrink-0">${i + 1}</span>
+                <span class="truncate text-blue-300">${sec.tag || 'खबर स्लॉट'}</span>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0">
+              <select onchange="updateSectionField('${sec.id}', 'colSpan', parseInt(this.value))" class="bg-slate-950 border border-slate-700 text-amber-300 text-[10px] rounded px-1.5 py-0.5 outline-none font-mono" title="Column Width">
+                <option value="2" ${sec.colSpan === 2 ? 'selected' : ''}>2 Col (16%)</option>
+                <option value="3" ${sec.colSpan === 3 ? 'selected' : ''}>3 Col (25%)</option>
+                <option value="4" ${sec.colSpan === 4 ? 'selected' : ''}>4 Col (33%)</option>
+                <option value="5" ${sec.colSpan === 5 ? 'selected' : ''}>5 Col (41%)</option>
+                <option value="6" ${sec.colSpan === 6 ? 'selected' : ''}>6 Col (50%)</option>
+                <option value="7" ${sec.colSpan === 7 ? 'selected' : ''}>7 Col (58%)</option>
+                <option value="8" ${sec.colSpan === 8 ? 'selected' : ''}>8 Col (66%)</option>
+                <option value="9" ${sec.colSpan === 9 ? 'selected' : ''}>9 Col (75%)</option>
+                <option value="10" ${sec.colSpan === 10 ? 'selected' : ''}>10 Col (83%)</option>
+                <option value="12" ${sec.colSpan === 12 ? 'selected' : ''}>12 Col (Full)</option>
+              </select>
+
+              <button onclick="moveSection('${sec.id}', 'up')" class="text-slate-400 hover:text-white px-1"><i class="fa-solid fa-arrow-up text-[10px]"></i></button>
+              <button onclick="moveSection('${sec.id}', 'down')" class="text-slate-400 hover:text-white px-1"><i class="fa-solid fa-arrow-down text-[10px]"></i></button>
+              <button onclick="deleteSection('${sec.id}')" class="text-red-400 hover:text-red-300 px-1"><i class="fa-solid fa-trash text-[10px]"></i></button>
+            </div>
+          </div>
+
+          <div id="acc-${sec.id}" class="p-3 space-y-3 text-xs hidden bg-slate-950">
+            
+            <!-- 1. SLOT LAYOUT & CATEGORY -->
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1">
+                <i class="fa-solid fa-table-cells-large text-blue-400"></i> स्लॉट लेआउट व टैग (Layout & Tag)
+              </span>
+
+              <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded border border-slate-800">
+                <button type="button" onclick="updateSectionField('${sec.id}', 'layout', 'top-img')" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.layout === 'top-img' || !sec.layout ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-image"></i> Top Image
+                </button>
+                <button type="button" onclick="updateSectionField('${sec.id}', 'layout', 'left-img')" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.layout === 'left-img' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-table-columns"></i> Left Image
+                </button>
+                <button type="button" onclick="updateSectionField('${sec.id}', 'layout', 'right-img')" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.layout === 'right-img' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-table-columns fa-flip-horizontal"></i> Right Image
+                </button>
+                <button type="button" onclick="updateSectionField('${sec.id}', 'layout', 'hero-split')" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.layout === 'hero-split' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-newspaper"></i> Hero Feature
+                </button>
+                <button type="button" onclick="updateSectionField('${sec.id}', 'layout', 'bottom-img')" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.layout === 'bottom-img' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-regular fa-image"></i> Bottom Image
+                </button>
+                <button type="button" onclick="updateSectionField('${sec.id}', 'layout', 'text-only')" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.layout === 'text-only' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-font"></i> Text Only
+                </button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">Category Tag</span>
+                  <input type="text" oninput="updateSectionField('${sec.id}', 'tag', this.value)" value="${sec.tag || ''}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[11px] outline-none">
+                </div>
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">Location</span>
+                  <input type="text" oninput="updateSectionField('${sec.id}', 'location', this.value)" value="${sec.location || ''}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[11px] outline-none">
+                </div>
+              </div>
+
+              <!-- Column Span & New Line Control -->
+              <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">कॉलम चौड़ाई (Grid Width)</span>
+                  <select onchange="updateSectionField('${sec.id}', 'colSpan', parseInt(this.value))" class="w-full bg-slate-950 border border-slate-700 text-amber-300 font-bold text-[11px] rounded px-2 py-1 outline-none font-mono">
+                    <option value="2" ${sec.colSpan === 2 ? 'selected' : ''}>2 Col (16.6%)</option>
+                    <option value="3" ${sec.colSpan === 3 ? 'selected' : ''}>3 Col (25%)</option>
+                    <option value="4" ${sec.colSpan === 4 ? 'selected' : ''}>4 Col (33.3%)</option>
+                    <option value="5" ${sec.colSpan === 5 ? 'selected' : ''}>5 Col (41.6%)</option>
+                    <option value="6" ${sec.colSpan === 6 ? 'selected' : ''}>6 Col (50%)</option>
+                    <option value="7" ${sec.colSpan === 7 ? 'selected' : ''}>7 Col (58.3%)</option>
+                    <option value="8" ${sec.colSpan === 8 ? 'selected' : ''}>8 Col (66.6%)</option>
+                    <option value="9" ${sec.colSpan === 9 ? 'selected' : ''}>9 Col (75%)</option>
+                    <option value="10" ${sec.colSpan === 10 ? 'selected' : ''}>10 Col (83.3%)</option>
+                    <option value="12" ${sec.colSpan === 12 ? 'selected' : ''}>12 Col (Full Width)</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5 pt-2">
+                  <label class="flex items-center gap-1.5 text-[10px] text-slate-300 cursor-pointer">
+                    <input type="checkbox" onchange="updateSectionField('${sec.id}', 'clearRow', this.checked)" ${sec.clearRow ? 'checked' : ''} class="rounded bg-slate-950 border-slate-700 accent-blue-500">
+                    <span>नयी लाइन से शुरू करें</span>
+                  </label>
+                  <label class="flex items-center gap-1.5 text-[10px] text-slate-300 cursor-pointer">
+                    <input type="checkbox" onchange="updateSectionField('${sec.id}', 'showBorderLine', this.checked)" ${sec.showBorderLine ? 'checked' : ''} class="rounded bg-slate-950 border-slate-700 accent-blue-500">
+                    <span>नीचे बॉर्डर लाइन (Default: Off)</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Section Background Color Control -->
+              <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between gap-2">
+                <span class="text-slate-400 text-[10px] font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-fill-drip text-amber-400"></i> बैकग्राउंड रंग (Background Color)
+                </span>
+                <div class="flex items-center gap-1.5">
+                  <input type="color" onchange="updateSectionField('${sec.id}', 'bgColor', this.value)" value="${sec.bgColor && sec.bgColor !== 'transparent' ? sec.bgColor : '#ffffff'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5" title="Choose Background Color">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bgColor', 'transparent')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]" title="Reset to Transparent">Transparent</button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bgColor', '#fef2f2')" class="w-4 h-4 rounded-full bg-red-100 border border-red-300" title="Light Red Tint"></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bgColor', '#fffbeb')" class="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-300" title="Light Yellow Tint"></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bgColor', '#f1f5f9')" class="w-4 h-4 rounded-full bg-slate-100 border border-slate-300" title="Light Grey Tint"></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. HEADING EDITOR -->
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1">
+                <i class="fa-solid fa-heading text-red-400"></i> मुख्य शीर्षक (Headline Editor)
+              </span>
+
+              <input type="text" oninput="updateSectionField('${sec.id}', 'title', this.value)" value="${sec.title || ''}" placeholder="शीर्षक यहां लिखें..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-semibold text-xs outline-none">
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">फ़ॉन्ट</span>
+                  <select onchange="updateSectionField('${sec.id}', 'titleFont', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                    <option value="'Rozha One', serif" ${sec.titleFont === "'Rozha One', serif" ? 'selected' : ''}>Rozha One</option>
+                    <option value="'Yatra One', cursive" ${sec.titleFont === "'Yatra One', cursive" ? 'selected' : ''}>Yatra One</option>
+                    <option value="'Tiro Devanagari Hindi', serif" ${sec.titleFont === "'Tiro Devanagari Hindi', serif" ? 'selected' : ''}>Tiro Hindi</option>
+                    <option value="'Martel', serif" ${sec.titleFont === "'Martel', serif" ? 'selected' : ''}>Martel Serif</option>
+                    <option value="'Noto Serif Devanagari', serif" ${sec.titleFont === "'Noto Serif Devanagari', serif" ? 'selected' : ''}>Noto Serif</option>
+                    <option value="'Cinzel', serif" ${sec.titleFont === "'Cinzel', serif" ? 'selected' : ''}>Cinzel</option>
+                  </select>
+                </div>
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">साइज़ (Points)</span>
+                  <input type="number" step="0.1" min="8" max="100" oninput="updateSectionField('${sec.id}', 'fontSize', this.value + 'px')" value="${parseFloat(sec.fontSize) || 22}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-[10px] font-bold outline-none">
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'titleAlign', 'left')" class="py-1 px-1.5 rounded text-[10px] ${sec.titleAlign === 'left' ? 'bg-blue-600 text-white' : 'text-slate-400'}"><i class="fa-solid fa-align-left"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'titleAlign', 'center')" class="py-1 px-1.5 rounded text-[10px] ${sec.titleAlign === 'center' ? 'bg-blue-600 text-white' : 'text-slate-400'}"><i class="fa-solid fa-align-center"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'titleAlign', 'right')" class="py-1 px-1.5 rounded text-[10px] ${sec.titleAlign === 'right' ? 'bg-blue-600 text-white' : 'text-slate-400'}"><i class="fa-solid fa-align-right"></i></button>
+                </div>
+                <div class="flex items-center gap-1">
+                  <input type="color" onchange="updateSectionField('${sec.id}', 'titleColor', this.value)" value="${sec.titleColor || '#111111'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5">
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. SUB-HEADING EDITOR -->
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1">
+                <i class="fa-solid fa-paragraph text-emerald-400"></i> उप-शीर्षक (Sub-Heading Editor)
+              </span>
+
+              <input type="text" oninput="updateSectionField('${sec.id}', 'subtitle', this.value)" value="${sec.subtitle || ''}" placeholder="उप-शीर्षक यहां लिखें..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-[11px] outline-none">
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">फ़ॉन्ट</span>
+                  <select onchange="updateSectionField('${sec.id}', 'subtitleFont', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                    <option value="'Martel', serif" ${sec.subtitleFont === "'Martel', serif" ? 'selected' : ''}>Martel</option>
+                    <option value="'Noto Serif Devanagari', serif" ${sec.subtitleFont === "'Noto Serif Devanagari', serif" ? 'selected' : ''}>Noto</option>
+                    <option value="'Tiro Devanagari Hindi', serif" ${sec.subtitleFont === "'Tiro Devanagari Hindi', serif" ? 'selected' : ''}>Tiro</option>
+                    <option value="'Inter', sans-serif" ${sec.subtitleFont === "'Inter', sans-serif" ? 'selected' : ''}>Inter</option>
+                  </select>
+                </div>
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">साइज़ (Points)</span>
+                  <input type="number" step="0.1" min="8" max="50" oninput="updateSectionField('${sec.id}', 'subtitleSize', this.value + 'px')" value="${parseFloat(sec.subtitleSize) || 12.5}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-[10px] font-bold outline-none">
+                </div>
+              </div>
+
+              <!-- Subtitle Formatting: Alignment & Color -->
+              <div class="flex items-center justify-between gap-2 pt-1">
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'subtitleAlign', 'left')" class="py-1 px-1.5 rounded text-[10px] ${sec.subtitleAlign === 'left' || !sec.subtitleAlign ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Left"><i class="fa-solid fa-align-left"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'subtitleAlign', 'center')" class="py-1 px-1.5 rounded text-[10px] ${sec.subtitleAlign === 'center' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Center"><i class="fa-solid fa-align-center"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'subtitleAlign', 'right')" class="py-1 px-1.5 rounded text-[10px] ${sec.subtitleAlign === 'right' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Right"><i class="fa-solid fa-align-right"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'subtitleAlign', 'justify')" class="py-1 px-1.5 rounded text-[10px] ${sec.subtitleAlign === 'justify' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Justify"><i class="fa-solid fa-align-justify"></i></button>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-slate-400 text-[10px]">रंग:</span>
+                  <input type="color" onchange="updateSectionField('${sec.id}', 'subtitleColor', this.value)" value="${sec.subtitleColor || '#334155'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5" title="Sub-Heading Color">
+                </div>
+              </div>
+            </div>
+
+            <!-- KEY BULLET POINTS EDITOR -->
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1 flex items-center justify-between">
+                <span><i class="fa-solid fa-list-check text-cyan-400"></i> प्रमुख बिंदु / बुलेट्स (Key Highlights)</span>
+                <span class="text-[9px] text-slate-400 font-normal">Optional</span>
+              </span>
+
+              <textarea oninput="updateSectionField('${sec.id}', 'bullets', this.value)" rows="2" placeholder="प्रत्येक लाइन में एक बुलेट पॉइंट लिखें (Enter दबाकर दूसरा बिंदु जोड़ें)..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-[11px] outline-none resize-y custom-scrollbar leading-relaxed">${sec.bullets || ''}</textarea>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">बुलेट फ़ॉन्ट</span>
+                  <select onchange="updateSectionField('${sec.id}', 'bulletFont', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                    <option value="'Martel', serif" ${sec.bulletFont === "'Martel', serif" ? 'selected' : ''}>Martel</option>
+                    <option value="'Noto Serif Devanagari', serif" ${sec.bulletFont === "'Noto Serif Devanagari', serif" ? 'selected' : ''}>Noto Serif</option>
+                    <option value="'Tiro Devanagari Hindi', serif" ${sec.bulletFont === "'Tiro Devanagari Hindi', serif" ? 'selected' : ''}>Tiro Hindi</option>
+                    <option value="'Rozha One', serif" ${sec.bulletFont === "'Rozha One', serif" ? 'selected' : ''}>Rozha One</option>
+                    <option value="'Inter', sans-serif" ${sec.bulletFont === "'Inter', sans-serif" ? 'selected' : ''}>Inter (Sans)</option>
+                  </select>
+                </div>
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">साइज़ (Points)</span>
+                  <input type="number" step="0.5" min="8" max="24" oninput="updateSectionField('${sec.id}', 'bulletSize', this.value + 'px')" value="${parseFloat(sec.bulletSize) || 11}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-[10px] font-bold outline-none">
+                </div>
+              </div>
+
+              <!-- Styles: Bold, Italic & Alignment -->
+              <div class="flex items-center justify-between gap-2 pt-0.5">
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletBold', ${sec.bulletBold === false ? 'true' : 'false'})" class="py-1 px-1.5 rounded text-[10px] font-bold ${sec.bulletBold !== false ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletItalic', ${sec.bulletItalic ? 'false' : 'true'})" class="py-1 px-1.5 rounded text-[10px] italic ${sec.bulletItalic ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                </div>
+
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletAlign', 'left')" class="py-1 px-1.5 rounded text-[10px] ${sec.bulletAlign === 'left' || !sec.bulletAlign ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Left"><i class="fa-solid fa-align-left"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletAlign', 'center')" class="py-1 px-1.5 rounded text-[10px] ${sec.bulletAlign === 'center' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Center"><i class="fa-solid fa-align-center"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletAlign', 'right')" class="py-1 px-1.5 rounded text-[10px] ${sec.bulletAlign === 'right' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Right"><i class="fa-solid fa-align-right"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletAlign', 'justify')" class="py-1 px-1.5 rounded text-[10px] ${sec.bulletAlign === 'justify' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Justify"><i class="fa-solid fa-align-justify"></i></button>
+                </div>
+              </div>
+
+              <!-- Colors -->
+              <div class="flex items-center justify-between gap-2 pt-0.5 border-t border-slate-800">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-slate-400 text-[10px]">बुलेट रंग:</span>
+                  <input type="color" onchange="updateSectionField('${sec.id}', 'bulletColor', this.value)" value="${sec.bulletColor || '#dc2626'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5" title="Bullet Color">
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-slate-400 text-[10px]">बॉक्स बैकग्राउंड:</span>
+                  <input type="color" onchange="updateSectionField('${sec.id}', 'bulletBgColor', this.value)" value="${sec.bulletBgColor && sec.bulletBgColor !== 'transparent' ? sec.bulletBgColor : '#f0fdf4'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5" title="Box Background">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bulletBgColor', 'transparent')" class="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[9px]">Transp</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. NEWS CONTENT & VERTICAL COLUMNS EDITOR -->
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1">
+                <i class="fa-solid fa-file-lines text-purple-400"></i> समाचार विवरण (Content & Columns)
+              </span>
+
+              <textarea oninput="updateSectionField('${sec.id}', 'content', this.value)" rows="4" placeholder="समाचार का मुख्य विवरण लिखें (Enter से 2 या 3 पैराग्राफ बनेंगे)..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-[11px] outline-none resize-y custom-scrollbar leading-relaxed">${sec.content || ''}</textarea>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">विवरण फ़ॉन्ट</span>
+                  <select onchange="updateSectionField('${sec.id}', 'bodyFont', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                    <option value="'Martel', serif" ${sec.bodyFont === "'Martel', serif" ? 'selected' : ''}>Martel</option>
+                    <option value="'Noto Serif Devanagari', serif" ${sec.bodyFont === "'Noto Serif Devanagari', serif" ? 'selected' : ''}>Noto</option>
+                    <option value="'Tiro Devanagari Hindi', serif" ${sec.bodyFont === "'Tiro Devanagari Hindi', serif" ? 'selected' : ''}>Tiro</option>
+                    <option value="'EB Garamond', serif" ${sec.bodyFont === "'EB Garamond', serif" ? 'selected' : ''}>Garamond</option>
+                    <option value="'Inter', sans-serif" ${sec.bodyFont === "'Inter', sans-serif" ? 'selected' : ''}>Inter</option>
+                  </select>
+                </div>
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">साइज़ (Points)</span>
+                  <input type="number" step="0.1" min="8" max="30" oninput="updateSectionField('${sec.id}', 'bodySize', this.value + 'px')" value="${parseFloat(sec.bodySize) || 11}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-[10px] font-bold outline-none">
+                </div>
+              </div>
+
+              <!-- Vertical Column Split Selector -->
+              <div>
+                <span class="text-slate-400 block mb-0.5 text-[10px]">वर्टिकल कॉलम विभाजन (Vertical Columns)</span>
+                <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded border border-slate-800">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bodyCols', 1)" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.bodyCols == 1 || !sec.bodyCols ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+                    <i class="fa-solid fa-bars"></i> 1 Col
+                  </button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bodyCols', 2)" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.bodyCols == 2 ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+                    <i class="fa-solid fa-table-columns"></i> 2 Col
+                  </button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bodyCols', 3)" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 ${sec.bodyCols == 3 ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+                    <i class="fa-solid fa-table-cells"></i> 3 Col
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bodyAlign', 'left')" class="py-1 px-1.5 rounded text-[10px] ${sec.bodyAlign === 'left' ? 'bg-blue-600 text-white' : 'text-slate-400'}"><i class="fa-solid fa-align-left"></i></button>
+                  <button type="button" onclick="updateSectionField('${sec.id}', 'bodyAlign', 'justify')" class="py-1 px-1.5 rounded text-[10px] ${sec.bodyAlign === 'justify' || !sec.bodyAlign ? 'bg-blue-600 text-white' : 'text-slate-400'}"><i class="fa-solid fa-align-justify"></i></button>
+                </div>
+                <label class="flex items-center gap-1.5 text-[10px] text-slate-300 cursor-pointer">
+                  <input type="checkbox" onchange="updateSectionField('${sec.id}', 'dropCap', this.checked)" ${sec.dropCap === true ? 'checked' : ''} class="rounded bg-slate-950 border-slate-700 accent-blue-500">
+                  <span>Drop-Cap (बड़ा अक्षर)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 5. PHOTO & CAPTION SETTINGS -->
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1 flex items-center justify-between">
+                <span><i class="fa-solid fa-image text-amber-400"></i> फोटो व विवरण (Photo & Caption)</span>
+              </span>
+
+              <!-- Photo Upload & URL -->
+              <div class="space-y-1.5">
+                <input type="file" accept="image/*" id="file-${sec.id}" class="hidden" onchange="handleSectionImageUpload('${sec.id}', this.files[0])">
+                
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="document.getElementById('file-${sec.id}').click()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-semibold flex items-center gap-1.5 shadow-sm transition">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> फोटो अपलोड करें
+                  </button>
+                  ${sec.image ? `
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'image', '')" class="px-2 py-1 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800/80 rounded text-[10px] flex items-center gap-1 transition">
+                      <i class="fa-solid fa-trash-can"></i> फोटो हटाएं
+                    </button>
+                  ` : ''}
+                </div>
+
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">या Photo URL दर्ज करें</span>
+                  <input type="text" oninput="updateSectionField('${sec.id}', 'image', this.value)" value="${sec.image || ''}" placeholder="https://example.com/photo.jpg" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                </div>
+              </div>
+
+              <!-- Caption Text -->
+              <div class="pt-1 border-t border-slate-800 space-y-1.5">
+                <div>
+                  <span class="text-slate-400 block mb-0.5 text-[10px]">फोटो विवरण / कैप्शन (Photo Caption)</span>
+                  <input type="text" oninput="updateSectionField('${sec.id}', 'caption', this.value)" value="${sec.caption || ''}" placeholder="जैसे: फोटो: कुल्लू घाटी के समीप टनल का दृश्य..." class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-white text-[11px] outline-none">
+                </div>
+
+                <!-- Caption Font & Size -->
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <span class="text-slate-400 block mb-0.5 text-[10px]">कैप्शन फ़ॉन्ट</span>
+                    <select onchange="updateSectionField('${sec.id}', 'captionFont', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                      <option value="'Martel', serif" ${sec.captionFont === "'Martel', serif" ? 'selected' : ''}>Martel</option>
+                      <option value="'Noto Serif Devanagari', serif" ${sec.captionFont === "'Noto Serif Devanagari', serif" ? 'selected' : ''}>Noto Serif</option>
+                      <option value="'Tiro Devanagari Hindi', serif" ${sec.captionFont === "'Tiro Devanagari Hindi', serif" ? 'selected' : ''}>Tiro Hindi</option>
+                      <option value="'Rozha One', serif" ${sec.captionFont === "'Rozha One', serif" ? 'selected' : ''}>Rozha One</option>
+                      <option value="'Inter', sans-serif" ${sec.captionFont === "'Inter', sans-serif" ? 'selected' : ''}>Inter (Sans)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block mb-0.5 text-[10px]">साइज़ (Points)</span>
+                    <input type="number" step="0.5" min="7" max="20" oninput="updateSectionField('${sec.id}', 'captionSize', this.value + 'px')" value="${parseFloat(sec.captionSize) || 8.5}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono text-[10px] font-bold outline-none">
+                  </div>
+                </div>
+
+                <!-- Caption Styles, Alignment & Color -->
+                <div class="flex items-center justify-between gap-2 pt-0.5">
+                  <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'captionBold', ${sec.captionBold ? 'false' : 'true'})" class="py-1 px-1.5 rounded text-[10px] font-bold ${sec.captionBold ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'captionItalic', ${sec.captionItalic === false ? 'true' : 'false'})" class="py-1 px-1.5 rounded text-[10px] italic ${sec.captionItalic !== false ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Italic"><i class="fa-solid fa-italic"></i></button>
+                  </div>
+
+                  <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'captionAlign', 'left')" class="py-1 px-1.5 rounded text-[10px] ${sec.captionAlign === 'left' || !sec.captionAlign ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Left"><i class="fa-solid fa-align-left"></i></button>
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'captionAlign', 'center')" class="py-1 px-1.5 rounded text-[10px] ${sec.captionAlign === 'center' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Center"><i class="fa-solid fa-align-center"></i></button>
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'captionAlign', 'right')" class="py-1 px-1.5 rounded text-[10px] ${sec.captionAlign === 'right' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Align Right"><i class="fa-solid fa-align-right"></i></button>
+                    <button type="button" onclick="updateSectionField('${sec.id}', 'captionAlign', 'justify')" class="py-1 px-1.5 rounded text-[10px] ${sec.captionAlign === 'justify' ? 'bg-blue-600 text-white' : 'text-slate-400'}" title="Justify"><i class="fa-solid fa-align-justify"></i></button>
+                  </div>
+
+                  <div class="flex items-center gap-1">
+                    <span class="text-slate-400 text-[10px]">रंग:</span>
+                    <input type="color" onchange="updateSectionField('${sec.id}', 'captionColor', this.value)" value="${sec.captionColor || '#475569'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5" title="Caption Color">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      `).join('');
+    }
+
+    // HELPER TO RENDER MULTIPLE PARAGRAPHS FROM SINGLE CONTENT TEXT
+    function renderParagraphsHTML(sec, isDropCap = true, extraClass = '') {
+      if (!sec || !sec.content) return '';
+      const paras = sec.content.split(/\n+/).map(p => p.trim()).filter(Boolean);
+      if (paras.length === 0) return '';
+
+      const dropCapEnabled = (sec.dropCap === true) && isDropCap;
+      const font = sec.bodyFont || studioState.paperMeta.defaultBodyFont || "'Martel', serif";
+      const size = sec.bodySize || '11px';
+      const color = sec.bodyColor || '#111111';
+      const align = sec.bodyAlign || 'justify';
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: left; word-break: normal;`;
+
+      return paras.map((p, idx) => {
+        if (idx === 0 && dropCapEnabled) {
+          const match = p.match(/^(\p{L}\p{M}*|\S)/u);
+          if (match) {
+            const firstChar = match[0];
+            const restText = p.slice(firstChar.length);
+            const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
+            return `<p class="story-paragraph ${extraClass}" style="${styleStr}">${dropCapHTML}${restText}</p>`;
+          }
+        }
+        return `<p class="story-paragraph ${extraClass}" style="${styleStr}">${p}</p>`;
+      }).join('');
+    }
+
+    // RENDER BULLET POINTS BOX (DIVYA HIMACHAL / DAINIK BHASKAR STYLE)
+    function renderBulletsHTML(sec) {
+      if (!sec || !sec.bullets || !sec.bullets.trim()) return '';
+      const items = sec.bullets.split(/\n+/).map(b => b.trim()).filter(Boolean);
+      if (items.length === 0) return '';
+
+      const bulletColor = sec.bulletColor || '#dc2626';
+      const font = sec.bulletFont || "'Martel', serif";
+      const size = sec.bulletSize || '11px';
+      const align = sec.bulletAlign || 'left';
+      const isBold = sec.bulletBold !== false;
+      const isItalic = sec.bulletItalic === true;
+      const textStyle = `font-family: ${font}; font-size: ${size}; text-align: ${align}; font-weight: ${isBold ? '700' : '400'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
+
+      const hasBg = sec.bulletBgColor && sec.bulletBgColor !== 'transparent';
+      const bgStyle = hasBg ? `background-color: ${sec.bulletBgColor}; border: 1px solid rgba(0,0,0,0.12);` : (sec.bulletBgColor === 'transparent' ? 'border: 1px solid #cbd5e1; padding: 4px 6px;' : 'background-color: #f0fdf4; border: 1px solid #bbf7d0;');
+
+      return `
+        <div class="my-1 p-1.5 rounded" style="${bgStyle}">
+          <div class="space-y-1">
+            ${items.map(item => {
+        const cleanText = item.replace(/^[■•\-\*]\s*/, '');
+        return `
+                <div class="flex items-start gap-1.5 text-slate-900 leading-snug" style="${textStyle}">
+                  <span class="inline-block w-2 h-2 mt-1 shrink-0" style="background-color: ${bulletColor};"></span>
+                  <span class="flex-1">${cleanText}</span>
+                </div>
+              `;
+      }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // RENDER PHOTO CAPTION HELPER
+    function renderCaptionHTML(sec, defaultAlign = 'left') {
+      if (!sec || !sec.caption) return '';
+      const font = sec.captionFont || "'Martel', serif";
+      const size = sec.captionSize || '8.5px';
+      const color = sec.captionColor || '#475569';
+      const align = sec.captionAlign || defaultAlign;
+      const isBold = sec.captionBold === true;
+      const isItalic = sec.captionItalic !== false;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
+      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption}</span>`;
+    }
+
+    // RENDER SINGLE SLOT INNER CONTENT
+    function renderSingleSlotInnerHTML(sec) {
+      if (!sec) return '';
+      const hasBg = sec.bgColor && sec.bgColor !== 'transparent';
+      const bgStyle = hasBg ? `background-color: ${sec.bgColor}; padding: 0px 5px 0px 5px; border-radius: 2px; border: 1px solid #d1d5db; box-sizing: border-box;` : '';
+
+      return `
+        <div class="${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''}" style="${bgStyle}">
+          ${sec.tag ? `<span class="bg-red-800 text-white font-sans text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider inline-block mb-1">${sec.tag}</span>` : ''}
+          
+          <h2 class="font-extrabold text-slate-950 leading-snug my-1" style="font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"}; font-size: ${sec.fontSize || '20px'}; color: ${sec.titleColor || '#111111'}; text-align: ${sec.titleAlign || 'left'};">
+            ${sec.title}
+          </h2>
+          
+          ${sec.subtitle ? `<h3 class="font-semibold italic my-1 leading-tight" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'};">${sec.subtitle}</h3>` : ''}
+
+          <!-- 1. HERO FEATURE LAYOUT -->
+          ${(sec.layout === 'hero-split') ? `
+            ${sec.image ? `
+              <div class="my-1">
+                <img src="${sec.image}" alt="Photo" class="w-full max-h-56 object-cover border border-black p-0.5">
+                ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
+              </div>
+            ` : ''}
+            ${renderBulletsHTML(sec)}
+            <div class="font-martel leading-relaxed ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              ${renderParagraphsHTML(sec, true)}
+            </div>
+          ` : ''}
+
+          <!-- 2. LEFT CORNER FLOAT LAYOUT -->
+          ${(sec.layout === 'left-img') ? `
+            <div class="font-martel leading-relaxed clearfix my-1 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              ${sec.image ? `
+                <div class="float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white">
+                  <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover">
+                  ${renderCaptionHTML(sec, 'center')}
+                </div>
+              ` : ''}
+              ${renderBulletsHTML(sec)}
+              ${renderParagraphsHTML(sec, true)}
+            </div>
+          ` : ''}
+
+          <!-- 3. RIGHT CORNER FLOAT LAYOUT -->
+          ${(sec.layout === 'right-img') ? `
+            <div class="font-martel leading-relaxed clearfix my-1 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              ${sec.image ? `
+                <div class="float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white">
+                  <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover">
+                  ${renderCaptionHTML(sec, 'center')}
+                </div>
+              ` : ''}
+              ${renderBulletsHTML(sec)}
+              ${renderParagraphsHTML(sec, true)}
+            </div>
+          ` : ''}
+
+          <!-- 4. TOP BANNER IMAGE LAYOUT -->
+          ${(sec.layout === 'top-img' || !sec.layout) ? `
+            ${sec.image ? `
+              <div class="my-1">
+                <img src="${sec.image}" alt="Photo" class="w-full max-h-48 object-cover border border-black p-0.5">
+                ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
+              </div>
+            ` : ''}
+            ${renderBulletsHTML(sec)}
+            <div class="font-martel leading-relaxed ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              ${renderParagraphsHTML(sec, true)}
+            </div>
+          ` : ''}
+
+          <!-- 5. BOTTOM IMAGE LAYOUT -->
+          ${(sec.layout === 'bottom-img') ? `
+            ${renderBulletsHTML(sec)}
+            <div class="font-martel leading-relaxed my-0.5 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              ${renderParagraphsHTML(sec, true)}
+            </div>
+            ${sec.image ? `
+              <div class="my-1">
+                <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover border border-black p-0.5">
+                ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
+              </div>
+            ` : ''}
+          ` : ''}
+
+          <!-- 6. TEXT ONLY LAYOUT -->
+          ${(sec.layout === 'text-only') ? `
+            ${renderBulletsHTML(sec)}
+            <div class="font-martel leading-relaxed my-0.5 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              ${renderParagraphsHTML(sec, true)}
+            </div>
+          ` : ''}
+
+        </div>
+      `;
+    }
+
+    // 2D SPATIAL BEST-FIT TOP-TO-BOTTOM LEFT-TO-RIGHT PLACEMENT ENGINE
+    function runBroadsheetSpatial2DPacking() {
+      const container = document.getElementById('broadsheetSpatialEngine');
+      if (!container) return;
+
+      const curPage = getCurrentPage();
+      if (!curPage || !curPage.sections || curPage.sections.length === 0) return;
+
+      const colY = new Array(12).fill(0);
+      const colGap = 12; // 12px horizontal column gutter (50% increased equal left-right space)
+      const rowGap = 5;  // 5px tight uniform vertical bottom gap
+
+      curPage.sections.forEach((sec) => {
+        const el = document.getElementById(`wrapper-${sec.id}`);
+        if (!el) return;
+
+        const span = Math.min(12, Math.max(1, sec.colSpan || 6));
+        const cardH = Math.ceil(el.offsetHeight || el.getBoundingClientRect().height || 120);
+
+        let bestC = 0;
+        let minTargetY = Infinity;
+
+        if (sec.clearRow || span >= 12) {
+          minTargetY = Math.max(...colY);
+          bestC = 0;
+        } else {
+          for (let c = 0; c <= 12 - span; c++) {
+            let maxYInSpan = 0;
+            for (let k = c; k < c + span; k++) {
+              if (colY[k] > maxYInSpan) maxYInSpan = colY[k];
+            }
+            if (maxYInSpan < minTargetY) {
+              minTargetY = maxYInSpan;
+              bestC = c;
+            }
+          }
+        }
+
+        const leftPct = (bestC / 12) * 100;
+        const leftPx = (colGap * bestC) / 12 + (sec.offsetX || 0);
+        const topPx = minTargetY + (sec.offsetY || 0);
+        const widthPct = (span / 12) * 100;
+        const widthGapPx = span < 12 ? (colGap * (12 - span) / 12) : 0;
+
+        el.style.position = 'absolute';
+        el.style.left = `calc(${leftPct}% + ${leftPx}px)`;
+        el.style.top = `${topPx}px`;
+        el.style.width = span >= 12 ? '100%' : `calc(${widthPct}% - ${widthGapPx}px)`;
+        el.style.visibility = 'visible';
+
+        if (activeSectionId === sec.id) {
+          el.classList.add('ring-2', 'ring-blue-500', 'ring-offset-1', 'z-20');
+        } else {
+          el.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-1', 'z-20');
+        }
+
+        const applySpan = (sec.clearRow || span >= 12) ? 12 : span;
+        const nextY = minTargetY + cardH + rowGap;
+        for (let k = bestC; k < bestC + applySpan; k++) {
+          colY[k] = nextY;
+        }
+      });
+
+      const totalH = Math.max(...colY);
+      container.style.height = `${Math.max(400, totalH + 10)}px`;
+
+      // Attach image load listeners to trigger dynamic re-pack if images finish loading later
+      const imgs = container.querySelectorAll('img');
+      imgs.forEach(img => {
+        if (!img.complete && !img.dataset.packedListener) {
+          img.dataset.packedListener = 'true';
+          img.onload = () => runBroadsheetSpatial2DPacking();
+        }
+      });
+    }
+
+    // RENDER THE ACTIVE A3 CANVAS PAGE
+    function renderActiveCanvasPage() {
+      const canvas = document.getElementById('newspaperCanvas');
+      if (!canvas) return;
+
+      const page = getCurrentPage();
+      const meta = studioState.paperMeta;
+
+      let headerHTML = '';
+
+      if (page.mastheadType === 'full' || studioState.activePageIndex === 0) {
+        const titleStyle = `
+          font-family: ${meta.titleFont || "'Rozha One', serif"};
+          font-size: ${meta.titleSize || '52px'};
+          color: ${meta.titleColor || '#dc2626'};
+          text-align: ${meta.titleAlign || 'center'};
+          font-weight: ${meta.titleBold !== false ? '800' : 'normal'};
+          font-style: ${meta.titleItalic ? 'italic' : 'normal'};
+          text-decoration: ${meta.titleUnderline ? 'underline' : 'none'};
+          line-height: 1.18;
+          letter-spacing: 0.02em;
+          padding: 0;
+          margin-top: 5px;
+          margin-bottom: 2px;
+        `;
+        const taglineStyle = `
+          font-family: ${meta.taglineFont || "'Martel', serif"};
+          font-size: ${meta.taglineSize || '12px'};
+          color: ${meta.taglineColor || '#334155'};
+          font-style: ${meta.taglineItalic !== false ? 'italic' : 'normal'};
+          text-align: ${meta.taglineAlign || meta.titleAlign || 'center'};
+          margin-bottom: 3px;
+        `;
+
+        headerHTML = `
+          <div class="mb-1 shrink-0">
+            <!-- TOP FOLIO BAR WITH EDITION, WEBSITE & AUTO DATE -->
+            <div class="flex justify-between items-center text-[11px] font-sans tracking-tight text-slate-900 pb-[1px] mb-1.5" style="border-bottom: 3px double #222;">
+              <span class="font-semibold text-slate-800 uppercase text-[11px]">${meta.edition || 'शिमला - धर्मशाला - मंडी संस्करण'}</span>
+              <span class="font-bold text-red-700 tracking-wider text-[11.5px] font-sans flex items-center gap-1">
+                <i class="fa-solid fa-globe text-[10px] text-red-600"></i> ${meta.website || 'himachalnews.co'} <span class="text-slate-500 font-normal text-[10px]">• डिजिटल संस्करण</span>
+              </span>
+              <span class="font-semibold text-slate-800 text-[11px]">${meta.date || getFormattedHindiDate()}</span>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 pt-1 pb-0.5">
+              <!-- LEFT EAR: WEATHER & PANCHANG WIDGET (3 CITIES + SUNRISE/SUNSET/AQI) -->
+              ${meta.showWeather !== false ? `
+                <div class="w-[23%] max-w-[225px] border border-black p-1 text-center bg-sky-50/80 rounded-[2px] shrink-0 self-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <span class="text-[8px] font-bold block border-b border-black mb-0.5 bg-sky-200/90 tracking-wide text-slate-900 py-0.2">
+                    🌤️ आज का मौसम व पंचांग
+                  </span>
+                  <div class="grid grid-cols-3 text-[8.5px] font-sans leading-tight text-slate-950 py-0.5">
+                    <div class="px-0.5" style="border-right: 1px dashed #cbd5e1;">
+                      <span class="block text-[7.5px] text-slate-700 font-bold truncate">शिमला</span>
+                      <span class="font-bold text-[8.5px] font-mono text-slate-950">${meta.weatherShimla || '21°/16° 🌧️'}</span>
+                    </div>
+                    <div class="px-0.5" style="border-right: 1px dashed #cbd5e1;">
+                      <span class="block text-[7.5px] text-slate-700 font-bold truncate">धर्मशाला</span>
+                      <span class="font-bold text-[8.5px] font-mono text-slate-950">${meta.weatherDharamshala || '28°/18° ⛅'}</span>
+                    </div>
+                    <div class="px-0.5">
+                      <span class="block text-[7.5px] text-slate-700 font-bold truncate">मंडी</span>
+                      <span class="font-bold text-[8.5px] font-mono text-slate-950">${meta.weatherMandi || '30°/20° ☀️'}</span>
+                    </div>
+                  </div>
+                  <div class="border-t border-slate-300 pt-0.5 text-[7px] font-medium text-slate-700 tracking-tight whitespace-nowrap overflow-hidden">
+                    ${meta.weatherAstro || 'सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42'}
+                  </div>
+                </div>
+              ` : `<div class="w-[23%] max-w-[225px] shrink-0"></div>`}
+
+              <!-- CENTER: LOGO & TAGLINE -->
+              <div class="flex-1 text-center px-1 self-center min-w-0">
+                <h1 class="select-text m-0" style="${titleStyle}">
+                  ${meta.title}
+                </h1>
+                ${meta.tagline ? `<div style="${taglineStyle}">${meta.tagline}</div>` : ''}
+              </div>
+
+              <!-- RIGHT EAR: EAR PANEL AD (WITH 'विज्ञापन' HEADER) -->
+              ${meta.showAds !== false ? `
+                <div class="w-[23%] max-w-[225px] border border-black p-1 text-center bg-amber-50/80 rounded-[2px] shrink-0 self-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <span class="text-[8px] font-bold block border-b border-black mb-0.5 bg-amber-200/90 tracking-wide text-slate-900 py-0.2">
+                    ${meta.rightAdTag || 'विज्ञापन'}
+                  </span>
+                  <p class="font-bold text-[9.5px] leading-tight text-red-700 truncate">${meta.rightAdTitle || 'सोलन सेविंग्स बैंक'}</p>
+                  <p class="text-[8px] leading-tight mt-0.5 text-slate-800 font-medium truncate">${meta.rightAdText || 'एफडी पर 8.5% विशेष ब्याज दर।'}</p>
+                </div>
+              ` : `<div class="w-[23%] max-w-[225px] shrink-0"></div>`}
+            </div>
+
+            <!-- AUTHENTIC BROADSHEET DOUBLE BORDER FOLIO BAR -->
+            <div class="flex justify-between items-center text-[10.5px] font-bold font-serif my-1 py-1 border-t-2 border-b border-black">
+              <span>${meta.vol}</span>
+              <span>पंजीकृत नंबर: ${meta.regNo || 'HP/SML/04/2024-26'}</span>
+              <span>पृष्ठ 1 | मूल्य: ${meta.price}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // COMPACT INNER PAGE FOLIO HEADER
+        headerHTML = `
+          <div class="mb-1 shrink-0">
+            <div class="flex justify-between items-center text-[11px] font-sans text-slate-900 tracking-tight pb-0.5 mb-1" style="border-bottom: 3px double #222;">
+              <span class="font-semibold uppercase text-[11px]">${meta.title} • ${meta.edition}</span>
+              <span class="font-bold text-red-700 tracking-wider text-[11.5px] font-sans flex items-center gap-1">
+                <i class="fa-solid fa-globe text-[10px] text-red-600"></i> ${meta.website || 'himachalnews.co'}
+              </span>
+              <span class="font-semibold text-[11px]">${meta.date || getFormattedHindiDate()} • पृष्ठ ${studioState.activePageIndex + 1}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Render hidden initial cards into spatial container workspace
+      const slotsContainerHTML = `
+        <div id="broadsheetSpatialEngine" class="relative w-full" style="min-height: 400px; display: block; overflow: visible;">
+          ${page.sections.map(sec => {
+        const span = Math.min(12, Math.max(1, sec.colSpan || 6));
+        const widthPct = (span / 12) * 100;
+        const gapDec = span < 12 ? (12 * (12 - span) / 12) : 0;
+        return `
+              <div onclick="openSectionEditorFromCanvas('${sec.id}')" class="news-slot-wrapper absolute cursor-pointer hover:outline hover:outline-2 hover:outline-blue-500/70 hover:bg-blue-500/5 rounded" id="wrapper-${sec.id}" title="क्लिक करके इस खबर का एडिटर खोलें" style="width: calc(${widthPct}% - ${gapDec}px); top: 0; left: 0; visibility: hidden;">
+                ${renderSingleSlotInnerHTML(sec)}
+              </div>
+            `;
+      }).join('')}
+        </div>
+      `;
+
+      const footerHTML = `
+        <div class="w-full mt-auto pt-2 shrink-0 select-none">
+          <div class="border-t-2 border-black"></div>
+          <div class="flex justify-between items-center text-[8.5px] font-sans text-slate-700 tracking-wider pt-0.5">
+            <span>${meta.title || 'PressCraft'} • ${meta.edition || 'दैनिक'}</span>
+            <span class="font-serif italic text-slate-500">अखबार के सभी अधिकार सुरक्षित</span>
+            <span>पृष्ठ ${studioState.activePageIndex + 1}</span>
+          </div>
+        </div>
+      `;
+
+      canvas.innerHTML = headerHTML + slotsContainerHTML + footerHTML;
+
+      // Run 2D Spatial Best-Fit Placement after DOM frame render
+      requestAnimationFrame(() => {
+        runBroadsheetSpatial2DPacking();
+        setTimeout(runBroadsheetSpatial2DPacking, 50);
+        setTimeout(runBroadsheetSpatial2DPacking, 200);
+      });
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => runBroadsheetSpatial2DPacking());
+      }
+    }
+
+    // ACTIVE SECTION SELECTION ENGINE
+    let activeSectionId = null;
+
+    function deselectAllSections() {
+      activeSectionId = null;
+      document.querySelectorAll('.news-slot-wrapper').forEach(w => {
+        w.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-1', 'z-20', 'shadow-lg');
+      });
+      document.querySelectorAll('#sidebarSectionsContainer > div').forEach(c => {
+        c.classList.remove('ring-2', 'ring-blue-500');
+      });
+    }
+
+    function selectSection(secId) {
+      activeSectionId = secId;
+      document.querySelectorAll('.news-slot-wrapper').forEach(w => {
+        w.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-1', 'z-20', 'shadow-lg');
+      });
+      const el = document.getElementById(`wrapper-${secId}`);
+      if (el) {
+        el.classList.add('ring-2', 'ring-blue-500', 'ring-offset-1', 'z-20');
+      }
+    }
+
+    // DESELECT ON OUTSIDE CLICK (CANVAS BLANK BACKGROUND, WORKSPACE, OR OUTSIDE SIDEBAR)
+    document.addEventListener('pointerdown', (e) => {
+      // If clicking inside an actual news slot wrapper, inside sidebar, or on top action buttons, keep selection
+      if (e.target.closest('.news-slot-wrapper') || e.target.closest('#studioSidebar') || e.target.closest('header') || e.target.closest('button')) {
+        return;
+      }
+      deselectAllSections();
+    });
+
+    // KEYBOARD ARROW KEYS NUDGE LISTENER (ArrowUp, ArrowDown, ArrowLeft, ArrowRight + Shift)
+    window.addEventListener('keydown', (e) => {
+      const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+      if (!arrowKeys.includes(e.key)) return;
+
+      // 1. Input Field Conflict Protection (Crucial):
+      // If user is currently typing in input, textarea, select or contentEditable, do NOT move blocks
+      const activeEl = document.activeElement;
+      if (activeEl) {
+        const tagName = activeEl.tagName.toLowerCase();
+        const isInput = tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+        const isContentEditable = activeEl.isContentEditable || activeEl.getAttribute('contenteditable') === 'true';
+        if (isInput || isContentEditable) {
+          return; // Let standard text cursor movement work normally
+        }
+      }
+
+      // 2. Check if a block is active/selected
+      if (!activeSectionId) return;
+
+      const curPage = getCurrentPage();
+      if (!curPage || !curPage.sections) return;
+      const sec = curPage.sections.find(s => s.id === activeSectionId);
+      if (!sec) return;
+
+      // 3. Prevent whole webpage scroll
+      e.preventDefault();
+
+      // 4. Shift key for fast 10px movement, otherwise 1px
+      const step = e.shiftKey ? 10 : 1;
+      sec.offsetX = (sec.offsetX || 0);
+      sec.offsetY = (sec.offsetY || 0);
+
+      if (e.key === 'ArrowUp') {
+        sec.offsetY -= step;
+      } else if (e.key === 'ArrowDown') {
+        sec.offsetY += step;
+      } else if (e.key === 'ArrowLeft') {
+        sec.offsetX -= step;
+      } else if (e.key === 'ArrowRight') {
+        sec.offsetX += step;
+      }
+
+      // Re-run spatial packing immediately for smooth real-time response
+      runBroadsheetSpatial2DPacking();
+      autoSave();
+    });
+
+    // OPEN NEWS SECTION EDITOR FROM CANVAS CLICK
+    function openSectionEditorFromCanvas(secId) {
+      selectSection(secId);
+      if (!sidebarOpen) {
+        toggleSidebar();
+      }
+
+      switchTab('tab-news');
+
+      const acc = document.getElementById(`acc-${secId}`);
+      if (acc && acc.classList.contains('hidden')) {
+        acc.classList.remove('hidden');
+      }
+
+      const card = document.getElementById(`card-${secId}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        card.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+        setTimeout(() => {
+          card.classList.remove('ring-2', 'ring-blue-500');
+        }, 1500);
+      }
+    }
+
+    // SWITCH SIDEBAR TABS
+    function switchTab(tabId) {
+      ['tab-pages', 'tab-news', 'tab-editor', 'tab-masthead'].forEach(t => {
+        const panel = document.getElementById(t);
+        const btn = document.getElementById(`nav-${t}`);
+        if (panel && btn) {
+          if (t === tabId) {
+            panel.classList.remove('hidden');
+            btn.classList.add('border-blue-500', 'text-blue-400', 'bg-slate-900');
+            btn.classList.remove('border-transparent');
+          } else {
+            panel.classList.add('hidden');
+            btn.classList.remove('border-blue-500', 'text-blue-400', 'bg-slate-900');
+            btn.classList.add('border-transparent');
+          }
+        }
+      });
+    }
+
+    // SIDEBAR TOGGLE
+    function toggleSidebar() {
+      const sidebar = document.getElementById('studioSidebar');
+      const floatingBtn = document.getElementById('floatingOpenSidebarBtn');
+      const icon = document.getElementById('sidebarIcon');
+
+      sidebarOpen = !sidebarOpen;
+
+      if (sidebarOpen) {
+        sidebar.classList.remove('sidebar-collapsed');
+        floatingBtn.classList.add('hidden');
+        if (icon) icon.className = 'fa-solid fa-bars';
+      } else {
+        sidebar.classList.add('sidebar-collapsed');
+        floatingBtn.classList.remove('hidden');
+        if (icon) icon.className = 'fa-solid fa-bars-staggered';
+      }
+
+      setTimeout(() => {
+        if (currentZoom === 'fit') setZoom('fit');
+      }, 320);
+    }
+
+    // ACCORDION TOGGLE
+    function toggleAccordion(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.toggle('hidden');
+        if (!el.classList.contains('hidden')) {
+          const secId = id.replace('acc-', '');
+          selectSection(secId);
+        }
+      }
+    }
+
+    // AUTO-SCALE & ZOOM ENGINE (+ / - WITH FIT)
+    let currentZoomScale = 1.0;
+
+    function setZoom(scale) {
+      currentZoom = scale;
+      const zoomContainer = document.getElementById('zoomContainer');
+      const viewport = document.getElementById('canvasViewport');
+      const zoomDisplay = document.getElementById('zoomDisplayLabel');
+      if (!zoomContainer || !viewport) return;
+
+      let targetScale = 1.0;
+      if (scale === 'fit') {
+        const viewportWidth = viewport.clientWidth - 48;
+        const canvasWidth = 1122; // A3 width at 96 DPI
+        targetScale = Math.min(1.0, Math.max(0.35, viewportWidth / canvasWidth));
+      } else {
+        targetScale = parseFloat(scale);
+      }
+
+      currentZoomScale = Math.max(0.3, Math.min(2.0, targetScale));
+      zoomContainer.style.transform = `scale(${currentZoomScale})`;
+
+      if (zoomDisplay) {
+        zoomDisplay.innerText = scale === 'fit' ? 'Fit' : `${Math.round(currentZoomScale * 100)}%`;
+      }
+    }
+
+    function zoomIn() {
+      const nextScale = Math.min(2.0, Math.round((currentZoomScale + 0.1) * 10) / 10);
+      setZoom(nextScale);
+    }
+
+    function zoomOut() {
+      const nextScale = Math.max(0.3, Math.round((currentZoomScale - 0.1) * 10) / 10);
+      setZoom(nextScale);
+    }
+
+    // TOGGLE GRID OVERLAY
+    function toggleGrid() {
+      gridVisible = !gridVisible;
+      const viewport = document.getElementById('canvasViewport');
+      if (gridVisible) viewport.classList.add('show-grid');
+      else viewport.classList.remove('show-grid');
+    }
+
+    // UPDATE PAPER METADATA LIVE WITH FULL TYPOGRAPHY & TOGGLES
+    function updatePaperMetaField(field, val) {
+      studioState.paperMeta[field] = val;
+      syncHeaderUIFromState();
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function togglePaperMetaBool(field) {
+      studioState.paperMeta[field] = !studioState.paperMeta[field];
+
+      // Update UI button highlights
+      if (field === 'titleBold') {
+        const btn = document.getElementById('btnTitleBold');
+        if (btn) btn.className = `w-7 h-7 rounded text-xs font-bold flex items-center justify-center ${studioState.paperMeta.titleBold !== false ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`;
+      } else if (field === 'titleItalic') {
+        const btn = document.getElementById('btnTitleItalic');
+        if (btn) btn.className = `w-7 h-7 rounded text-xs font-bold flex items-center justify-center ${studioState.paperMeta.titleItalic ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`;
+      } else if (field === 'titleUnderline') {
+        const btn = document.getElementById('btnTitleUnderline');
+        if (btn) btn.className = `w-7 h-7 rounded text-xs font-bold flex items-center justify-center ${studioState.paperMeta.titleUnderline ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`;
+      } else if (field === 'showAds') {
+        const chk = document.getElementById('checkShowAds');
+        if (chk) chk.checked = studioState.paperMeta.showAds !== false;
+      } else if (field === 'showWeather') {
+        const chk = document.getElementById('checkShowWeather');
+        if (chk) chk.checked = studioState.paperMeta.showWeather !== false;
+      }
+
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function setDefaultHeadlineFont(fontFamily) {
+      studioState.paperMeta.defaultHeadlineFont = fontFamily;
+      getCurrentPage().sections.forEach(s => s.titleFont = fontFamily);
+      renderSidebarSections();
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function setDefaultBodyFont(fontFamily) {
+      studioState.paperMeta.defaultBodyFont = fontFamily;
+      getCurrentPage().sections.forEach(s => s.bodyFont = fontFamily);
+      renderSidebarSections();
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    // IN-MEMORY BASE64 IMAGE CONVERTER TO ELIMINATE ALL CORS / TAINT SECURITY ERRORS
+    async function convertAllImagesToBase64(container) {
+      const imgs = container.querySelectorAll('img');
+      const promises = [];
+      imgs.forEach(img => {
+        if (img.src && !img.src.startsWith('data:')) {
+          const p = new Promise((resolve) => {
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            tempImg.onload = () => {
+              try {
+                const cvs = document.createElement('canvas');
+                cvs.width = tempImg.naturalWidth || 400;
+                cvs.height = tempImg.naturalHeight || 300;
+                const ctx = cvs.getContext('2d');
+                ctx.drawImage(tempImg, 0, 0);
+                img.src = cvs.toDataURL('image/jpeg', 0.92);
+              } catch (e) {
+                // If canvas tainted, leave as is
+              }
+              resolve();
+            };
+            tempImg.onerror = () => resolve();
+            tempImg.src = img.src;
+          });
+          promises.push(p);
+        }
+      });
+      await Promise.all(promises);
+    }
+
+    // HELPER TO EXTRACT ALL ACTIVE STYLESHEETS & LINKS FOR SERVER-SIDE RENDERING
+    function collectAllActiveStyles() {
+      let styles = '';
+      document.querySelectorAll('style').forEach(s => {
+        styles += s.innerHTML + '\n';
+      });
+      const links = [];
+      document.querySelectorAll('link[rel="stylesheet"]').forEach(l => {
+        if (l.href) links.push(l.href);
+      });
+      return { styles, links };
+    }
+
+    // PNG EXPORT (100% WYSIWYG SERVER-SIDE PUPPETEER SCREENSHOT ENDPOINT)
+    async function exportPNG() {
+      const node = document.getElementById('newspaperCanvas');
+      const zoomContainer = document.getElementById('zoomContainer');
+      const prevTransform = zoomContainer.style.transform;
+      const prevActiveSectionId = activeSectionId;
+      if (!node) return;
+
+      try {
+        // 1. Remove all blue selection rings/borders before capturing image
+        deselectAllSections();
+        zoomContainer.style.transform = 'none';
+        runBroadsheetSpatial2DPacking();
+        await convertAllImagesToBase64(node);
+
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+        await new Promise(r => setTimeout(r, 200));
+
+        const { styles, links } = collectAllActiveStyles();
+
+        // Primary: Server-Side Puppeteer /api/export-newspaper
+        let downloaded = false;
+        try {
+          const res = await fetch('/api/export-newspaper', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              html: node.outerHTML,
+              styles,
+              links,
+              format: 'png'
+            })
+          });
+
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `PressCraft-${studioState.paperMeta.title}-Page-${studioState.activePageIndex + 1}.png`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+            downloaded = true;
+          }
+        } catch (serverErr) {
+          console.warn('Server-side renderer unavailable, falling back to local renderer:', serverErr);
+        }
+
+        // Fallback: html-to-image
+        if (!downloaded) {
+          const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
+          if (htmlToImageLib) {
+            const dataUrl = await htmlToImageLib.toPng(node, {
+              quality: 1.0,
+              pixelRatio: 2,
+              cacheBust: true,
+              skipAutoScale: true,
+              backgroundColor: '#fcfbfa'
+            });
+            const link = document.createElement('a');
+            link.download = `PressCraft-${studioState.paperMeta.title}-Page-${studioState.activePageIndex + 1}.png`;
+            link.href = dataUrl;
+            link.click();
+          }
+        }
+      } catch (error) {
+        console.error('Export failed:', error);
+        alert('Export error: ' + error.message);
+      } finally {
+        zoomContainer.style.transform = prevTransform;
+        if (prevActiveSectionId) {
+          selectSection(prevActiveSectionId);
+        } else {
+          runBroadsheetSpatial2DPacking();
+        }
+      }
+    }
+
+    // ALL-PAGES COMBINED A3 PDF EXPORT (SERVER-SIDE PUPPETEER PDF)
+    async function exportPDF() {
+      const zoomContainer = document.getElementById('zoomContainer');
+      const node = document.getElementById('newspaperCanvas');
+      const prevTransform = zoomContainer.style.transform;
+      const initialActivePage = studioState.activePageIndex;
+      const prevActiveSectionId = activeSectionId;
+      if (!node) return;
+
+      try {
+        // 1. Remove all blue selection rings/borders before capturing pages
+        deselectAllSections();
+        zoomContainer.style.transform = 'none';
+
+        // Render and collect outerHTML of all pages
+        const pagesHTML = [];
+        for (let i = 0; i < studioState.pages.length; i++) {
+          studioState.activePageIndex = i;
+          renderActiveCanvasPage();
+          deselectAllSections();
+          runBroadsheetSpatial2DPacking();
+          await convertAllImagesToBase64(node);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 180));
+          pagesHTML.push(node.outerHTML);
+        }
+
+        const { styles, links } = collectAllActiveStyles();
+
+        let downloaded = false;
+        // Primary: Server-side Puppeteer PDF Endpoint
+        try {
+          const res = await fetch('/api/export-newspaper', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pages: pagesHTML,
+              styles,
+              links,
+              format: 'pdf'
+            })
+          });
+
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `PressCraft-${studioState.paperMeta.title}-${studioState.pages.length}-Pages.pdf`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+            downloaded = true;
+          }
+        } catch (serverErr) {
+          console.warn('Server-side PDF renderer unavailable:', serverErr);
+        }
+
+        // Fallback: client-side jsPDF + htmlToImage
+        if (!downloaded) {
+          const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+          const pdf = jsPDFClass ? new jsPDFClass({ orientation: 'portrait', unit: 'mm', format: 'a3' }) : null;
+          const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
+
+          for (let i = 0; i < studioState.pages.length; i++) {
+            studioState.activePageIndex = i;
+            renderActiveCanvasPage();
+            deselectAllSections();
+            runBroadsheetSpatial2DPacking();
+            await convertAllImagesToBase64(node);
+            await new Promise(r => setTimeout(r, 180));
+
+            if (htmlToImageLib) {
+              const imgData = await htmlToImageLib.toJpeg(node, {
+                quality: 0.98,
+                pixelRatio: 2,
+                backgroundColor: '#fcfbfa'
+              });
+              if (pdf) {
+                if (i > 0) pdf.addPage('a3', 'portrait');
+                pdf.addImage(imgData, 'JPEG', 0, 0, 297, 420);
+              }
+            }
+          }
+
+          if (pdf) {
+            pdf.save(`PressCraft-${studioState.paperMeta.title}-${studioState.pages.length}-Pages.pdf`);
+          }
+        }
+      } catch (err) {
+        console.error('PDF Export Error:', err);
+        alert('PDF Export error: ' + err.message);
+      } finally {
+        studioState.activePageIndex = initialActivePage;
+        zoomContainer.style.transform = prevTransform;
+        renderActiveCanvasPage();
+        if (prevActiveSectionId) {
+          selectSection(prevActiveSectionId);
+        }
+      }
+    }
+
+    // HELPER TO GET CURRENT HINDI DATE & DAY AUTOMATICALLY
+    function getFormattedHindiDate(dateObj = new Date()) {
+      const days = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
+      const months = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+      const dayName = days[dateObj.getDay()];
+      const dateNum = dateObj.getDate();
+      const monthName = months[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      return `${dayName}, ${dateNum} ${monthName} ${year}`;
+    }
+
+    // WEATHER WMO CODE TO HINDI & EMOJI MAPPING
+    function getWeatherDescription(code) {
+      if (code === 0) return { text: 'साफ धूप', icon: '☀️' };
+      if (code >= 1 && code <= 3) return { text: 'हल्के बादल', icon: '⛅' };
+      if (code >= 45 && code <= 48) return { text: 'कोहरा/धुंध', icon: '🌫️' };
+      if (code >= 51 && code <= 55) return { text: 'हल्की बूंदाबांदी', icon: '🌦️' };
+      if (code >= 61 && code <= 65) return { text: 'बारिश', icon: '🌧️' };
+      if (code >= 71 && code <= 77) return { text: 'बर्फबारी', icon: '❄️' };
+      if (code >= 80 && code <= 82) return { text: 'तेज बारिश', icon: '🌧️' };
+      if (code >= 95) return { text: 'गरज-चमक', icon: '⛈️' };
+      return { text: 'खुशनुमा मौसम', icon: '⛅' };
+    }
+
+    const cityCoords = {
+      'shimla': { lat: 31.1048, lon: 77.1734, nameHindi: 'शिमला' },
+      'शिमला': { lat: 31.1048, lon: 77.1734, nameHindi: 'शिमला' },
+      'dharamshala': { lat: 32.2190, lon: 76.3234, nameHindi: 'धर्मशाला' },
+      'धर्मशाला': { lat: 32.2190, lon: 76.3234, nameHindi: 'धर्मशाला' },
+      'mandi': { lat: 31.7087, lon: 76.9320, nameHindi: 'मंडी' },
+      'मंडी': { lat: 31.7087, lon: 76.9320, nameHindi: 'मंडी' },
+      'solan': { lat: 30.9045, lon: 77.0967, nameHindi: 'सोलन' },
+      'सोलन': { lat: 30.9045, lon: 77.0967, nameHindi: 'सोलन' },
+      'kullu': { lat: 31.9579, lon: 77.1095, nameHindi: 'कुल्लू' },
+      'कुल्लू': { lat: 31.9579, lon: 77.1095, nameHindi: 'कुल्लू' },
+      'manali': { lat: 32.2432, lon: 77.1892, nameHindi: 'मनाली' },
+      'मनाली': { lat: 32.2432, lon: 77.1892, nameHindi: 'मनाली' },
+      'delhi': { lat: 28.6139, lon: 77.2090, nameHindi: 'दिल्ली' },
+      'दिल्ली': { lat: 28.6139, lon: 77.2090, nameHindi: 'दिल्ली' },
+      'chandigarh': { lat: 30.7333, lon: 76.7794, nameHindi: 'चंडीगढ़' },
+      'चंडीगढ़': { lat: 30.7333, lon: 76.7794, nameHindi: 'चंडीगढ़' }
+    };
+
+    // AUTO LIVE WEATHER & ASTRO FETCH (SHIMLA, DHARAMSHALA, MANDI) VIA FREE OPEN-METEO API
+    async function fetchLiveWeather() {
+      try {
+        const locations = [
+          { key: 'weatherShimla', lat: 31.1048, lon: 77.1734 },
+          { key: 'weatherDharamshala', lat: 32.2190, lon: 76.3234 },
+          { key: 'weatherMandi', lat: 31.7087, lon: 76.9320 }
+        ];
+
+        let sunriseStr = '05:58';
+        let sunsetStr = '06:45';
+
+        await Promise.all(locations.map(async (loc, idx) => {
+          try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset&timezone=Asia/Kolkata`);
+            const data = await res.json();
+            if (data && data.daily && data.daily.temperature_2m_max && data.daily.temperature_2m_min) {
+              const maxT = Math.round(data.daily.temperature_2m_max[0]);
+              const minT = Math.round(data.daily.temperature_2m_min[0]);
+              const wCode = (data.daily.weather_code && data.daily.weather_code[0] !== undefined) ? data.daily.weather_code[0] : 1;
+              const wInfo = getWeatherDescription(wCode);
+              studioState.paperMeta[loc.key] = `${maxT}°/${minT}° ${wInfo.icon}`;
+
+              if (idx === 0 && data.daily.sunrise && data.daily.sunrise[0]) {
+                const sTime = data.daily.sunrise[0].split('T')[1] || '05:58';
+                sunriseStr = sTime.slice(0, 5);
+              }
+              if (idx === 0 && data.daily.sunset && data.daily.sunset[0]) {
+                const eTime = data.daily.sunset[0].split('T')[1] || '18:45';
+                sunsetStr = eTime.slice(0, 5);
+              }
+            }
+          } catch (e) {
+            console.warn(`Weather fetch failed for ${loc.key}:`, e);
+          }
+        }));
+
+        studioState.paperMeta.weatherAstro = `सूर्योदय: ${sunriseStr} • सूर्यास्त: ${sunsetStr} • AQI: 42`;
+
+        syncHeaderUIFromState();
+        renderActiveCanvasPage();
+        autoSave();
+      } catch (err) {
+        console.warn('Weather fetch error:', err);
+      }
+    }
+
+    function setTodayDateAuto() {
+      const todayStr = getFormattedHindiDate();
+      updatePaperMetaField('date', todayStr);
+      const inputDate = document.getElementById('inputDate');
+      if (inputDate) inputDate.value = todayStr;
+      fetchLiveWeather();
+    }
+
+    // SYNC HEADER CONTROLS UI WITH CURRENT PAPER META
+    function syncHeaderUIFromState() {
+      const meta = studioState.paperMeta;
+      const setVal = (id, v) => {
+        const el = document.getElementById(id);
+        if (el && v !== undefined && document.activeElement !== el) el.value = v;
+      };
+
+      setVal('inputPaperTitle', meta.title);
+      setVal('inputPaperTitleFont', meta.titleFont);
+      setVal('inputPaperTitleSize', parseFloat(meta.titleSize) || 56);
+      setVal('inputPaperTitleColor', meta.titleColor || '#dc2626');
+      setVal('inputTagline', meta.tagline);
+      setVal('inputTaglineFont', meta.taglineFont);
+      setVal('inputTaglineSize', parseFloat(meta.taglineSize) || 12);
+      setVal('inputTaglineColor', meta.taglineColor || '#334155');
+      setVal('inputWebsite', meta.website || 'himachalnews.co');
+      setVal('inputEdition', meta.edition);
+      setVal('inputDate', meta.date || getFormattedHindiDate());
+      setVal('inputPrice', meta.price);
+      setVal('inputVol', meta.vol);
+      setVal('inputRegNo', meta.regNo);
+
+      setVal('inputWeatherShimla', meta.weatherShimla || '21°/16° 🌧️');
+      setVal('inputWeatherDharamshala', meta.weatherDharamshala || '28°/18° ⛅');
+      setVal('inputWeatherMandi', meta.weatherMandi || '30°/20° ☀️');
+      setVal('inputWeatherAstro', meta.weatherAstro || 'सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42');
+      setVal('inputRightAdTitle', meta.rightAdTitle || '');
+      setVal('inputRightAdText', meta.rightAdText || '');
+
+      const btnBold = document.getElementById('btnTitleBold');
+      if (btnBold) btnBold.className = `w-7 h-7 rounded text-xs font-bold flex items-center justify-center ${meta.titleBold !== false ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`;
+
+      const btnItalic = document.getElementById('btnTitleItalic');
+      if (btnItalic) btnItalic.className = `w-7 h-7 rounded text-xs font-bold flex items-center justify-center ${meta.titleItalic ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`;
+
+      const btnUnderline = document.getElementById('btnTitleUnderline');
+      if (btnUnderline) btnUnderline.className = `w-7 h-7 rounded text-xs font-bold flex items-center justify-center ${meta.titleUnderline ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`;
+
+      const chkWeather = document.getElementById('checkShowWeather');
+      if (chkWeather) chkWeather.checked = meta.showWeather !== false;
+
+      const chkAds = document.getElementById('checkShowAds');
+      if (chkAds) chkAds.checked = meta.showAds !== false;
+
+      // Sync Title Alignment buttons
+      const tAlign = meta.titleAlign || 'center';
+      ['Left', 'Center', 'Right'].forEach(a => {
+        const btn = document.getElementById(`btnTitleAlign${a}`);
+        if (btn) btn.className = `w-7 h-7 rounded text-xs flex items-center justify-center ${tAlign === a.toLowerCase() ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-800 text-slate-300'}`;
+      });
+
+      // Sync Tagline Alignment buttons
+      const tagAlign = meta.taglineAlign || meta.titleAlign || 'center';
+      ['Left', 'Center', 'Right'].forEach(a => {
+        const btn = document.getElementById(`btnTaglineAlign${a}`);
+        if (btn) btn.className = `w-7 h-7 rounded text-xs flex items-center justify-center ${tagAlign === a.toLowerCase() ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-800 text-slate-300'}`;
+      });
+    }
+
+    // USER AUTH & SUBSCRIPTION UI SYNC
+    async function checkUserSessionAndSyncUI() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          const u = data.user;
+          const badge = document.getElementById('userProfileBadge');
+          const nameEl = document.getElementById('navUserName');
+          const planEl = document.getElementById('navUserPlan');
+          const adminBtn = document.getElementById('navAdminBtn');
+
+          if (badge && nameEl) {
+            badge.classList.remove('hidden');
+            nameEl.textContent = u.name || u.newspaperName || u.username;
+            if (u.role === 'admin') {
+              if (planEl) planEl.textContent = 'Admin';
+              if (adminBtn) adminBtn.classList.remove('hidden');
+            } else {
+              const diffDays = Math.ceil((new Date(u.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+              if (planEl) planEl.textContent = `${Math.max(0, diffDays)} दिन शेष`;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Session check warning:', e);
+      }
+    }
+
+    async function handleUserLogout() {
+      if (confirm('क्या आप लॉगआउट करना चाहते हैं?')) {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.top.location.href = '/login';
+      }
+    }
+
+    // INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedData();
+      updatePageSelectorsUI();
+      renderPagesList();
+      renderSidebarSections();
+      syncHeaderUIFromState();
+      renderActiveCanvasPage();
+      setZoom('fit');
+      fetchLiveWeather();
+      checkUserSessionAndSyncUI();
+
+      if (document.getElementById('defaultHeadlineFontSelect') && studioState.paperMeta.defaultHeadlineFont) {
+        document.getElementById('defaultHeadlineFontSelect').value = studioState.paperMeta.defaultHeadlineFont;
+      }
+      if (document.getElementById('defaultBodyFontSelect') && studioState.paperMeta.defaultBodyFont) {
+        document.getElementById('defaultBodyFontSelect').value = studioState.paperMeta.defaultBodyFont;
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (currentZoom === 'fit') setZoom('fit');
+    });
+  </script>
+</body>
+
+</html>

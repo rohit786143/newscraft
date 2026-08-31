@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 10, 12, 16;
+  --background-end-rgb: 7, 9, 14;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
+  min-height: 100vh;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Authentic Indian Newspaper Typography Utilities */
+.font-yantramanav {
+  font-family: 'Yantramanav', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.font-noto-sans-dev {
+  font-family: 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-noto-serif-dev {
+  font-family: 'Noto Serif Devanagari', Georgia, Cambria, serif;
+}
+
+.font-rozha {
+  font-family: 'Rozha One', 'Noto Serif Devanagari', serif;
+}
+
+.font-sahitya {
+  font-family: 'Sahitya', 'Noto Serif Devanagari', serif;
+}
+
+.font-martel {
+  font-family: 'Martel', 'Noto Serif Devanagari', serif;
+}
+
+.font-baloo {
+  font-family: 'Baloo 2', cursive, sans-serif;
+}
+
+.font-mukta {
+  font-family: 'Mukta', sans-serif;
+}
+
+.font-tiro {
+  font-family: 'Tiro Devanagari Hindi', serif;
+}
+
+.font-yatra {
+  font-family: 'Yatra One', cursive, serif;
+}
+
+.font-martel-sans {
+  font-family: 'Martel Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Default Broadsheet Newspaper Headline Styling (Divya Himachal / Amar Ujala style) */
+.newspaper-lead-headline {
+  font-family: 'Yantramanav', 'Yatra One', 'Martel Sans', 'Noto Sans Devanagari', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  color: #0f172a;
+}
+
+.newspaper-dateline {
+  font-family: 'Noto Sans Devanagari', 'Yantramanav', sans-serif;
+  font-weight: 700;
+  color: #b91c1c;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.newspaper-secondary-headline {
+  font-family: 'Yantramanav', 'Noto Sans Devanagari', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  color: #0a0a0a;
+}
+
+/* Strict fixed-size newspaper broadsheet canvas: 960px x 1360px */
+.newspaper-fixed-page {
+  width: 960px !important;
+  min-width: 960px !important;
+  max-width: 960px !important;
+  height: 1360px !important;
+  min-height: 1360px !important;
+  max-height: 1360px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.newspaper-top-bar {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  align-self: stretch !important;
+}
+
+/* Form inputs high contrast dark text overrides */
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Traditional Indian Geometric Ribbon Border */
+.newspaper-ribbon-border {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #d11a2a,
+    #d11a2a 12px,
+    #f59e0b 12px,
+    #f59e0b 24px,
+    #047857 24px,
+    #047857 36px,
+    #1e3a8a 36px,
+    #1e3a8a 48px
+  );
+}
+
+/* Authentic Multi-Column Broadsheet Newspaper Typesetting (Border-free) */
+.newspaper-multi-col-2 {
+  column-count: 2;
+  column-gap: 14px;
+  column-rule: none;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+.newspaper-multi-col-3 {
+  column-count: 3;
+  column-gap: 12px;
+  column-rule: none;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+.newspaper-multi-col-4 {
+  column-count: 4;
+  column-gap: 10px;
+  column-rule: none;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+/* Print Rules & Page Geometry */
+@page {
+  size: 960px 1360px;
+  margin: 0mm;
+}
+
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    width: 960px !important;
+    height: 1360px !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .newspaper-fixed-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-after: always;
+  }
+  .newspaper-fixed-page * {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}

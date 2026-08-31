@@ -1,0 +1,32 @@
+[
+  {
+    "id": "usr-admin",
+    "name": "Super Admin",
+    "username": "admin",
+    "email": "admin@presscraft.com",
+    "password": "admin123",
+    "role": "admin",
+    "newspaperName": "PressCraft Network",
+    "planType": "lifetime",
+    "startDate": "2026-01-01T00:00:00.000Z",
+    "endDate": "2099-12-31T23:59:59.000Z",
+    "status": "active",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "notes": "Main Administrator Account"
+  },
+  {
+    "id": "usr-demo",
+    "name": "Alam Porle",
+    "username": "himachalnews",
+    "email": "editor@himachalnews.co",
+    "password": "News@123",
+    "role": "user",
+    "newspaperName": "हिमाचल न्यूज़",
+    "planType": "1-month",
+    "startDate": "2026-08-31T00:00:00.000Z",
+    "endDate": "2026-09-15T00:00:00.000Z",
+    "status": "active",
+    "createdAt": "2026-08-31T00:00:00.000Z",
+    "notes": "1 Month Standard Subscription"
+  }
+]
