@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
 
     await page.setContent(fullHTML, {
-      waitUntil: ['load', 'networkidle0']
+      waitUntil: ['load', 'networkidle0' as any]
     });
 
     await page.evaluate(async () => {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     await browser.close();
 
-    return new NextResponse(screenshotBuffer, {
+    return new NextResponse(screenshotBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
