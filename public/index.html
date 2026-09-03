@@ -254,6 +254,50 @@
       opacity: 0 !important;
     }
 
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 767px) {
+      body {
+        overflow: hidden !important;
+        position: fixed;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      /* Mobile Drawer Slide-in Sidebar */
+      #studioSidebar {
+        position: fixed !important;
+        top: 0;
+        bottom: 56px;
+        left: 0;
+        width: 92vw !important;
+        max-width: 400px !important;
+        height: calc(100vh - 56px) !important;
+        max-height: calc(100vh - 56px) !important;
+        z-index: 50 !important;
+        box-shadow: 10px 0 35px rgba(0, 0, 0, 0.8) !important;
+        transform: translateX(0);
+        transition: transform 0.28s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.2s ease !important;
+      }
+
+      #studioSidebar.sidebar-collapsed {
+        transform: translateX(-105%) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      /* Mobile Viewport Area */
+      #canvasViewport {
+        padding: 8px !important;
+        padding-bottom: 72px !important;
+        align-items: flex-start !important;
+      }
+
+      /* Mobile Inputs font-size protection to prevent iOS zoom */
+      input, select, textarea {
+        font-size: 13px !important;
+      }
+    }
+
     @media print {
       body {
         background: #fff !important;
@@ -425,6 +469,9 @@
       <i class="fa-solid fa-pen-to-square"></i>
       <span>Open Publishing Studio</span>
     </button>
+
+    <!-- MOBILE SIDEBAR BACKDROP OVERLAY -->
+    <div id="mobileSidebarBackdrop" onclick="closeSidebarMobile()" class="hidden md:hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 transition-opacity"></div>
 
     <!-- PROFESSIONAL MULTI-PAGE TABBED SIDEBAR -->
     <aside id="studioSidebar"
@@ -3868,27 +3915,61 @@
       }
     }
 
-    // SIDEBAR TOGGLE
-    function toggleSidebar() {
+    // MOBILE & DESKTOP SIDEBAR DRAWER CONTROLLER
+    function openSidebar() {
       const sidebar = document.getElementById('studioSidebar');
       const floatingBtn = document.getElementById('floatingOpenSidebarBtn');
+      const backdrop = document.getElementById('mobileSidebarBackdrop');
       const icon = document.getElementById('sidebarIcon');
 
-      sidebarOpen = !sidebarOpen;
+      sidebarOpen = true;
+      if (sidebar) sidebar.classList.remove('sidebar-collapsed');
+      if (floatingBtn) floatingBtn.classList.add('hidden');
+      if (backdrop && window.innerWidth < 768) backdrop.classList.remove('hidden');
+      if (icon) icon.className = 'fa-solid fa-xmark text-red-400';
+    }
 
-      if (sidebarOpen) {
-        sidebar.classList.remove('sidebar-collapsed');
-        floatingBtn.classList.add('hidden');
-        if (icon) icon.className = 'fa-solid fa-bars';
-      } else {
-        sidebar.classList.add('sidebar-collapsed');
-        floatingBtn.classList.remove('hidden');
-        if (icon) icon.className = 'fa-solid fa-bars-staggered';
-      }
+    function closeSidebar() {
+      const sidebar = document.getElementById('studioSidebar');
+      const floatingBtn = document.getElementById('floatingOpenSidebarBtn');
+      const backdrop = document.getElementById('mobileSidebarBackdrop');
+      const icon = document.getElementById('sidebarIcon');
+
+      sidebarOpen = false;
+      if (sidebar) sidebar.classList.add('sidebar-collapsed');
+      if (floatingBtn) floatingBtn.classList.remove('hidden');
+      if (backdrop) backdrop.classList.add('hidden');
+      if (icon) icon.className = 'fa-solid fa-bars';
 
       setTimeout(() => {
         if (currentZoom === 'fit') setZoom('fit');
-      }, 320);
+      }, 300);
+    }
+
+    function closeSidebarMobile() {
+      closeSidebar();
+    }
+
+    function toggleSidebar() {
+      if (sidebarOpen) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+
+    function openTabMobile(tabId) {
+      switchTab(tabId);
+      openSidebar();
+    }
+
+    function toggleCanvasFocusMobile() {
+      if (sidebarOpen) {
+        closeSidebar();
+        setZoom('fit');
+      } else {
+        openSidebar();
+      }
     }
 
     // ACCORDION TOGGLE
@@ -3979,14 +4060,16 @@
 
       let targetScale = 1.0;
       if (scale === 'fit') {
-        const viewportWidth = viewport.clientWidth - 48;
+        const isMobile = window.innerWidth < 768;
+        const padding = isMobile ? 16 : 48;
+        const viewportWidth = Math.max(260, viewport.clientWidth - padding);
         const canvasWidth = curSizeCfg.widthPx;
-        targetScale = Math.min(1.0, Math.max(0.25, viewportWidth / canvasWidth));
+        targetScale = Math.min(1.0, Math.max(0.18, viewportWidth / canvasWidth));
       } else {
         targetScale = parseFloat(scale);
       }
 
-      currentZoomScale = Math.max(0.25, Math.min(2.0, targetScale));
+      currentZoomScale = Math.max(0.18, Math.min(2.0, targetScale));
       zoomContainer.style.transform = `scale(${currentZoomScale})`;
 
       if (zoomDisplay) {
@@ -4000,7 +4083,7 @@
     }
 
     function zoomOut() {
-      const nextScale = Math.max(0.3, Math.round((currentZoomScale - 0.1) * 10) / 10);
+      const nextScale = Math.max(0.2, Math.round((currentZoomScale - 0.1) * 10) / 10);
       setZoom(nextScale);
     }
 
@@ -6457,6 +6540,11 @@
       syncHeaderUIFromState();
       syncCustomHeaderUI();
       renderActiveCanvasPage();
+
+      if (window.innerWidth < 768) {
+        closeSidebar();
+      }
+
       setZoom('fit');
       fetchLiveWeather();
       checkUserSessionAndSyncUI();
@@ -6471,6 +6559,10 @@
     });
 
     window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768 && !sidebarOpen) {
+        const backdrop = document.getElementById('mobileSidebarBackdrop');
+        if (backdrop) backdrop.classList.add('hidden');
+      }
       if (currentZoom === 'fit') setZoom('fit');
     });
   </script>
@@ -6607,7 +6699,35 @@
   </div>
 
   <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
-  <div id="studioToastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+  <div id="studioToastContainer" class="fixed bottom-16 md:bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+
+  <!-- MOBILE BOTTOM APP NAVIGATION DOCK (1-TAP MOBILE WORKSPACE) -->
+  <nav class="md:hidden no-print fixed bottom-0 left-0 right-0 h-14 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 z-40 flex items-center justify-around px-1 select-none shadow-2xl">
+    <button type="button" onclick="openTabMobile('tab-pages')" id="m-nav-pages" class="flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition cursor-pointer">
+      <i class="fa-solid fa-copy text-sm"></i>
+      <span class="text-[9.5px] font-bold mt-0.5">पेज</span>
+    </button>
+    <button type="button" onclick="openTabMobile('tab-news')" id="m-nav-news" class="flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-400 transition cursor-pointer">
+      <i class="fa-solid fa-newspaper text-sm"></i>
+      <span class="text-[9.5px] font-bold mt-0.5">खबरें</span>
+    </button>
+    <button type="button" onclick="openTabMobile('tab-masthead')" id="m-nav-masthead" class="flex-1 py-1.5 flex flex-col items-center justify-center text-amber-400 hover:text-amber-300 transition cursor-pointer">
+      <i class="fa-solid fa-heading text-sm"></i>
+      <span class="text-[9.5px] font-bold mt-0.5">हेडर</span>
+    </button>
+    <button type="button" onclick="openTabMobile('tab-editor')" id="m-nav-editor" class="flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-purple-400 transition cursor-pointer">
+      <i class="fa-solid fa-font text-sm"></i>
+      <span class="text-[9.5px] font-bold mt-0.5">स्टाइल</span>
+    </button>
+    <button type="button" onclick="openSaveDesignModal()" class="flex-1 py-1.5 flex flex-col items-center justify-center text-blue-400 hover:text-blue-300 transition cursor-pointer">
+      <i class="fa-solid fa-floppy-disk text-sm"></i>
+      <span class="text-[9.5px] font-bold mt-0.5">सेव</span>
+    </button>
+    <button type="button" onclick="toggleCanvasFocusMobile()" id="m-nav-focus" class="flex-1 py-1.5 flex flex-col items-center justify-center text-emerald-400 hover:text-emerald-300 transition cursor-pointer">
+      <i class="fa-solid fa-eye text-sm"></i>
+      <span class="text-[9.5px] font-bold mt-0.5" id="m-nav-focus-lbl">कैनवास</span>
+    </button>
+  </nav>
 
 </body>
 
