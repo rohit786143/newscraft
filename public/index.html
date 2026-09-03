@@ -231,6 +231,44 @@
       border: none !important;
     }
 
+    /* NEWSPAPER CUTTING CARD & GRID STYLES */
+    .cutting-canvas-card {
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
+      position: relative;
+      box-sizing: border-box;
+    }
+    .scissor-cut-border {
+      border: 2px dashed #94a3b8;
+      position: relative;
+    }
+    .scissor-cut-border::before {
+      content: "✂️";
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      font-size: 13px;
+      background: #ffffff;
+      padding: 0 4px;
+      z-index: 10;
+    }
+    .cutting-cols-1 {
+      column-count: 1 !important;
+    }
+    .cutting-cols-2 {
+      column-count: 2 !important;
+      column-rule: 1px solid #e2e8f0;
+      column-gap: 16px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+    }
+    .cutting-cols-3 {
+      column-count: 3 !important;
+      column-rule: 1px solid #e2e8f0;
+      column-gap: 14px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+    }
+
     /* Custom Scrollbars */
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
@@ -353,6 +391,23 @@
         </div>
       </div>
 
+      <!-- App Mode Switcher (Full E-Paper vs Newspaper Cutting) -->
+      <div class="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5 shadow-sm shrink-0">
+        <button id="modeBtnFullEpaper" onclick="switchStudioMode('epaper')"
+          class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-red-600 text-white shadow-sm"
+          title="पूर्ण ई-पेपर ब्रॉडशीट मोड">
+          <i class="fa-solid fa-newspaper text-xs"></i>
+          <span class="hidden sm:inline">Full E-Paper</span>
+        </button>
+        <button id="modeBtnCutting" onclick="switchStudioMode('cutting')"
+          class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-white hover:bg-slate-900"
+          title="सिंगल न्यूज़पेपर कटिंग व सोशल मीडिया ग्राफ़िक मोड">
+          <i class="fa-solid fa-scissors text-xs text-amber-400"></i>
+          <span>News Cutting</span>
+          <span class="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.2 rounded font-mono font-bold border border-amber-500/40">New</span>
+        </button>
+      </div>
+
       <!-- Auto-Save Status Indicator -->
       <div id="autoSaveBadge"
         class="hidden sm:flex items-center gap-1.5 text-[10.5px] bg-slate-900/70 border border-slate-800/80 text-slate-300 px-2.5 py-1 rounded-lg shrink-0">
@@ -470,7 +525,7 @@
       <span>Open Publishing Studio</span>
     </button>
 
-    <!-- MOBILE SIDEBAR BACKDROP OVERLAY -->
+<!-- MOBILE SIDEBAR BACKDROP OVERLAY -->
     <div id="mobileSidebarBackdrop" onclick="closeSidebarMobile()" class="hidden md:hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 transition-opacity"></div>
 
     <!-- PROFESSIONAL MULTI-PAGE TABBED SIDEBAR -->
@@ -487,8 +542,8 @@
         </button>
       </div>
 
-      <!-- MAIN NAVIGATION TABS -->
-      <div class="grid grid-cols-4 bg-slate-950 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+      <!-- ================= 1. FULL E-PAPER MODE NAVIGATION TABS ================= -->
+      <div id="epaperTabNav" class="grid grid-cols-4 bg-slate-950 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
         <button onclick="switchTab('tab-pages')" id="nav-tab-pages"
           class="py-2.5 px-1 border-b-2 border-blue-500 text-blue-400 bg-slate-900 text-center flex flex-col items-center gap-1 transition">
           <i class="fa-solid fa-copy text-xs"></i>
@@ -511,8 +566,37 @@
         </button>
       </div>
 
+      <!-- ================= 2. NEWSPAPER CUTTING MODE NAVIGATION TABS ================= -->
+      <div id="cuttingTabNav" class="hidden grid grid-cols-4 bg-slate-950 border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+        <button onclick="switchCuttingTab('tab-cut-content')" id="nav-cut-content"
+          class="py-2.5 px-1 border-b-2 border-amber-500 text-amber-400 bg-slate-900 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-pen-nib text-xs"></i>
+          <span>खबर</span>
+        </button>
+        <button onclick="switchCuttingTab('tab-cut-layout')" id="nav-cut-layout"
+          class="py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-table-cells text-xs"></i>
+          <span>ग्रिड & साइज़</span>
+        </button>
+        <button onclick="switchCuttingTab('tab-cut-media')" id="nav-cut-media"
+          class="py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-image text-xs"></i>
+          <span>फोटो</span>
+        </button>
+        <button onclick="switchCuttingTab('tab-cut-style')" id="nav-cut-style"
+          class="py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition">
+          <i class="fa-solid fa-palette text-xs"></i>
+          <span>स्टाइल</span>
+        </button>
+      </div>
+
       <!-- TAB CONTENT PANELS -->
       <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 text-xs">
+
+        <!-- ========================================================================= -->
+        <!-- 1. FULL E-PAPER MODE PANELS WRAPPER                                       -->
+        <!-- ========================================================================= -->
+        <div id="epaperPanelsWrapper" class="space-y-3">
 
         <!-- ================= TAB 1: PAGES MANAGER (MULTI-PAGE ARCHITECTURE) ================= -->
         <div id="tab-pages" class="space-y-3">
@@ -1135,21 +1219,575 @@
 
         </div>
 
+        </div> <!-- END #epaperPanelsWrapper -->
+
+        <!-- ========================================================================= -->
+        <!-- 2. NEWSPAPER CUTTING MODE PANELS WRAPPER                                   -->
+        <!-- ========================================================================= -->
+        <div id="cuttingPanelsWrapper" class="hidden space-y-3">
+
+          <!-- TAB 1: CUTTING CONTENT (खबर व सामग्री) -->
+          <div id="tab-cut-content" class="space-y-3">
+            
+            <!-- Quick Preset Tags Bar -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-tag"></i> खबर श्रेणी व टैग (Category Tag)
+              </span>
+              <div class="flex flex-wrap gap-1">
+                <button type="button" onclick="setCuttingTag('एंकर स्टोरी', '#0284c7', '#ffffff')" class="px-2 py-0.5 bg-sky-950 hover:bg-sky-900 text-sky-300 border border-sky-800 rounded text-[10.5px] font-bold transition">एंकर</button>
+                <button type="button" onclick="setCuttingTag('बड़ी खबर', '#dc2626', '#ffffff')" class="px-2 py-0.5 bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 rounded text-[10.5px] font-bold transition">बड़ी खबर</button>
+                <button type="button" onclick="setCuttingTag('ब्रेकिंग न्यूज़', '#b91c1c', '#ffffff')" class="px-2 py-0.5 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-[10.5px] font-bold transition">ब्रेकिंग</button>
+                <button type="button" onclick="setCuttingTag('विशेष रिपोर्ट', '#7c3aed', '#ffffff')" class="px-2 py-0.5 bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-800 rounded text-[10.5px] font-bold transition">विशेष</button>
+                <button type="button" onclick="setCuttingTag('प्रशासनिक हलचल', '#059669', '#ffffff')" class="px-2 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded text-[10.5px] font-bold transition">प्रशासनिक</button>
+                <button type="button" onclick="setCuttingTag('संपादकीय', '#d97706', '#ffffff')" class="px-2 py-0.5 bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-800 rounded text-[10.5px] font-bold transition">संपादकीय</button>
+                <button type="button" onclick="setCuttingTag('खेल Desk', '#0284c7', '#ffffff')" class="px-2 py-0.5 bg-blue-950 hover:bg-blue-900 text-blue-300 border border-blue-800 rounded text-[10.5px] font-bold transition">खेल</button>
+                <button type="button" onclick="setCuttingTag('अपराध डायरी', '#991b1b', '#ffffff')" class="px-2 py-0.5 bg-red-950 hover:bg-red-900 text-red-400 border border-red-900 rounded text-[10.5px] font-bold transition">अपराध</button>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 pt-1">
+                <div class="col-span-2">
+                  <label class="text-slate-400 text-[10px] block mb-0.5">टैग नाम (Custom Tag)</label>
+                  <input type="text" id="cutInputTag" oninput="updateCuttingField('tag', this.value)"
+                    placeholder="e.g. बड़ी खबर / एंकर"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">बैकग्राउंड</label>
+                  <input type="color" id="cutInputTagBg" onchange="updateCuttingField('tagBgColor', this.value)"
+                    class="w-full h-7 bg-slate-900 border border-slate-700 rounded p-0.5 cursor-pointer">
+                </div>
+              </div>
+            </div>
+
+            <!-- Top Line / Kicker -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-bolt text-amber-400"></i> इंट्रो / टॉप लाइन (Kicker / Intro)
+                </span>
+                <input type="color" id="cutInputTopLineColor" onchange="updateCuttingField('topLineColor', this.value)"
+                  class="w-6 h-5 bg-slate-900 border border-slate-700 rounded p-0 cursor-pointer" title="Top Line Color">
+              </div>
+              <input type="text" id="cutInputTopLine" oninput="updateCuttingField('topLine', this.value)"
+                placeholder="e.g. विशेष संवाददाता द्वारा प्रसारित / बड़ी प्रशासनिक खबर"
+                class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white text-xs outline-none font-semibold">
+            </div>
+
+            <!-- Main Headline -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-heading"></i> मुख्य समाचार शीर्षक (Main Headline)
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono" id="cutHeadlineCharCount">0 chars</span>
+              </div>
+              <textarea id="cutInputHeadline" oninput="updateCuttingField('headline', this.value)" rows="2"
+                placeholder="यहाँ मुख्य खबर का शीर्षक लिखें..."
+                class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white text-sm font-bold outline-none"></textarea>
+
+              <div class="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">फॉन्ट (Typeface)</label>
+                  <select id="cutHeadlineFont" onchange="updateCuttingField('headlineFont', this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
+                    <option value="'Rozha One', serif">Rozha One (शाही देवानागरी)</option>
+                    <option value="'Mukta', sans-serif">Mukta Bold (मुक्ता बोल्ड)</option>
+                    <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari (अखबार)</option>
+                    <option value="'Martel', serif">Martel Serif (क्लासिक)</option>
+                    <option value="'Baloo 2', sans-serif">Baloo 2 ExtraBold</option>
+                    <option value="'Yatra One', cursive">Yatra One</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">साइज (Font Size: <span id="cutHeadlineSizeVal">28</span>px)</label>
+                  <input type="range" id="cutHeadlineSize" min="18" max="52" value="28"
+                    oninput="updateCuttingField('headlineSize', parseInt(this.value)); document.getElementById('cutHeadlineSizeVal').innerText=this.value;"
+                    class="w-full accent-amber-500">
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-Headline & Byline -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-subscript"></i> उप-शीर्षक व रिपोर्टर (Subhead & Dateline)
+              </span>
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">उप-शीर्षक (Sub-Headline)</label>
+                <input type="text" id="cutInputSubHeadline" oninput="updateCuttingField('subHeadline', this.value)"
+                  placeholder="e.g. कैबिनेट बैठक में अहम फैसलों पर लगी मुहर"
+                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">स्थान (Location)</label>
+                  <input type="text" id="cutInputLocation" oninput="updateCuttingField('location', this.value)"
+                    placeholder="e.g. शिमला (ब्यूरो):"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">संवाददाता / बायलाइन</label>
+                  <input type="text" id="cutInputByline" oninput="updateCuttingField('byline', this.value)"
+                    placeholder="e.g. विशेष संवाददाता"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- Body Text Content (with AI Auto-Fit!) -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-paragraph"></i> मुख्य समाचार विवरण (News Body Text)
+                </span>
+                <button type="button" onclick="aiAutoFitCuttingContent()"
+                  class="px-2 py-0.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded text-[10.5px] font-bold flex items-center gap-1 shadow transition hover:scale-105 cursor-pointer"
+                  title="Auto-balance text size & line spacing for optimal fit">
+                  <i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i> ⚡ AI Auto-Fit
+                </button>
+              </div>
+
+              <textarea id="cutInputContent" oninput="updateCuttingField('content', this.value)" rows="7"
+                placeholder="यहाँ खबर का पूरा विवरण लिखें..."
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 text-xs font-serif leading-relaxed outline-none"></textarea>
+
+              <div class="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">कॉलम संख्या</label>
+                  <select id="cutBodyCols" onchange="updateCuttingField('bodyCols', parseInt(this.value))"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-white text-xs outline-none font-bold">
+                    <option value="1">1 कॉलम</option>
+                    <option value="2">2 कॉलम (मानक)</option>
+                    <option value="3">3 कॉलम</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">फॉन्ट साइज (<span id="cutBodySizeVal">13</span>px)</label>
+                  <input type="range" id="cutBodySize" min="9" max="22" value="13"
+                    oninput="updateCuttingField('bodySize', parseInt(this.value)); document.getElementById('cutBodySizeVal').innerText=this.value;"
+                    class="w-full accent-amber-500">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">बॉडी फॉन्ट</label>
+                  <select id="cutBodyFont" onchange="updateCuttingField('bodyFont', this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-white text-xs outline-none">
+                    <option value="'Martel', serif">Martel Serif</option>
+                    <option value="'Mukta', sans-serif">Mukta Sans</option>
+                    <option value="'Noto Serif Devanagari', serif">Noto Serif</option>
+                    <option value="'Inter', sans-serif">Inter Clean</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 2: CUTTING LAYOUT & RATIO (ग्रिड व अनुपात) -->
+          <div id="tab-cut-layout" class="hidden space-y-3">
+            
+            <!-- 1. Aspect Ratio Cards -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-vector-square"></i> कैनवास आकार व आस्पेक्ट रेशियो (Aspect Ratio)
+              </span>
+
+              <div class="grid grid-cols-2 gap-2">
+                <!-- 1:1 Square -->
+                <button type="button" onclick="setCuttingRatio('1:1')" id="btnRatio_1_1"
+                  class="p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-amber-500 rounded-xl text-left transition flex items-center gap-2.5 cursor-pointer">
+                  <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-mono font-bold text-xs shrink-0">1:1</div>
+                  <div>
+                    <span class="font-bold text-white text-xs block">1:1 Square</span>
+                    <span class="text-[10px] text-slate-400 block">1080 × 1080 px • WhatsApp / Insta</span>
+                  </div>
+                </button>
+
+                <!-- 4:5 Portrait Feed -->
+                <button type="button" onclick="setCuttingRatio('4:5')" id="btnRatio_4_5"
+                  class="p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center gap-2.5 cursor-pointer">
+                  <div class="w-8 h-9 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center font-mono font-bold text-xs shrink-0">4:5</div>
+                  <div>
+                    <span class="font-bold text-white text-xs block">4:5 Portrait</span>
+                    <span class="text-[10px] text-slate-400 block">1080 × 1350 px • Insta Feed</span>
+                  </div>
+                </button>
+
+                <!-- 9:16 Story / Status -->
+                <button type="button" onclick="setCuttingRatio('9:16')" id="btnRatio_9_16"
+                  class="p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center gap-2.5 cursor-pointer">
+                  <div class="w-7 h-10 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center font-mono font-bold text-xs shrink-0">9:16</div>
+                  <div>
+                    <span class="font-bold text-white text-xs block">9:16 Story / Reel</span>
+                    <span class="text-[10px] text-slate-400 block">1080 × 1920 px • Status / Shorts</span>
+                  </div>
+                </button>
+
+                <!-- 16:9 Landscape -->
+                <button type="button" onclick="setCuttingRatio('16:9')" id="btnRatio_16_9"
+                  class="p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center gap-2.5 cursor-pointer">
+                  <div class="w-10 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-mono font-bold text-xs shrink-0">16:9</div>
+                  <div>
+                    <span class="font-bold text-white text-xs block">16:9 Landscape</span>
+                    <span class="text-[10px] text-slate-400 block">1200 × 675 px • Twitter / Web</span>
+                  </div>
+                </button>
+
+                <!-- Single Column Clip -->
+                <button type="button" onclick="setCuttingRatio('single-col')" id="btnRatio_single_col"
+                  class="col-span-2 p-2 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center gap-2.5 cursor-pointer">
+                  <div class="w-6 h-9 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center font-mono font-bold text-[10px] shrink-0">Col</div>
+                  <div>
+                    <span class="font-bold text-white text-xs block">Single Column Newspaper Clip</span>
+                    <span class="text-[10px] text-slate-400 block">अखबार का क्लासिक सिंगल कॉलम कटिंग लेआउट</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Grid Layout Templates Selector -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-table-cells-large"></i> कटिंग ग्रिड व लेआउट स्टाइल (Grid Layouts)
+              </span>
+
+              <div class="space-y-1.5">
+                
+                <!-- Layout 1: Lead Hero Top Image -->
+                <button type="button" onclick="setCuttingLayout('lead-hero')" id="btnCutLayout_lead_hero"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-amber-500 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">🌟</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">1. बड़ी लीड खबर (Lead Hero Photo)</span>
+                      <span class="text-[10.5px] text-slate-400 block">शीर्ष पर बड़ी फोटो + बड़ा शीर्षक + 2 कॉलम विवरण</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold" id="iconCutLayout_lead_hero">✓</span>
+                </button>
+
+                <!-- Layout 2: Photo Left / Text Right -->
+                <button type="button" onclick="setCuttingLayout('photo-left')" id="btnCutLayout_photo_left"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">👈</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">2. फोटो बाएँ + टेक्स्ट दाएँ (Split Left)</span>
+                      <span class="text-[10.5px] text-slate-400 block">बाएं भाग में फोटो और दाएं भाग में शीर्षक व खबर</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_photo_left">✓</span>
+                </button>
+
+                <!-- Layout 3: Text Left / Photo Right -->
+                <button type="button" onclick="setCuttingLayout('photo-right')" id="btnCutLayout_photo_right"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">👉</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">3. टेक्स्ट बाएँ + फोटो दाएँ (Split Right)</span>
+                      <span class="text-[10.5px] text-slate-400 block">बाएं भाग में खबर और दाएं भाग में फोटो</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_photo_right">✓</span>
+                </button>
+
+                <!-- Layout 4: Cutout Wrap -->
+                <button type="button" onclick="setCuttingLayout('cutout-wrap')" id="btnCutLayout_cutout_wrap"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">👤</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">4. कटआउट फोटो रैप (PNG Persona Wrap)</span>
+                      <span class="text-[10.5px] text-slate-400 block">पारदर्शी कटआउट फोटो जिसके चारों ओर टेक्स्ट बहेगा</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_cutout_wrap">✓</span>
+                </button>
+
+                <!-- Layout 5: Statement / Big Quote -->
+                <button type="button" onclick="setCuttingLayout('big-quote')" id="btnCutLayout_big_quote"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">💬</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">5. विशेष बयान / वक्तव्य (VIP Quote)</span>
+                      <span class="text-[10.5px] text-slate-400 block">उद्धरण चिह्नों और वक्ता की फोटो के साथ बयान बॉक्स</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_big_quote">✓</span>
+                </button>
+
+                <!-- Layout 6: Classic Text Only -->
+                <button type="button" onclick="setCuttingLayout('text-only')" id="btnCutLayout_text_only"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">📰</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">6. प्रेस नोट / केवल समाचार (Text Only)</span>
+                      <span class="text-[10.5px] text-slate-400 block">बिना फोटो के शुद्ध 2/3 कॉलम क्लासिक संपादकीय लेआउट</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_text_only">✓</span>
+                </button>
+
+                <!-- Layout 7: Urgent Breaking Alert -->
+                <button type="button" onclick="setCuttingLayout('breaking-alert')" id="btnCutLayout_breaking_alert"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">🚨</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">7. ब्रेकिंग न्यूज़ फ्लैश (Urgent Alert Bar)</span>
+                      <span class="text-[10.5px] text-slate-400 block">लाल/पीले बोल्ड हेडर बार के साथ उच्च-प्रभावित समाचार</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_breaking_alert">✓</span>
+                </button>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 3: CUTTING MEDIA (फोटो व कटआउट) -->
+          <div id="tab-cut-media" class="hidden space-y-3">
+            
+            <!-- Main Hero Photo -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-camera"></i> मुख्य समाचार फोटो (Hero Image)
+              </span>
+
+              <div class="space-y-2">
+                <div class="flex gap-2">
+                  <input type="text" id="cutInputImage" oninput="updateCuttingField('image', this.value)"
+                    placeholder="इमेज URL पेस्ट करें (https://...)"
+                    class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-white text-xs outline-none">
+                  <label class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0">
+                    <i class="fa-solid fa-upload"></i> Upload
+                    <input type="file" accept="image/*" onchange="handleCuttingImageUpload(event, 'image')" class="hidden">
+                  </label>
+                </div>
+
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">फोटो कैप्शन / सौजन्य (Caption)</label>
+                  <input type="text" id="cutInputCaption" oninput="updateCuttingField('caption', this.value)"
+                    placeholder="e.g. फोटो: कुल्लू घाटी के समीप नए बायपास का दृश्य।"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div>
+                    <label class="text-slate-400 text-[10px] block mb-0.5">फोटो ऊंचाई: <span id="cutImageHeightVal">220</span>px</label>
+                    <input type="range" id="cutImageHeight" min="100" max="450" value="220"
+                      oninput="updateCuttingField('imageHeight', parseInt(this.value)); document.getElementById('cutImageHeightVal').innerText=this.value;"
+                      class="w-full accent-amber-500">
+                  </div>
+                  <div>
+                    <button type="button" onclick="updateCuttingField('image', '')"
+                      class="w-full mt-3 py-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-xs font-bold transition cursor-pointer">
+                      ✕ फोटो हटाएं
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transparent Cutout PNG Wrap -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-user-tie"></i> कटआउट फोटो (Transparent PNG Persona)
+              </span>
+
+              <div class="space-y-2">
+                <div class="flex gap-2">
+                  <input type="text" id="cutInputCutout" oninput="updateCuttingField('cutoutImage', this.value)"
+                    placeholder="कटआउट PNG इमेज URL"
+                    class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-white text-xs outline-none">
+                  <label class="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0">
+                    <i class="fa-solid fa-upload"></i> PNG
+                    <input type="file" accept="image/*" onchange="handleCuttingImageUpload(event, 'cutoutImage')" class="hidden">
+                  </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <label class="text-slate-400 text-[10px] block mb-0.5">कटआउट चौड़ाई: <span id="cutCutoutWidthVal">160</span>px</label>
+                    <input type="range" id="cutCutoutWidth" min="80" max="320" value="160"
+                      oninput="updateCuttingField('cutoutWidth', parseInt(this.value)); document.getElementById('cutCutoutWidthVal').innerText=this.value;"
+                      class="w-full accent-purple-500">
+                  </div>
+                  <div>
+                    <label class="text-slate-400 text-[10px] block mb-0.5">कटआउट स्थान</label>
+                    <select id="cutCutoutPos" onchange="updateCuttingField('cutoutPosition', this.value)"
+                      class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
+                      <option value="left">बाएँ (Float Left)</option>
+                      <option value="right">दाएँ (Float Right)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Speaker info for VIP Quote layout -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-quote-left"></i> वक्ता का नाम व पद (Speaker / VIP Info)
+              </span>
+              <input type="text" id="cutInputSpeaker" oninput="updateCuttingField('speakerName', this.value)"
+                placeholder="e.g. सुखविंदर सिंह सुक्खू, मुख्यमंत्री"
+                class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-white text-xs outline-none font-bold">
+            </div>
+
+          </div>
+
+          <!-- TAB 4: CUTTING STYLE & MASTHEAD (स्टाइल व हेडर) -->
+          <div id="tab-cut-style" class="hidden space-y-3">
+            
+            <!-- Newspaper Masthead Branding -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-1">
+                <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-heading"></i> अखबार का नाम व हेडर (Masthead Branding)
+                </span>
+                <label class="flex items-center gap-1 text-[10.5px] text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="cutCheckShowMasthead" onchange="updateCuttingField('showMasthead', this.checked)" checked
+                    class="rounded bg-slate-900 border-slate-700 accent-amber-500">
+                  <span>दिखाएं</span>
+                </label>
+              </div>
+
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-0.5">अखबार का नाम (Masthead Title)</label>
+                <input type="text" id="cutInputMastheadTitle" oninput="updateCuttingField('mastheadTitle', this.value)"
+                  placeholder="e.g. हिमाचल न्यूज़"
+                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">संस्करण / शहर</label>
+                  <input type="text" id="cutInputEdition" oninput="updateCuttingField('edition', this.value)"
+                    placeholder="e.g. शिमला संस्करण"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5">साभार / स्रोत टैग</label>
+                  <input type="text" id="cutInputPageNo" oninput="updateCuttingField('pageNo', this.value)"
+                    placeholder="e.g. पेज 1 से साभार"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- Paper Theme Background -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-brush"></i> पेपर थीम व बैकग्राउंड (Paper Theme)
+              </span>
+
+              <div class="grid grid-cols-2 gap-1.5">
+                <button type="button" onclick="setCuttingPaperStyle('crisp-white')" id="btnPaper_crisp_white"
+                  class="p-2 bg-white text-slate-900 rounded-lg text-xs font-bold border-2 border-amber-500 text-left cursor-pointer">
+                  <span>⚪ Classic White</span>
+                  <span class="text-[9px] text-slate-500 block">शुद्ध श्वेत अखबार</span>
+                </button>
+                <button type="button" onclick="setCuttingPaperStyle('vintage-newsprint')" id="btnPaper_vintage_newsprint"
+                  class="p-2 bg-[#fbf8f0] text-amber-950 rounded-lg text-xs font-bold border-2 border-slate-800 text-left cursor-pointer">
+                  <span>📜 Vintage Print</span>
+                  <span class="text-[9px] text-amber-800 block">विंटेज न्यूजप्रिंट टोन</span>
+                </button>
+                <button type="button" onclick="setCuttingPaperStyle('modern-border')" id="btnPaper_modern_border"
+                  class="p-2 bg-[#f8fafc] text-slate-900 rounded-lg text-xs font-bold border-2 border-slate-800 text-left cursor-pointer">
+                  <span>🎨 Soft Slate</span>
+                  <span class="text-[9px] text-slate-500 block">मॉडर्न फ्रेम बॉर्डर</span>
+                </button>
+                <button type="button" onclick="setCuttingPaperStyle('dark-clipping')" id="btnPaper_dark_clipping"
+                  class="p-2 bg-[#0f172a] text-white rounded-lg text-xs font-bold border-2 border-slate-800 text-left cursor-pointer">
+                  <span>🌙 Dark Mode</span>
+                  <span class="text-[9px] text-slate-400 block">डार्क कटिंग ग्राफिक</span>
+                </button>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="cutCheckScissor" onchange="updateCuttingField('scissorBorder', this.checked)" checked
+                    class="rounded bg-slate-900 border-slate-700 accent-amber-500">
+                  <span>✂️ कैंची कटिंग बॉर्डर दिखाएं (Scissor Cut Dotted Line)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Export & Share Quick Tools -->
+            <div class="bg-gradient-to-r from-amber-950/60 to-orange-950/60 p-3 rounded-xl border border-amber-800/80 space-y-2">
+              <span class="text-amber-300 font-bold text-xs block">📸 इंस्टेंट एक्सपोर्ट व शेयर (Export HD Clipping)</span>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="exportCuttingImage('png')"
+                  class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer">
+                  <i class="fa-solid fa-download"></i> HD PNG डाउनलोड
+                </button>
+                <button type="button" onclick="shareCuttingWhatsApp()"
+                  class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer">
+                  <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div> <!-- END #cuttingPanelsWrapper -->
+
       </div>
     </aside>
 
-    <!-- CENTER PREVIEW VIEWPORT AREA WITH FIXED A3 CONTAINER -->
+    <!-- CENTER PREVIEW VIEWPORT AREA WITH FIXED A3 CONTAINER & CUTTING VIEWPORT -->
     <main
       class="flex-1 overflow-auto bg-slate-950 p-4 md:p-8 flex justify-center items-start custom-scrollbar relative transition-all duration-300"
       id="canvasViewport">
 
-      <div id="zoomContainer" class="transition-transform duration-200 origin-top">
+      <!-- 1. FULL E-PAPER BROADSHEET CANVAS -->
+      <div id="epaperCanvasWrapper" class="transition-transform duration-200 origin-top">
+        <div id="zoomContainer" class="transition-transform duration-200 origin-top">
+          <!-- THE FIXED A3 PRINT-READY NEWSPAPER PAGE (297 x 420 mm) -->
+          <div id="newspaperCanvas" class="newspaper-page select-text">
+            <!-- DYNAMIC ACTIVE PAGE CONTENT INJECTED HERE -->
+          </div>
+        </div>
+      </div>
 
-        <!-- THE FIXED A3 PRINT-READY NEWSPAPER PAGE (297 x 420 mm) -->
-        <div id="newspaperCanvas" class="newspaper-page select-text">
-          <!-- DYNAMIC ACTIVE PAGE CONTENT INJECTED HERE -->
+      <!-- 2. SINGLE NEWSPAPER CUTTING CANVAS -->
+      <div id="cuttingCanvasWrapper" class="hidden w-full flex flex-col items-center justify-start pb-20">
+        
+        <!-- Live cutting aspect ratio badge & Quick Action Bar -->
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 text-slate-300 px-4 py-2 rounded-2xl text-xs shadow-lg max-w-2xl w-full">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-400 font-bold flex items-center gap-1">
+              <i class="fa-solid fa-scissors"></i> News Cutting:
+            </span>
+            <span id="cuttingRatioBadge" class="font-bold text-white bg-blue-600 px-2.5 py-0.5 rounded-lg text-[11px]">1:1 Square (1080 × 1080)</span>
+            <span class="text-slate-400 text-[10.5px] hidden sm:inline">• Social Media Ready</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="exportCuttingImage('png')"
+              class="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow transition cursor-pointer"
+              title="Download high-resolution image">
+              <i class="fa-solid fa-download"></i> Download PNG
+            </button>
+            <button onclick="shareCuttingWhatsApp()"
+              class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow transition cursor-pointer"
+              title="Share directly to WhatsApp">
+              <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
+            </button>
+          </div>
         </div>
 
+        <div id="cuttingZoomContainer" class="transition-transform duration-200 origin-top shadow-2xl">
+          <div id="cuttingCanvas" class="bg-white text-slate-900 select-text overflow-hidden transition-all duration-300 relative border border-slate-300">
+            <!-- Dynamic Cutting HTML rendered by renderCuttingCanvas() -->
+          </div>
+        </div>
       </div>
 
     </main>
@@ -1575,6 +2213,695 @@
       renderPagesList();
       autoSave();
       showStudioToast('ℹ️ पेज 1 डिफ़ॉल्ट टेम्पलेट पर रीस्टोर किया गया।');
+    }
+
+    // =========================================================================
+    // NEWSPAPER CUTTING STUDIO ENGINE & CONTROLLERS
+    // =========================================================================
+    let currentStudioMode = 'epaper'; // 'epaper' | 'cutting'
+
+    const CUTTING_RATIO_CONFIGS = {
+      '1:1': {
+        id: '1:1',
+        label: '1:1 Square (1080 × 1080)',
+        subLabel: 'WhatsApp / Insta Post',
+        width: 680,
+        height: 680,
+        exportWidth: 1080,
+        exportHeight: 1080
+      },
+      '4:5': {
+        id: '4:5',
+        label: '4:5 Portrait (1080 × 1350)',
+        subLabel: 'Insta / FB Feed',
+        width: 640,
+        height: 800,
+        exportWidth: 1080,
+        exportHeight: 1350
+      },
+      '9:16': {
+        id: '9:16',
+        label: '9:16 Story / Reel (1080 × 1920)',
+        subLabel: 'Status / Stories / Reels',
+        width: 540,
+        height: 960,
+        exportWidth: 1080,
+        exportHeight: 1920
+      },
+      '16:9': {
+        id: '16:9',
+        label: '16:9 Landscape (1200 × 675)',
+        subLabel: 'Twitter / Web Banner',
+        width: 800,
+        height: 450,
+        exportWidth: 1200,
+        exportHeight: 675
+      },
+      'single-col': {
+        id: 'single-col',
+        label: 'Single Column (480 × 820)',
+        subLabel: 'Newspaper Column Clip',
+        width: 480,
+        height: 820,
+        exportWidth: 960,
+        exportHeight: 1640
+      }
+    };
+
+    const defaultCuttingState = {
+      ratio: '1:1', // '1:1' | '4:5' | '9:16' | '16:9' | 'single-col'
+      layout: 'lead-hero', // 'lead-hero' | 'photo-left' | 'photo-right' | 'cutout-wrap' | 'big-quote' | 'text-only' | 'breaking-alert'
+      paperStyle: 'crisp-white', // 'crisp-white' | 'vintage-newsprint' | 'modern-border' | 'dark-clipping'
+      showMasthead: true,
+      mastheadTitle: 'हिमाचल न्यूज़',
+      edition: 'शिमला संस्करण',
+      date: '',
+      pageNo: 'पेज 1 से साभार',
+      tag: 'बड़ी खबर',
+      tagBgColor: '#dc2626',
+      tagTextColor: '#ffffff',
+      topLine: 'विशेष संवाददाता द्वारा प्रसारित',
+      topLineColor: '#b91c1c',
+      headline: 'प्रदेश में पर्यटन को नई गति: ₹4,500 करोड़ के नए प्रोजेक्ट्स को हरी झंडी',
+      headlineFont: "'Rozha One', serif",
+      headlineSize: 28,
+      headlineColor: '#111111',
+      subHeadline: 'आधुनिक फोरलेन, बायपास और रोपवे कनेक्टिविटी से जुड़ेंगे सभी प्रमुख पर्यटन स्थल',
+      byline: 'विशेष संवाददाता',
+      location: 'शिमला (ब्यूरो):',
+      content: 'हिमाचल प्रदेश में बुनियादी ढांचे और पर्यटन उद्योग को नई ऊंचाइयों पर ले जाने के लिए सरकार ने ऐतिहासिक पहल की है। नए प्रस्ताव के तहत राज्य के प्रमुख पर्यटन स्थलों को ऑल-वेदर सड़कों और आधुनिक रोपवे नेटवर्क से जोड़ा जाएगा।\n\nमुख्यमंत्री ने घोषणा की कि इससे स्थानीय युवाओं को रोजगार के व्यापक अवसर मिलेंगे और यात्रा का समय घटकर आधा रह जाएगा। पर्यावरण सुरक्षा के सभी कड़े मानकों का पालन सुनिश्चित किया गया है।',
+      bodyFont: "'Martel', serif",
+      bodySize: 13,
+      bodyCols: 2,
+      bodyColor: '#1e293b',
+      image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80',
+      caption: 'फोटो: कुल्लू घाटी के समीप नए बायपास व फोरलेन हाईवे का विहंगम दृश्य।',
+      imageHeight: 220,
+      cutoutImage: '',
+      cutoutWidth: 160,
+      cutoutPosition: 'left',
+      speakerName: 'सुखविंदर सिंह सुक्खू, मुख्यमंत्री',
+      showWatermark: true,
+      scissorBorder: true
+    };
+
+    let cuttingState = JSON.parse(JSON.stringify(defaultCuttingState));
+
+    function switchStudioMode(mode) {
+      currentStudioMode = mode;
+
+      const btnEpaper = document.getElementById('modeBtnFullEpaper');
+      const btnCutting = document.getElementById('modeBtnCutting');
+      const epaperTabNav = document.getElementById('epaperTabNav');
+      const cuttingTabNav = document.getElementById('cuttingTabNav');
+      const epaperPanels = document.getElementById('epaperPanelsWrapper');
+      const cuttingPanels = document.getElementById('cuttingPanelsWrapper');
+      const epaperCanvas = document.getElementById('epaperCanvasWrapper');
+      const cuttingCanvas = document.getElementById('cuttingCanvasWrapper');
+      const sidebarTitle = document.getElementById('studioSidebarTitle');
+
+      if (mode === 'cutting') {
+        if (btnEpaper) {
+          btnEpaper.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-white hover:bg-slate-900';
+        }
+        if (btnCutting) {
+          btnCutting.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md';
+        }
+
+        if (epaperTabNav) epaperTabNav.classList.add('hidden');
+        if (cuttingTabNav) cuttingTabNav.classList.remove('hidden');
+        if (epaperPanels) epaperPanels.classList.add('hidden');
+        if (cuttingPanels) cuttingPanels.classList.remove('hidden');
+        if (epaperCanvas) epaperCanvas.classList.add('hidden');
+        if (cuttingCanvas) cuttingCanvas.classList.remove('hidden');
+
+        if (sidebarTitle) {
+          sidebarTitle.innerHTML = '<i class="fa-solid fa-scissors text-amber-400"></i> न्यूज़पेपर कटिंग स्टूडियो';
+        }
+
+        if (studioState?.paperMeta?.title && (!cuttingState.mastheadTitle || cuttingState.mastheadTitle === 'हिमाचल न्यूज़')) {
+          cuttingState.mastheadTitle = studioState.paperMeta.title;
+        }
+
+        syncCuttingInputsFromState();
+        renderCuttingCanvas();
+        showStudioToast('✂️ न्यूज़पेपर कटिंग मोड एक्टिवेट हुआ!');
+      } else {
+        if (btnEpaper) {
+          btnEpaper.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-red-600 text-white shadow-sm';
+        }
+        if (btnCutting) {
+          btnCutting.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-white hover:bg-slate-900';
+        }
+
+        if (epaperTabNav) epaperTabNav.classList.remove('hidden');
+        if (cuttingTabNav) cuttingTabNav.classList.add('hidden');
+        if (epaperPanels) epaperPanels.classList.remove('hidden');
+        if (cuttingPanels) cuttingPanels.classList.add('hidden');
+        if (epaperCanvas) epaperCanvas.classList.remove('hidden');
+        if (cuttingCanvas) cuttingCanvas.classList.add('hidden');
+
+        if (sidebarTitle) {
+          sidebarTitle.innerHTML = '<i class="fa-solid fa-layer-group text-blue-400"></i> PressCraft Studio Hub';
+        }
+
+        renderActiveCanvasPage();
+        showStudioToast('📰 सम्पूर्ण ई-पेपर मोड एक्टिवेट हुआ!');
+      }
+    }
+
+    function switchCuttingTab(tabId) {
+      const tabs = ['tab-cut-content', 'tab-cut-layout', 'tab-cut-media', 'tab-cut-style'];
+      tabs.forEach(t => {
+        const el = document.getElementById(t);
+        const navBtn = document.getElementById(t.replace('tab-', 'nav-'));
+        if (el) {
+          if (t === tabId) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        }
+        if (navBtn) {
+          if (t === tabId) {
+            navBtn.className = 'py-2.5 px-1 border-b-2 border-amber-500 text-amber-400 bg-slate-900 text-center flex flex-col items-center gap-1 transition';
+          } else {
+            navBtn.className = 'py-2.5 px-1 border-b-2 border-transparent hover:text-slate-200 text-center flex flex-col items-center gap-1 transition';
+          }
+        }
+      });
+    }
+
+    function setCuttingRatio(ratioId) {
+      cuttingState.ratio = ratioId;
+
+      // Update UI selection buttons
+      ['1:1', '4:5', '9:16', '16:9', 'single-col'].forEach(r => {
+        const btn = document.getElementById(`btnRatio_${r.replace(':', '_').replace('-', '_')}`);
+        if (btn) {
+          if (r === ratioId) {
+            btn.classList.add('border-amber-500');
+            btn.classList.remove('border-slate-800');
+          } else {
+            btn.classList.remove('border-amber-500');
+            btn.classList.add('border-slate-800');
+          }
+        }
+      });
+
+      const badge = document.getElementById('cuttingRatioBadge');
+      if (badge && CUTTING_RATIO_CONFIGS[ratioId]) {
+        badge.innerText = CUTTING_RATIO_CONFIGS[ratioId].label;
+      }
+
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function setCuttingLayout(layoutId) {
+      cuttingState.layout = layoutId;
+
+      const layouts = ['lead-hero', 'photo-left', 'photo-right', 'cutout-wrap', 'big-quote', 'text-only', 'breaking-alert'];
+      layouts.forEach(l => {
+        const btn = document.getElementById(`btnCutLayout_${l.replace(/-/g, '_')}`);
+        const icon = document.getElementById(`iconCutLayout_${l.replace(/-/g, '_')}`);
+        if (btn) {
+          if (l === layoutId) {
+            btn.classList.add('border-amber-500');
+            btn.classList.remove('border-slate-800');
+          } else {
+            btn.classList.remove('border-amber-500');
+            btn.classList.add('border-slate-800');
+          }
+        }
+        if (icon) {
+          if (l === layoutId) {
+            icon.classList.remove('hidden');
+          } else {
+            icon.classList.add('hidden');
+          }
+        }
+      });
+
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function setCuttingTag(tag, bg, text) {
+      cuttingState.tag = tag;
+      cuttingState.tagBgColor = bg || '#dc2626';
+      cuttingState.tagTextColor = text || '#ffffff';
+
+      const tagInput = document.getElementById('cutInputTag');
+      const tagBgInput = document.getElementById('cutInputTagBg');
+      if (tagInput) tagInput.value = tag;
+      if (tagBgInput) tagBgInput.value = bg;
+
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function setCuttingPaperStyle(styleId) {
+      cuttingState.paperStyle = styleId;
+
+      ['crisp-white', 'vintage-newsprint', 'modern-border', 'dark-clipping'].forEach(s => {
+        const btn = document.getElementById(`btnPaper_${s.replace(/-/g, '_')}`);
+        if (btn) {
+          if (s === styleId) {
+            btn.classList.add('border-amber-500');
+            btn.classList.remove('border-slate-800');
+          } else {
+            btn.classList.remove('border-amber-500');
+            btn.classList.add('border-slate-800');
+          }
+        }
+      });
+
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function updateCuttingField(key, val) {
+      cuttingState[key] = val;
+      if (key === 'headline') {
+        const counter = document.getElementById('cutHeadlineCharCount');
+        if (counter) counter.innerText = (val || '').length + ' chars';
+      }
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function handleCuttingImageUpload(event, field) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        cuttingState[field] = e.target.result;
+        const input = document.getElementById(field === 'image' ? 'cutInputImage' : 'cutInputCutout');
+        if (input) input.value = e.target.result;
+        saveCuttingState();
+        renderCuttingCanvas();
+        showStudioToast(field === 'image' ? 'फोटो अपलोड की गई!' : 'कटआउट PNG अपलोड की गई!');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function aiAutoFitCuttingContent() {
+      const contentLen = (cuttingState.content || '').length;
+      const ratio = cuttingState.ratio;
+
+      if (contentLen < 200) {
+        cuttingState.headlineSize = ratio === '9:16' ? 28 : (ratio === '16:9' ? 24 : 32);
+        cuttingState.bodySize = 14;
+        cuttingState.bodyCols = 1;
+      } else if (contentLen < 450) {
+        cuttingState.headlineSize = ratio === '9:16' ? 26 : (ratio === '16:9' ? 22 : 28);
+        cuttingState.bodySize = 12.5;
+        cuttingState.bodyCols = ratio === '9:16' || ratio === 'single-col' ? 1 : 2;
+      } else {
+        cuttingState.headlineSize = ratio === '9:16' ? 24 : (ratio === '16:9' ? 20 : 26);
+        cuttingState.bodySize = 11;
+        cuttingState.bodyCols = ratio === '16:9' ? 3 : 2;
+      }
+
+      syncCuttingInputsFromState();
+      saveCuttingState();
+      renderCuttingCanvas();
+      showStudioToast('⚡ AI Auto-Fit: सामग्री के अनुसार लेआउट संतुलित किया गया!');
+    }
+
+    function syncCuttingInputsFromState() {
+      const fields = [
+        ['cutInputTag', cuttingState.tag],
+        ['cutInputTagBg', cuttingState.tagBgColor],
+        ['cutInputTopLine', cuttingState.topLine],
+        ['cutInputTopLineColor', cuttingState.topLineColor],
+        ['cutInputHeadline', cuttingState.headline],
+        ['cutHeadlineFont', cuttingState.headlineFont],
+        ['cutHeadlineSize', cuttingState.headlineSize],
+        ['cutInputSubHeadline', cuttingState.subHeadline],
+        ['cutInputLocation', cuttingState.location],
+        ['cutInputByline', cuttingState.byline],
+        ['cutInputContent', cuttingState.content],
+        ['cutBodyFont', cuttingState.bodyFont],
+        ['cutBodySize', cuttingState.bodySize],
+        ['cutBodyCols', cuttingState.bodyCols],
+        ['cutInputImage', cuttingState.image],
+        ['cutInputCaption', cuttingState.caption],
+        ['cutImageHeight', cuttingState.imageHeight],
+        ['cutInputCutout', cuttingState.cutoutImage],
+        ['cutCutoutWidth', cuttingState.cutoutWidth],
+        ['cutCutoutPos', cuttingState.cutoutPosition],
+        ['cutInputSpeaker', cuttingState.speakerName],
+        ['cutInputMastheadTitle', cuttingState.mastheadTitle],
+        ['cutInputEdition', cuttingState.edition],
+        ['cutInputPageNo', cuttingState.pageNo]
+      ];
+
+      fields.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val !== undefined ? val : '';
+      });
+
+      const checkMasthead = document.getElementById('cutCheckShowMasthead');
+      if (checkMasthead) checkMasthead.checked = !!cuttingState.showMasthead;
+
+      const checkScissor = document.getElementById('cutCheckScissor');
+      if (checkScissor) checkScissor.checked = !!cuttingState.scissorBorder;
+
+      const hSizeVal = document.getElementById('cutHeadlineSizeVal');
+      if (hSizeVal) hSizeVal.innerText = cuttingState.headlineSize;
+
+      const bSizeVal = document.getElementById('cutBodySizeVal');
+      if (bSizeVal) bSizeVal.innerText = cuttingState.bodySize;
+
+      const imgHVal = document.getElementById('cutImageHeightVal');
+      if (imgHVal) imgHVal.innerText = cuttingState.imageHeight;
+
+      const cutWVal = document.getElementById('cutCutoutWidthVal');
+      if (cutWVal) cutWVal.innerText = cuttingState.cutoutWidth;
+
+      const charCount = document.getElementById('cutHeadlineCharCount');
+      if (charCount) charCount.innerText = (cuttingState.headline || '').length + ' chars';
+    }
+
+    function saveCuttingState() {
+      try {
+        localStorage.setItem('presscraft_cuttingState_v1', JSON.stringify(cuttingState));
+      } catch (e) {
+        console.warn('Failed to save cutting state to localStorage:', e);
+      }
+    }
+
+    function loadCuttingState() {
+      try {
+        const saved = localStorage.getItem('presscraft_cuttingState_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            cuttingState = Object.assign({}, defaultCuttingState, parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load cutting state:', e);
+      }
+    }
+
+    // MAIN RENDERER FOR NEWSPAPER CUTTING CANVAS
+    function renderCuttingCanvas() {
+      const container = document.getElementById('cuttingCanvas');
+      if (!container) return;
+
+      const ratioConfig = CUTTING_RATIO_CONFIGS[cuttingState.ratio] || CUTTING_RATIO_CONFIGS['1:1'];
+      const dateText = cuttingState.date || getFormattedHindiDate();
+      const mastheadName = cuttingState.mastheadTitle || studioState.paperMeta.title || 'हिमाचल न्यूज़';
+
+      // Theme Colors
+      let themeBg = '#ffffff';
+      let themeText = '#0f172a';
+      let themeBorder = '#e2e8f0';
+      let themeSubtext = '#475569';
+      let themeMastheadColor = '#dc2626';
+
+      if (cuttingState.paperStyle === 'vintage-newsprint') {
+        themeBg = '#fbf8f0';
+        themeText = '#292524';
+        themeBorder = '#d6d3d1';
+        themeSubtext = '#57534e';
+        themeMastheadColor = '#991b1b';
+      } else if (cuttingState.paperStyle === 'modern-border') {
+        themeBg = '#f8fafc';
+        themeText = '#0f172a';
+        themeBorder = '#cbd5e1';
+        themeSubtext = '#475569';
+        themeMastheadColor = '#0284c7';
+      } else if (cuttingState.paperStyle === 'dark-clipping') {
+        themeBg = '#0f172a';
+        themeText = '#f8fafc';
+        themeBorder = '#334155';
+        themeSubtext = '#94a3b8';
+        themeMastheadColor = '#f59e0b';
+      }
+
+      container.style.width = `${ratioConfig.width}px`;
+      container.style.minHeight = `${ratioConfig.height}px`;
+      container.style.backgroundColor = themeBg;
+      container.style.color = themeText;
+
+      const scissorClass = cuttingState.scissorBorder ? 'scissor-cut-border' : 'border border-slate-300';
+
+      // Paragraph formatting
+      const paragraphs = (cuttingState.content || '').split('\n').filter(p => p.trim().length > 0);
+      const formattedBody = paragraphs.map((p, idx) => {
+        if (idx === 0 && cuttingState.location) {
+          return `<p class="mb-2 text-justify leading-relaxed"><strong class="font-bold text-slate-900">${escapeHtml(cuttingState.location)}</strong> ${escapeHtml(p)}</p>`;
+        }
+        return `<p class="mb-2 text-justify leading-relaxed">${escapeHtml(p)}</p>`;
+      }).join('');
+
+      let layoutContentHtml = '';
+
+      // RENDER SPECIFIC GRID LAYOUT
+      if (cuttingState.layout === 'lead-hero') {
+        layoutContentHtml = `
+          ${cuttingState.image ? `
+            <div class="mb-3">
+              <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${cuttingState.imageHeight || 220}px;">
+              ${cuttingState.caption ? `<div class="text-[10.5px] mt-1 italic text-slate-500 text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
+            </div>
+          ` : ''}
+          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            ${formattedBody}
+          </div>
+        `;
+      } else if (cuttingState.layout === 'photo-left') {
+        layoutContentHtml = `
+          <div class="grid grid-cols-12 gap-3 mb-2">
+            ${cuttingState.image ? `
+              <div class="col-span-5">
+                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 240, 200)}px;">
+                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500">${escapeHtml(cuttingState.caption)}</div>` : ''}
+              </div>
+            ` : ''}
+            <div class="${cuttingState.image ? 'col-span-7' : 'col-span-12'} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+              ${formattedBody}
+            </div>
+          </div>
+        `;
+      } else if (cuttingState.layout === 'photo-right') {
+        layoutContentHtml = `
+          <div class="grid grid-cols-12 gap-3 mb-2">
+            <div class="${cuttingState.image ? 'col-span-7' : 'col-span-12'} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+              ${formattedBody}
+            </div>
+            ${cuttingState.image ? `
+              <div class="col-span-5">
+                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 240, 200)}px;">
+                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500">${escapeHtml(cuttingState.caption)}</div>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } else if (cuttingState.layout === 'cutout-wrap') {
+        const floatDir = cuttingState.cutoutPosition || 'left';
+        const cutoutSrc = cuttingState.cutoutImage || cuttingState.image;
+        layoutContentHtml = `
+          <div class="relative">
+            ${cutoutSrc ? `
+              <img src="${escapeHtml(cutoutSrc)}" alt="Persona Cutout" class="object-contain" style="float: ${floatDir}; width: ${cuttingState.cutoutWidth || 160}px; margin-${floatDir === 'left' ? 'right' : 'left'}: 14px; margin-bottom: 8px; shape-outside: inset(0);">
+            ` : ''}
+            <div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+              ${formattedBody}
+            </div>
+            <div class="clear-both"></div>
+          </div>
+        `;
+      } else if (cuttingState.layout === 'big-quote') {
+        layoutContentHtml = `
+          <div class="my-3 p-3.5 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-xl relative">
+            <div class="text-4xl text-amber-500 font-serif absolute -top-3 left-2 opacity-40">“</div>
+            <p class="text-sm md:text-base font-bold text-slate-900 dark:text-amber-100 italic leading-snug pl-5" style="font-family: ${cuttingState.headlineFont};">
+              ${escapeHtml(cuttingState.headline)}
+            </p>
+            ${cuttingState.speakerName ? `
+              <div class="mt-2 pl-5 flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-300">
+                <span>— ${escapeHtml(cuttingState.speakerName)}</span>
+                <span class="text-[10px] font-normal text-slate-500">${escapeHtml(cuttingState.location || '')}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          ${cuttingState.image ? `
+            <div class="mb-3">
+              <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded" style="max-height: 180px;">
+            </div>
+          ` : ''}
+
+          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            ${formattedBody}
+          </div>
+        `;
+      } else if (cuttingState.layout === 'text-only') {
+        layoutContentHtml = `
+          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify leading-relaxed py-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            ${formattedBody}
+          </div>
+        `;
+      } else if (cuttingState.layout === 'breaking-alert') {
+        layoutContentHtml = `
+          <div class="mb-3 -mx-4 -mt-2 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white p-2.5 px-4 flex items-center justify-between shadow-md">
+            <span class="font-extrabold uppercase tracking-wider text-xs flex items-center gap-1.5 animate-pulse">
+              <i class="fa-solid fa-bell"></i> सुपर ब्रेकिंग न्यूज़ फ्लैश
+            </span>
+            <span class="text-[10px] font-mono bg-red-950/60 px-2 py-0.5 rounded font-bold">${dateText}</span>
+          </div>
+
+          ${cuttingState.image ? `
+            <div class="mb-3">
+              <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow" style="max-height: ${cuttingState.imageHeight || 200}px;">
+              ${cuttingState.caption ? `<div class="text-[10.5px] mt-1 italic text-slate-500 text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
+            </div>
+          ` : ''}
+
+          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            ${formattedBody}
+          </div>
+        `;
+      }
+
+      // ASSEMBLE COMPLETE CUTTING CARD HTML
+      container.innerHTML = `
+        <div class="p-4 sm:p-5 flex flex-col justify-between h-full ${scissorClass} transition-all">
+          <div>
+            <!-- 1. NEWSPAPER HEADER & MASTHEAD -->
+            ${cuttingState.showMasthead ? `
+              <div class="border-b-2 border-slate-900 dark:border-slate-700 pb-2 mb-3">
+                <div class="flex justify-between items-end">
+                  <div>
+                    <h1 class="text-2xl sm:text-3xl font-serif font-black tracking-tight leading-none" style="color: ${themeMastheadColor}; font-family: 'Rozha One', serif;">
+                      ${escapeHtml(mastheadName)}
+                    </h1>
+                    <span class="text-[10px] tracking-wider text-slate-500 dark:text-slate-400 font-serif">
+                      ${escapeHtml(cuttingState.edition || 'दैनिक समाचार पत्र')} • ${escapeHtml(cuttingState.pageNo || 'डिजिटल कटिंग')}
+                    </span>
+                  </div>
+                  <div class="text-right">
+                    <span class="bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/30">
+                      ✂️ News Clip
+                    </span>
+                    <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1">${dateText}</div>
+                  </div>
+                </div>
+                <div class="border-b border-slate-400/50 mt-1"></div>
+              </div>
+            ` : ''}
+
+            <!-- 2. TAG BADGE & TOPLINE -->
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              ${cuttingState.tag ? `
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold shadow-sm" style="background-color: ${cuttingState.tagBgColor || '#dc2626'}; color: ${cuttingState.tagTextColor || '#ffffff'};">
+                  ${escapeHtml(cuttingState.tag)}
+                </span>
+              ` : ''}
+              ${cuttingState.topLine ? `
+                <span class="text-xs font-bold font-serif" style="color: ${cuttingState.topLineColor || '#b91c1c'};">
+                  ${escapeHtml(cuttingState.topLine)}
+                </span>
+              ` : ''}
+            </div>
+
+            <!-- 3. MAIN HEADLINE -->
+            <h2 class="mb-2 leading-snug font-bold" style="font-family: ${cuttingState.headlineFont || "'Rozha One', serif"}; font-size: ${cuttingState.headlineSize || 28}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#ffffff' : (cuttingState.headlineColor || '#111111')};">
+              ${escapeHtml(cuttingState.headline)}
+            </h2>
+
+            <!-- 4. SUB-HEADLINE -->
+            ${cuttingState.subHeadline ? `
+              <div class="text-xs sm:text-sm font-semibold mb-3 pb-2 border-b border-slate-200 dark:border-slate-800 flex items-start gap-1.5" style="color: ${themeSubtext}; font-family: ${cuttingState.bodyFont};">
+                <span class="text-amber-500 font-bold">•</span>
+                <span>${escapeHtml(cuttingState.subHeadline)}</span>
+              </div>
+            ` : ''}
+
+            <!-- 5. BYLINE & DATELINE (IF NOT IN BREAKING HEADER) -->
+            ${cuttingState.byline && cuttingState.layout !== 'big-quote' ? `
+              <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-2 italic">
+                ${escapeHtml(cuttingState.byline)}
+              </div>
+            ` : ''}
+
+            <!-- 6. GRID LAYOUT BODY -->
+            ${layoutContentHtml}
+          </div>
+
+          <!-- 7. FOOTER & WATERMARK -->
+          <div class="mt-4 pt-2 border-t border-slate-300 dark:border-slate-800 flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400">
+            <span class="font-serif">
+              साभार: <strong>${escapeHtml(mastheadName)}</strong> (${escapeHtml(cuttingState.edition || 'संस्करण')})
+            </span>
+            <span class="font-mono text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+              PressCraft Digital Clipping Studio
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    // EXPORT CUTTING AS HIGH-RES PNG
+    async function exportCuttingImage(format = 'png') {
+      const node = document.getElementById('cuttingCanvas');
+      if (!node) {
+        alert('कटिंग कैनवास नहीं मिला!');
+        return;
+      }
+
+      showStudioToast('⏳ हाई-रेज़ोल्यूशन इमेज तैयार हो रही है...');
+
+      try {
+        const canvas = await html2canvas(node, {
+          scale: 2.5,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          logging: false
+        });
+
+        const dataUrl = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 0.95);
+        const link = document.createElement('a');
+        const filename = `PressCraft-Cutting-${(cuttingState.headline || 'news').slice(0, 15).replace(/\s+/g, '_')}-${Date.now()}.${format}`;
+        link.download = filename;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showStudioToast('📸 HD इमेज सफलतापूर्वक डाउनलोड हो गई!');
+      } catch (err) {
+        console.error('Error exporting cutting image:', err);
+        alert('इमेज एक्सपोर्ट करने में त्रुटि: ' + err.message);
+      }
+    }
+
+    // DIRECT WHATSAPP SHARING FOR NEWSPAPER CUTTING
+    function shareCuttingWhatsApp() {
+      const title = cuttingState.mastheadTitle || 'हिमाचल न्यूज़';
+      const headline = cuttingState.headline || 'बड़ी खबर';
+      const text = `📰 *${title} - न्यूज़ कटिंग*\n\n📌 *${headline}*\n\n👉 पूरी खबर पढ़ने के लिए ई-पेपर देखें।`;
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+      showStudioToast('💬 WhatsApp शेयरिंग डायलॉग खोला गया!');
+    }
+
+    // HELPER: Escape HTML special characters
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
     // PERSISTENT STORAGE (LOCAL + HOSTINGER MYSQL CROSS-DEVICE CLOUD SYNC)
@@ -5441,6 +6768,10 @@
 
     // PNG EXPORT (SERVER-SIDE PUPPETEER SCREENSHOT WITH INSTANT CLIENT CANVAS FALLBACK)
     async function exportPNG() {
+      if (currentStudioMode === 'cutting') {
+        return exportCuttingImage('png');
+      }
+
       const node = document.getElementById('newspaperCanvas');
       const zoomContainer = document.getElementById('zoomContainer');
       const prevTransform = zoomContainer.style.transform;
@@ -5535,6 +6866,10 @@
 
     // ALL-PAGES COMBINED PDF EXPORT (SERVER-SIDE PUPPETEER PDF WITH DYNAMIC SIZE + LOCAL JSPDF FALLBACK)
     async function exportPDF() {
+      if (currentStudioMode === 'cutting') {
+        return exportCuttingImage('png');
+      }
+
       const zoomContainer = document.getElementById('zoomContainer');
       const node = document.getElementById('newspaperCanvas');
       const prevTransform = zoomContainer.style.transform;
@@ -6781,6 +8116,8 @@
       fetchLiveWeather();
       await checkUserSessionAndSyncUI();
       updateProjectCountBadge();
+      loadCuttingState();
+      renderCuttingCanvas();
 
       if (document.getElementById('defaultHeadlineFontSelect') && studioState.paperMeta.defaultHeadlineFont) {
         document.getElementById('defaultHeadlineFontSelect').value = studioState.paperMeta.defaultHeadlineFont;
