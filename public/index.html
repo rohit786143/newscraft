@@ -4017,9 +4017,11 @@
       } else if (field === 'showAds') {
         const chk = document.getElementById('checkShowAds');
         if (chk) chk.checked = studioState.paperMeta.showAds !== false;
+        renderHeaderSidebarTab();
       } else if (field === 'showWeather') {
         const chk = document.getElementById('checkShowWeather');
         if (chk) chk.checked = studioState.paperMeta.showWeather !== false;
+        renderHeaderSidebarTab();
       } else if (field === 'showCustomHeaderWidgets') {
         const chk = document.getElementById('checkCustomHeaderWidgets');
         if (chk) chk.checked = studioState.paperMeta.showCustomHeaderWidgets !== false;
@@ -4638,6 +4640,78 @@
                   <input type="text" oninput="updatePaperMetaField('regNo', this.value)" value="${meta.regNo || 'HP/SML/04/2024-26'}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- 4. WEATHER & EAR ADVERTISEMENTS (मौसम व विज्ञापन ईयर पैनल्स) -->
+          <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-3">
+            <span class="text-amber-400 font-bold text-xs block border-b border-slate-700 pb-1 flex items-center justify-between">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-cloud-sun text-sky-400"></i> 4. मौसम व विज्ञापन (Ear Panels)</span>
+              <span class="text-[9px] text-sky-300 bg-sky-950/80 px-1.5 py-0.2 rounded border border-sky-800/50">Header Ears</span>
+            </span>
+
+            <!-- 4A. Left Ear: Weather & Panchang -->
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-slate-200 font-bold text-[11px] flex items-center gap-1.5">
+                  <i class="fa-solid fa-sun text-amber-400"></i> मौसम व पंचांग विजेट (Left Ear)
+                </span>
+                <input type="checkbox" id="checkShowWeather" onchange="togglePaperMetaBool('showWeather')" ${meta.showWeather !== false ? 'checked' : ''} class="w-4 h-4 rounded bg-slate-900 border-slate-700 accent-blue-500 cursor-pointer">
+              </label>
+
+              ${meta.showWeather !== false ? `
+                <div class="pt-1 space-y-2 border-t border-slate-800/80">
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <div>
+                      <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">शहर 1 (शिमला)</span>
+                      <input type="text" oninput="updatePaperMetaField('weatherShimla', this.value)" value="${meta.weatherShimla || '21°/16° 🌧️'}" placeholder="21°/16° 🌧️" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-white text-[10px] outline-none font-mono">
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">शहर 2 (धर्मशाला)</span>
+                      <input type="text" oninput="updatePaperMetaField('weatherDharamshala', this.value)" value="${meta.weatherDharamshala || '28°/18° ⛅'}" placeholder="28°/18° ⛅" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-white text-[10px] outline-none font-mono">
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">शहर 3 (मंडी)</span>
+                      <input type="text" oninput="updatePaperMetaField('weatherMandi', this.value)" value="${meta.weatherMandi || '30°/20° ☀️'}" placeholder="30°/20° ☀️" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-white text-[10px] outline-none font-mono">
+                    </div>
+                  </div>
+
+                  <div>
+                    <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">पंचांग / ज्योतिष / AQI विवरण:</span>
+                    <input type="text" oninput="updatePaperMetaField('weatherAstro', this.value)" value="${meta.weatherAstro || 'सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42'}" placeholder="सूर्योदय: 05:58 • सूर्यास्त: 06:45 • AQI: 42" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- 4B. Right Ear: Header Ad Panel -->
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2">
+              <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-slate-200 font-bold text-[11px] flex items-center gap-1.5">
+                  <i class="fa-solid fa-rectangle-ad text-amber-400"></i> विज्ञापन ईयर पैनल (Right Ear)
+                </span>
+                <input type="checkbox" id="checkShowAds" onchange="togglePaperMetaBool('showAds')" ${meta.showAds !== false ? 'checked' : ''} class="w-4 h-4 rounded bg-slate-900 border-slate-700 accent-amber-500 cursor-pointer">
+              </label>
+
+              ${meta.showAds !== false ? `
+                <div class="pt-1 space-y-2 border-t border-slate-800/80">
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <div>
+                      <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">टैग / बैज</span>
+                      <input type="text" oninput="updatePaperMetaField('rightAdTag', this.value)" value="${meta.rightAdTag || 'विज्ञापन'}" placeholder="विज्ञापन" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-white text-[10px] outline-none">
+                    </div>
+                    <div class="col-span-2">
+                      <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">विज्ञापनदाता / मुख्य शीर्षक</span>
+                      <input type="text" oninput="updatePaperMetaField('rightAdTitle', this.value)" value="${meta.rightAdTitle || 'सोलन सेविंग्स बैंक'}" placeholder="जैसे: सोलन सेविंग्स बैंक" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none font-bold">
+                    </div>
+                  </div>
+
+                  <div>
+                    <span class="text-slate-400 block text-[9px] font-semibold mb-0.5">विज्ञापन विवरण / ऑफर / संपर्क:</span>
+                    <input type="text" oninput="updatePaperMetaField('rightAdText', this.value)" value="${meta.rightAdText || 'एफडी पर 8.5% विशेष ब्याज दर।'}" placeholder="एफडी पर 8.5% विशेष ब्याज दर।" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-[10px] outline-none">
+                  </div>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
