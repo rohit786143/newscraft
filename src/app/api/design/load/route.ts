@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool, { ensureTableExists } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const noCacheHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+  'Surrogate-Control': 'no-store'
+};
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +31,7 @@ export async function GET(req: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'User ID is required', designData: null },
-        { status: 400 }
+        { status: 400, headers: noCacheHeaders }
       );
     }
 
@@ -35,7 +43,10 @@ export async function GET(req: NextRequest) {
     );
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ designData: null });
+      return NextResponse.json(
+        { success: true, designData: null },
+        { headers: noCacheHeaders }
+      );
     }
 
     const rawData = rows[0].design_data;
@@ -46,11 +57,18 @@ export async function GET(req: NextRequest) {
       parsedData = rawData;
     }
 
-    return NextResponse.json({
-      success: true,
-      designData: parsedData,
-      updatedAt: rows[0].updated_at
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        designData: parsedData,
+        updatedAt: rows[0].updated_at
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error loading design from MySQL:', error);
     return NextResponse.json(
@@ -59,7 +77,7 @@ export async function GET(req: NextRequest) {
         error: error.message || 'Failed to load design from database',
         designData: null
       },
-      { status: 500 }
+      { status: 500, headers: noCacheHeaders }
     );
   }
 }

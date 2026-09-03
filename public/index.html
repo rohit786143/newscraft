@@ -1570,8 +1570,14 @@
 
     // PERSISTENT STORAGE (LOCAL + HOSTINGER MYSQL CROSS-DEVICE CLOUD SYNC)
     let cloudSyncTimeout = null;
+    let hasCloudSyncCompleted = false;
 
     function autoSave() {
+      // Prevent race conditions: do not auto-save stale local state back to database before initial cloud load finishes
+      if (!hasCloudSyncCompleted) {
+        return;
+      }
+
       if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
       autoSaveTimeout = setTimeout(() => {
         try {
@@ -5787,20 +5793,61 @@
     async function loadDesignFromCloud() {
       try {
         const userId = currentAuthUser?.id || currentAuthUser?.username;
-        const url = userId ? `/api/design/load?userId=${encodeURIComponent(userId)}` : '/api/design/load';
-        const res = await fetch(url);
+        const cacheBust = `_t=${Date.now()}`;
+        const url = userId ? `/api/design/load?userId=${encodeURIComponent(userId)}&${cacheBust}` : `/api/design/load?${cacheBust}`;
+        
+        const res = await fetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
         const data = await res.json();
 
         if (data.success && data.designData) {
-          const remoteState = data.designData.stateData || data.designData;
+          let designPayload = data.designData;
+          if (typeof designPayload === 'string') {
+            try {
+              designPayload = JSON.parse(designPayload);
+            } catch (e) {
+              console.error('Error parsing cloud design payload:', e);
+            }
+          }
+          const remoteState = designPayload.stateData || designPayload;
           if (remoteState && remoteState.pages && Array.isArray(remoteState.pages) && remoteState.pages.length > 0) {
-            loadEditorState(data.designData);
-            showStudioToast('☁️ Hostinger MySQL क्लाउड से आपका डिज़ाइन लोड हो गया!');
+            // Cancel any pending auto-saves before hydration so old memory state cannot overwrite fresh cloud state
+            if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+            if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
+
+            // IMMEDIATELY override the editor/newspaper state with this cloud data (pages, articles, layout, styles)
+            // and overwrite localStorage keys with this fresh cloud payload so local cache doesn't revert it
+            loadEditorState(designPayload, true); // true = fromCloud
+            
+            // Sync default font selectors if present
+            if (document.getElementById('defaultHeadlineFontSelect') && studioState.paperMeta.defaultHeadlineFont) {
+              document.getElementById('defaultHeadlineFontSelect').value = studioState.paperMeta.defaultHeadlineFont;
+            }
+            if (document.getElementById('defaultBodyFontSelect') && studioState.paperMeta.defaultBodyFont) {
+              document.getElementById('defaultBodyFontSelect').value = studioState.paperMeta.defaultBodyFont;
+            }
+
+            const autoTxt = document.getElementById('autoSaveText');
+            if (autoTxt) {
+              autoTxt.innerText = 'Cloud Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            showStudioToast('☁️ क्लाउड से आपका ताज़ा डिज़ाइन लोड हो गया!');
+            hasCloudSyncCompleted = true;
             return true;
           }
         }
       } catch (err) {
         console.warn('Hostinger MySQL cloud load fallback to local:', err);
+      } finally {
+        hasCloudSyncCompleted = true;
       }
       return false;
     }
@@ -5808,7 +5855,13 @@
     // USER AUTH & SUBSCRIPTION UI SYNC
     async function checkUserSessionAndSyncUI() {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         const data = await res.json();
         if (data.authenticated && data.user) {
           currentAuthUser = data.user;
@@ -5832,9 +5885,12 @@
 
           // Prioritize loading latest cross-device saved design from Hostinger MySQL
           await loadDesignFromCloud();
+        } else {
+          hasCloudSyncCompleted = true;
         }
       } catch (e) {
         console.warn('Session check warning:', e);
+        hasCloudSyncCompleted = true;
       }
     }
 
@@ -6153,12 +6209,19 @@
     }
 
     // 2. STATE HYDRATION / LOAD FUNCTION
-    function loadEditorState(projectData) {
+    function loadEditorState(projectData, isFromCloud = false) {
       if (!projectData) return;
 
-      const rawState = projectData.stateData || projectData;
+      let rawState = projectData.stateData || projectData;
+      if (typeof rawState === 'string') {
+        try {
+          rawState = JSON.parse(rawState);
+        } catch (e) {
+          console.error('Error parsing rawState in loadEditorState:', e);
+        }
+      }
       if (!rawState || !rawState.pages || !Array.isArray(rawState.pages)) {
-        alert('अमान्य प्रोजेक्ट डेटा (Invalid project state format)');
+        if (!isFromCloud) alert('अमान्य प्रोजेक्ट डेटा (Invalid project state format)');
         return;
       }
 
@@ -6207,6 +6270,13 @@
 
       studioState = hydrated;
 
+      // IMMEDIATELY OVERWRITE LOCAL STORAGE WITH FRESH CLOUD STATE
+      try {
+        localStorage.setItem('presscraft_studioState_v3', JSON.stringify(hydrated));
+      } catch (e) {
+        console.warn('LocalStorage overwrite warning:', e);
+      }
+
       // Update active project tracker if a project object was loaded
       if (projectData.id) {
         activeProject = {
@@ -6228,9 +6298,11 @@
       syncCustomHeaderUI();
       renderActiveCanvasPage();
       setZoom('fit');
-      autoSave();
 
-      showStudioToast(`डिज़ाइन "${projectData.name || 'Layout'}" सफलतापूर्वक लोड हो गया!`);
+      if (!isFromCloud) {
+        autoSave();
+        showStudioToast(`डिज़ाइन "${projectData.name || 'Layout'}" सफलतापूर्वक लोड हो गया!`);
+      }
     }
 
     // Refresh project count badge in header
@@ -6618,7 +6690,7 @@
 
       setZoom('fit');
       fetchLiveWeather();
-      checkUserSessionAndSyncUI();
+      await checkUserSessionAndSyncUI();
       updateProjectCountBadge();
 
       if (document.getElementById('defaultHeadlineFontSelect') && studioState.paperMeta.defaultHeadlineFont) {
