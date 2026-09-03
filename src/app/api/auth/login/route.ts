@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByCredentials, getAllUsers } from '@/lib/auth';
+import { findUserByCredentials } from '@/lib/auth';
+import { isDeviceRegistered, ensureTableExists } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { usernameOrEmail, password } = await req.json();
+    const body = await req.json();
+    const { usernameOrEmail, username, password, deviceId } = body;
+    const loginUser = usernameOrEmail || username;
 
-    if (!usernameOrEmail || !password) {
+    if (!loginUser || !password) {
       return NextResponse.json(
         { error: 'Username/Email और Password आवश्यक हैं।' },
         { status: 400 }
       );
     }
 
-    const user = findUserByCredentials(usernameOrEmail);
+    const user = findUserByCredentials(loginUser);
 
     if (!user || user.password !== password) {
       return NextResponse.json(
@@ -39,9 +44,36 @@ export async function POST(req: NextRequest) {
       if (expiryDate < now) {
         return NextResponse.json(
           {
-            error: `आपकी 1 महीने / निर्धारित सदस्यता अवधि (${expiryDate.toLocaleDateString('hi-IN')}) को समाप्त हो चुकी है। कृपया एडमिन से संपर्क करके अपनी सदस्यता रीन्यू (Unblock) करवाएं।`,
+            error: `आपकी सदस्यता अवधि (${expiryDate.toLocaleDateString('hi-IN')}) समाप्त हो चुकी है। कृपया एडमिन से संपर्क करके अपनी सदस्यता रीन्यू करवाएं।`,
             code: 'EXPIRED',
             endDate: user.endDate
+          },
+          { status: 403 }
+        );
+      }
+
+      // Check device binding for client user
+      const cleanDeviceId = String(deviceId || '').trim().toUpperCase();
+      if (!cleanDeviceId) {
+        return NextResponse.json(
+          {
+            error: 'DEVICE_NOT_REGISTERED',
+            deviceId: '',
+            message: 'डिवाइस पहचान (Device ID) प्राप्त नहीं हुई। कृपया ब्राउज़र रीफ्रेश करें।'
+          },
+          { status: 403 }
+        );
+      }
+
+      await ensureTableExists();
+      const isRegistered = await isDeviceRegistered(user.id, cleanDeviceId);
+
+      if (!isRegistered) {
+        return NextResponse.json(
+          {
+            error: 'DEVICE_NOT_REGISTERED',
+            deviceId: cleanDeviceId,
+            message: 'यह डिवाइस आपके सब्सक्रिप्शन में एक्टिवेट नहीं है।'
           },
           { status: 403 }
         );

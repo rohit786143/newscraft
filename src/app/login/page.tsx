@@ -7,12 +7,30 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [deviceId, setDeviceId] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isExpired, setIsExpired] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
+  // Initialize or retrieve persistent Device ID on client
   useEffect(() => {
+    try {
+      let storedId = localStorage.getItem('presscraft_device_id');
+      if (!storedId) {
+        // Generate random 8-character alphanumeric device identifier
+        const part1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const part2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+        storedId = `DEV-${part1}-${part2}`;
+        localStorage.setItem('presscraft_device_id', storedId);
+      }
+      setDeviceId(storedId);
+    } catch {
+      setDeviceId('DEV-PC-' + Math.floor(1000 + Math.random() * 9000));
+    }
+
     // Check if already authenticated
     fetch('/api/auth/me')
       .then(res => res.json())
@@ -28,10 +46,17 @@ export default function LoginPage() {
       .catch(() => {});
   }, [router]);
 
+  const copyDeviceId = () => {
+    if (!deviceId) return;
+    navigator.clipboard.writeText(deviceId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
-      setErrorMsg('Please enter both Username and Password.');
+      setErrorMsg('कृपया Username और Password दर्ज करें।');
       return;
     }
 
@@ -39,6 +64,7 @@ export default function LoginPage() {
     setErrorMsg('');
     setIsExpired(false);
     setIsBlocked(false);
+    setShowDeviceModal(false);
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -46,19 +72,26 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           usernameOrEmail: username.trim(),
-          password: password.trim()
+          password: password.trim(),
+          deviceId: deviceId.trim()
         })
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.code === 'EXPIRED') {
+        if (data.error === 'DEVICE_NOT_REGISTERED') {
+          setShowDeviceModal(true);
+          setErrorMsg(data.message || 'यह डिवाइस आपके सब्सक्रिप्शन में एक्टिवेट नहीं है।');
+        } else if (data.code === 'EXPIRED') {
           setIsExpired(true);
+          setErrorMsg(data.error || 'Subscription expired.');
         } else if (data.code === 'BLOCKED') {
           setIsBlocked(true);
+          setErrorMsg(data.error || 'Account suspended.');
+        } else {
+          setErrorMsg(data.error || 'Authentication failed.');
         }
-        setErrorMsg(data.error || 'Authentication failed.');
         setLoading(false);
         return;
       }
@@ -101,8 +134,56 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* DEVICE NOT REGISTERED BANNER & MODAL */}
+        {showDeviceModal && (
+          <div className="p-4 rounded-2xl mb-6 text-xs leading-relaxed bg-amber-50 border border-amber-300 text-amber-900 shadow-sm animate-in fade-in">
+            <div className="flex items-start gap-2.5 mb-2.5">
+              <span className="text-lg shrink-0">💻</span>
+              <div>
+                <p className="font-extrabold text-sm text-amber-950">डिवाइस एक्टिवेशन आवश्यक (Device Not Bound)</p>
+                <p className="mt-1 text-xs text-amber-800 font-medium">
+                  यह सिस्टम अभी एक्टिवेट नहीं है। मल्टीपल डिवाइस सब्सक्रिप्शन के लिए यह कोड एडमिन को भेजें।
+                </p>
+              </div>
+            </div>
+
+            {/* DEVICE CODE COPY BOX */}
+            <div className="mt-3 p-3 bg-white border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-inner">
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Your Device ID:</span>
+                <span className="font-mono font-black text-sm text-slate-900 tracking-wider select-all">{deviceId}</span>
+              </div>
+              <button
+                type="button"
+                onClick={copyDeviceId}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                  copied
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                }`}
+              >
+                {copied ? <span>✓ Copied!</span> : <span>📋 Copy Code</span>}
+              </button>
+            </div>
+
+            {/* WHATSAPP ACTION */}
+            <div className="mt-3 flex justify-end">
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                  `नमस्ते एडमिन, कृपया मेरे नए डिवाइस को PressCraft में एक्टिवेट करें।\nUsername: ${username || 'मेरा यूज़रनेम'}\nDevice ID: ${deviceId}`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 underline"
+              >
+                <span>💬 WhatsApp पर एडमिन को भेजें →</span>
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* ERROR / EXPIRED / BLOCKED NOTIFICATION */}
-        {errorMsg && (
+        {!showDeviceModal && errorMsg && (
           <div className={`p-4 rounded-2xl mb-6 text-xs leading-relaxed border ${
             isExpired || isBlocked
               ? 'bg-rose-50 border-rose-200 text-rose-800'
@@ -154,6 +235,12 @@ export default function LoginPage() {
             />
           </div>
 
+          {/* DEVICE ID INFO BADGE */}
+          <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+            <span>Machine Device ID:</span>
+            <span className="font-mono font-bold text-slate-600">{deviceId || 'Detecting...'}</span>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
@@ -165,7 +252,7 @@ export default function LoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Signing in...</span>
+                <span>Verifying credentials & device...</span>
               </>
             ) : (
               <span>Sign In to Studio →</span>
@@ -175,7 +262,7 @@ export default function LoginPage() {
       </div>
 
       <div className="text-center text-slate-500 text-xs mt-6 font-medium">
-        © 2026 PressCraft Pro Studio • All-in-One Newspaper Publishing Platform
+        © 2026 PressCraft Pro Studio • Multi-Device Protected Publishing Platform
       </div>
     </div>
   );

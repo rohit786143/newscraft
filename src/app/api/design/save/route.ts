@@ -21,9 +21,66 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!userId || !designData) {
+    if (!userId) {
       return NextResponse.json(
-        { success: false, error: 'User ID and designData are required' },
+        { success: false, error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!designData) {
+      return NextResponse.json(
+        { success: false, error: 'Design payload cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    let parsedState = designData;
+    if (typeof parsedState === 'string') {
+      try {
+        parsedState = JSON.parse(parsedState);
+      } catch (e) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid JSON format in designData' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (!parsedState || typeof parsedState !== 'object') {
+      return NextResponse.json(
+        { success: false, error: 'Design data must be a valid object' },
+        { status: 400 }
+      );
+    }
+
+    // Unpack stateData wrapper if present
+    const state = parsedState.stateData || parsedState;
+
+    if (!state || typeof state !== 'object') {
+      return NextResponse.json(
+        { success: false, error: 'Invalid state object in designData' },
+        { status: 400 }
+      );
+    }
+
+    const pages = state.pages;
+    if (!Array.isArray(pages) || pages.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Design must contain at least 1 page' },
+        { status: 400 }
+      );
+    }
+
+    // Count total articles / sections across all pages
+    const totalArticles = pages.reduce(
+      (acc: number, p: any) => acc + (Array.isArray(p?.sections) ? p.sections.length : 0),
+      0
+    );
+
+    if (totalArticles === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Design cannot be empty: must contain at least 1 article/news slot' },
         { status: 400 }
       );
     }
@@ -44,7 +101,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Design saved'
+      message: 'Design saved',
+      pagesCount: pages.length,
+      articlesCount: totalArticles
     });
   } catch (error: any) {
     console.error('Error saving design to MySQL:', error);

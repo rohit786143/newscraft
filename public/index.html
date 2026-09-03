@@ -1555,17 +1555,26 @@
     let sidebarOpen = true;
     let autoSaveTimeout = null;
 
-    // RESTORE DEFAULT PAGE 1 BROADSHEET DESIGN
+    // RESTORE DEFAULT PAGE 1 BROADSHEET DESIGN (STRICT PROTECTED CONFIRMATION)
     function restoreDefaultPage1Design() {
-      if (confirm('क्या आप पेज 1 के सभी स्लॉट्स को सम्पूर्ण ब्रॉडशीट डिज़ाइन (Full 8 News & Ad Slots) में रीस्टोर करना चाहते हैं?')) {
-        studioState.pages[0] = JSON.parse(JSON.stringify(defaultStudioState.pages[0]));
-        studioState.activePageIndex = 0;
-        updatePageSelectorsUI();
-        renderActiveCanvasPage();
-        renderSidebarSections();
-        renderPagesList();
-        autoSave();
-      }
+      const step1 = window.confirm(
+        '⚠️ चेतावनी (Warning)!\n\nक्या आप वाकई पेज 1 की वर्तमान सभी खबरों व डिज़ाइन को हटाकर डिफ़ॉल्ट टेम्पलेट पर रीस्टोर करना चाहते हैं?\n\nआपकी वर्तमान पेज 1 की सभी खबरें हट सकती हैं।'
+      );
+      if (!step1) return;
+
+      const step2 = window.confirm(
+        '🛑 अंतिम पुष्टि (Final Confirmation):\n\nकृपया पुष्टि करें! क्या आप सचमुच पेज 1 को रीस्टोर करना चाहते हैं? यह क्रिया वापस नहीं ली जा सकती।'
+      );
+      if (!step2) return;
+
+      studioState.pages[0] = JSON.parse(JSON.stringify(defaultStudioState.pages[0]));
+      studioState.activePageIndex = 0;
+      updatePageSelectorsUI();
+      renderActiveCanvasPage();
+      renderSidebarSections();
+      renderPagesList();
+      autoSave();
+      showStudioToast('ℹ️ पेज 1 डिफ़ॉल्ट टेम्पलेट पर रीस्टोर किया गया।');
     }
 
     // PERSISTENT STORAGE (LOCAL + HOSTINGER MYSQL CROSS-DEVICE CLOUD SYNC)
@@ -1606,50 +1615,34 @@
         const saved = localStorage.getItem('presscraft_studioState_v3');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.pages && parsed.pages.length > 0) {
-            // If page 1 only has the 4 old partial default sections, auto-restore the full 8-slot broadsheet
-            if (parsed.pages[0] && parsed.pages[0].sections && parsed.pages[0].sections.length === 4 && parsed.pages[0].sections[0].id === 'sec-lead' && parsed.pages[0].sections[3].id === 'sec-sub2') {
-              parsed.pages[0].sections = JSON.parse(JSON.stringify(defaultStudioState.pages[0].sections));
-            }
+          if (parsed && parsed.pages && Array.isArray(parsed.pages) && parsed.pages.length > 0) {
             parsed.pages.forEach((p) => {
-              p.sections.forEach((s) => {
-                s.dropCap = false; // Turn off dropCap so Hindi words remain unbroken
-                if (s.tagBgColor === undefined) s.tagBgColor = '#0284c7';
-                if (s.tagTextColor === undefined) s.tagTextColor = '#ffffff';
-                if (s.tagFont === undefined) s.tagFont = "'Mukta', sans-serif";
-                if (s.tagFontSize === undefined) s.tagFontSize = '10px';
-                if (s.tagBold === undefined) s.tagBold = true;
-                if (s.topLineColor === undefined) s.topLineColor = '#dc2626';
-                if (s.topLineFont === undefined) s.topLineFont = "'Mukta', sans-serif";
-                if (s.topLineSize === undefined) s.topLineSize = '12.5px';
-                if (s.topLineBold === undefined) s.topLineBold = true;
-                if (s.topLineAlign === undefined) s.topLineAlign = 'left';
-                if (s.imageHeight === undefined) s.imageHeight = s.layout === 'full-ad' ? 220 : 180;
-                if (s.imageFit === undefined) s.imageFit = 'cover';
-                if (s.showSizeBadge === undefined) s.showSizeBadge = true;
-                if (s.showAdTag === undefined) s.showAdTag = true;
-                if (s.adTagText === undefined) s.adTagText = 'विज्ञापन';
-                if (s.cutoutWrap === undefined) s.cutoutWrap = false;
-                if (s.cutoutFloat === undefined) s.cutoutFloat = 'left';
-                if (s.cutoutMargin === undefined || s.cutoutMargin > 4) s.cutoutMargin = 2;
-                if (s.cutoutWidth === undefined) s.cutoutWidth = 200;
-                if (s.cutoutOffsetX === undefined) s.cutoutOffsetX = 0;
-                if (s.cutoutOffsetY === undefined) s.cutoutOffsetY = 0;
-                if (s.content) {
-                  // Restore any previously cut first letters
-                  s.content = s.content
-                    .replace(/^माचल प्रदेश/g, 'हिमाचल प्रदेश')
-                    .replace(/^सम विज्ञान केंद्र/g, 'मौसम विज्ञान केंद्र')
-                    .replace(/^कूल दाखिला/g, 'स्कूल दाखिला')
-                    .replace(/^लन \(बद्दी\)/g, 'सोलन (बद्दी)')
-                    .replace(/^ब के नए खरीद/g, 'सेब के नए खरीद')
-                    .replace(/^वाहन फ्लू/g, 'स्वाइन फ्लू')
-                    .replace(/^गल हवाई अड्डा/g, 'गगल हवाई अड्डा')
-                    .replace(/^रिमौर में घटना/g, 'सिरमौर में घटना')
-                    .replace(/^मेरा डैम अलर्ट/g, 'चमेरा डैम अलर्ट')
-                    .replace(/^बीएसई स्कूलों/g, 'सीबीएसई स्कूलों');
-                }
-              });
+              if (Array.isArray(p.sections)) {
+                p.sections.forEach((s) => {
+                  s.dropCap = false; // Turn off dropCap so Hindi words remain unbroken
+                  if (s.tagBgColor === undefined) s.tagBgColor = '#0284c7';
+                  if (s.tagTextColor === undefined) s.tagTextColor = '#ffffff';
+                  if (s.tagFont === undefined) s.tagFont = "'Mukta', sans-serif";
+                  if (s.tagFontSize === undefined) s.tagFontSize = '10px';
+                  if (s.tagBold === undefined) s.tagBold = true;
+                  if (s.topLineColor === undefined) s.topLineColor = '#dc2626';
+                  if (s.topLineFont === undefined) s.topLineFont = "'Mukta', sans-serif";
+                  if (s.topLineSize === undefined) s.topLineSize = '12.5px';
+                  if (s.topLineBold === undefined) s.topLineBold = true;
+                  if (s.topLineAlign === undefined) s.topLineAlign = 'left';
+                  if (s.imageHeight === undefined) s.imageHeight = s.layout === 'full-ad' ? 220 : 180;
+                  if (s.imageFit === undefined) s.imageFit = 'cover';
+                  if (s.showSizeBadge === undefined) s.showSizeBadge = true;
+                  if (s.showAdTag === undefined) s.showAdTag = true;
+                  if (s.adTagText === undefined) s.adTagText = 'विज्ञापन';
+                  if (s.cutoutWrap === undefined) s.cutoutWrap = false;
+                  if (s.cutoutFloat === undefined) s.cutoutFloat = 'left';
+                  if (s.cutoutMargin === undefined || s.cutoutMargin > 4) s.cutoutMargin = 2;
+                  if (s.cutoutWidth === undefined) s.cutoutWidth = 200;
+                  if (s.cutoutOffsetX === undefined) s.cutoutOffsetX = 0;
+                  if (s.cutoutOffsetY === undefined) s.cutoutOffsetY = 0;
+                });
+              }
             });
             studioState = parsed;
             studioState.paperMeta = Object.assign({}, defaultStudioState.paperMeta, parsed.paperMeta || {});
@@ -5383,13 +5376,78 @@
       return { styles, links };
     }
 
-    // PNG EXPORT (100% WYSIWYG SERVER-SIDE PUPPETEER SCREENSHOT ENDPOINT)
+    // BULLETPROOF CLIENT-SIDE CANVAS CAPTURE ENGINE (HTML2CANVAS + HTMLTOIMAGE FALLBACK)
+    async function captureElementToCanvas(targetNode, scaleFactor = 2) {
+      // 1. Try html2canvas first (bypasses cross-origin stylesheet cssRules security errors)
+      const html2canvasLib = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
+      if (html2canvasLib) {
+        try {
+          const canvas = await html2canvasLib(targetNode, {
+            scale: scaleFactor,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#fcfbfa',
+            logging: false,
+            imageTimeout: 6000,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: targetNode.offsetWidth || 1056,
+            windowHeight: targetNode.offsetHeight || 1632
+          });
+          if (canvas && canvas.width > 0 && canvas.height > 0) {
+            return canvas;
+          }
+        } catch (h2cErr) {
+          console.warn('html2canvas capture warning, trying htmlToImage:', h2cErr);
+        }
+      }
+
+      // 2. Fallback to htmlToImage (with safe options)
+      const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
+      if (htmlToImageLib) {
+        try {
+          const dataUrl = await htmlToImageLib.toPng(targetNode, {
+            quality: 1.0,
+            pixelRatio: scaleFactor,
+            cacheBust: true,
+            skipAutoScale: true,
+            backgroundColor: '#fcfbfa',
+            filter: (domNode) => {
+              if (domNode.classList && (domNode.classList.contains('no-print') || domNode.classList.contains('ad-size-badge') || domNode.classList.contains('selection-ring'))) {
+                return false;
+              }
+              return true;
+            }
+          });
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = dataUrl;
+          });
+          const cvs = document.createElement('canvas');
+          cvs.width = img.naturalWidth || (targetNode.offsetWidth * scaleFactor);
+          cvs.height = img.naturalHeight || (targetNode.offsetHeight * scaleFactor);
+          const ctx = cvs.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          return cvs;
+        } catch (h2iErr) {
+          console.warn('htmlToImage capture warning:', h2iErr);
+        }
+      }
+
+      throw new Error('Canvas render failed. Please ensure images are loaded.');
+    }
+
+    // PNG EXPORT (SERVER-SIDE PUPPETEER SCREENSHOT WITH INSTANT CLIENT CANVAS FALLBACK)
     async function exportPNG() {
       const node = document.getElementById('newspaperCanvas');
       const zoomContainer = document.getElementById('zoomContainer');
       const prevTransform = zoomContainer.style.transform;
       const prevActiveSectionId = activeSectionId;
       if (!node) return;
+
+      showStudioToast('🖼️ PNG एक्सपोर्ट तैयार हो रहा है...', 'info');
 
       try {
         // 1. Remove all selection rings & hide size badges before capturing image
@@ -5405,16 +5463,16 @@
         await convertAllImagesToBase64(node);
 
         if (document.fonts && document.fonts.ready) {
-          await document.fonts.ready;
+          try { await document.fonts.ready; } catch (e) {}
         }
         await new Promise(r => setTimeout(r, 200));
 
-        const { styles, links } = collectAllActiveStyles();
         const curSizeCfg = PAGE_SIZES[studioState.paperMeta.pageSize || '11x17'] || PAGE_SIZES['11x17'];
+        let downloaded = false;
 
         // Primary: Server-Side Puppeteer /api/export-newspaper
-        let downloaded = false;
         try {
+          const { styles, links } = collectAllActiveStyles();
           const res = await fetch('/api/export-newspaper', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -5429,38 +5487,38 @@
 
           if (res.ok) {
             const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = `PressCraft-${studioState.paperMeta.title}-Page-${studioState.activePageIndex + 1}.png`;
-            link.href = url;
-            link.click();
-            URL.revokeObjectURL(url);
-            downloaded = true;
+            if (blob && blob.size > 1000) {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              const sanitizedTitle = (studioState.paperMeta.title || 'Newspaper').replace(/[^a-zA-Z0-9\u0900-\u097F_-]/g, '_');
+              link.download = `PressCraft-${sanitizedTitle}-Page-${studioState.activePageIndex + 1}.png`;
+              link.href = url;
+              link.click();
+              URL.revokeObjectURL(url);
+              downloaded = true;
+            }
           }
         } catch (serverErr) {
-          console.warn('Server-side renderer unavailable, falling back to local renderer:', serverErr);
+          console.warn('Server-side renderer unavailable, falling back to local canvas renderer:', serverErr);
         }
 
-        // Fallback: html-to-image
+        // Fast & Reliable High-Res Client-Side Renderer
         if (!downloaded) {
-          const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
-          if (htmlToImageLib) {
-            const dataUrl = await htmlToImageLib.toPng(node, {
-              quality: 1.0,
-              pixelRatio: 2,
-              cacheBust: true,
-              skipAutoScale: true,
-              backgroundColor: '#fcfbfa'
-            });
-            const link = document.createElement('a');
-            link.download = `PressCraft-${studioState.paperMeta.title}-Page-${studioState.activePageIndex + 1}.png`;
-            link.href = dataUrl;
-            link.click();
-          }
+          const canvas = await captureElementToCanvas(node, 2);
+          const dataUrl = canvas.toDataURL('image/png', 1.0);
+          const link = document.createElement('a');
+          const sanitizedTitle = (studioState.paperMeta.title || 'Newspaper').replace(/[^a-zA-Z0-9\u0900-\u097F_-]/g, '_');
+          link.download = `PressCraft-${sanitizedTitle}-Page-${studioState.activePageIndex + 1}.png`;
+          link.href = dataUrl;
+          link.click();
+          downloaded = true;
         }
+
+        showStudioToast('✅ PNG सफलतापूर्वक डाउनलोड हो गया!');
       } catch (error) {
+        const errorMsg = (error && error.message) ? error.message : (typeof error === 'string' ? error : 'PNG export failed. Please try again.');
         console.error('Export failed:', error);
-        alert('Export error: ' + error.message);
+        alert('Export error: ' + errorMsg);
       } finally {
         node.classList.remove('exporting');
         const badges = node.querySelectorAll('.ad-size-badge, .no-print');
@@ -5475,7 +5533,7 @@
       }
     }
 
-    // ALL-PAGES COMBINED PDF EXPORT (SERVER-SIDE PUPPETEER PDF WITH DYNAMIC SIZE)
+    // ALL-PAGES COMBINED PDF EXPORT (SERVER-SIDE PUPPETEER PDF WITH DYNAMIC SIZE + LOCAL JSPDF FALLBACK)
     async function exportPDF() {
       const zoomContainer = document.getElementById('zoomContainer');
       const node = document.getElementById('newspaperCanvas');
@@ -5483,6 +5541,8 @@
       const initialActivePage = studioState.activePageIndex;
       const prevActiveSectionId = activeSectionId;
       if (!node) return;
+
+      showStudioToast('📄 PDF एक्सपोर्ट तैयार हो रहा है...', 'info');
 
       try {
         const curSizeCfg = PAGE_SIZES[studioState.paperMeta.pageSize || '11x17'] || PAGE_SIZES['11x17'];
@@ -5505,16 +5565,18 @@
 
           runBroadsheetSpatial2DPacking();
           await convertAllImagesToBase64(node);
-          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          if (document.fonts && document.fonts.ready) {
+            try { await document.fonts.ready; } catch (e) {}
+          }
           await new Promise(r => setTimeout(r, 180));
           pagesHTML.push(node.outerHTML);
         }
 
-        const { styles, links } = collectAllActiveStyles();
-
         let downloaded = false;
+
         // Primary: Server-side Puppeteer PDF Endpoint
         try {
+          const { styles, links } = collectAllActiveStyles();
           const res = await fetch('/api/export-newspaper', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -5529,23 +5591,34 @@
 
           if (res.ok) {
             const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = `PressCraft-${studioState.paperMeta.title}-${studioState.pages.length}-Pages.pdf`;
-            link.href = url;
-            link.click();
-            URL.revokeObjectURL(url);
-            downloaded = true;
+            if (blob && blob.size > 1000) {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              const sanitizedTitle = (studioState.paperMeta.title || 'Newspaper').replace(/[^a-zA-Z0-9\u0900-\u097F_-]/g, '_');
+              link.download = `PressCraft-${sanitizedTitle}-${studioState.pages.length}-Pages.pdf`;
+              link.href = url;
+              link.click();
+              URL.revokeObjectURL(url);
+              downloaded = true;
+            }
           }
         } catch (serverErr) {
-          console.warn('Server-side PDF renderer unavailable:', serverErr);
+          console.warn('Server-side PDF renderer unavailable, using local jsPDF renderer:', serverErr);
         }
 
-        // Fallback: client-side jsPDF + htmlToImage
+        // Fallback: client-side jsPDF + captureElementToCanvas
         if (!downloaded) {
           const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-          const pdf = jsPDFClass ? new jsPDFClass({ orientation: 'portrait', unit: 'mm', format: curSizeCfg.jsPdfFormat }) : null;
-          const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
+          if (!jsPDFClass) {
+            throw new Error('jsPDF library is not loaded. Please refresh the page.');
+          }
+
+          const pdfFormat = curSizeCfg.jsPdfFormat || [curSizeCfg.widthMm, curSizeCfg.heightMm];
+          const pdf = new jsPDFClass({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: pdfFormat
+          });
 
           for (let i = 0; i < studioState.pages.length; i++) {
             studioState.activePageIndex = i;
@@ -5559,26 +5632,25 @@
             await convertAllImagesToBase64(node);
             await new Promise(r => setTimeout(r, 180));
 
-            if (htmlToImageLib) {
-              const imgData = await htmlToImageLib.toJpeg(node, {
-                quality: 0.98,
-                pixelRatio: 2,
-                backgroundColor: '#fcfbfa'
-              });
-              if (pdf) {
-                if (i > 0) pdf.addPage(curSizeCfg.jsPdfFormat, 'portrait');
-                pdf.addImage(imgData, 'JPEG', 0, 0, curSizeCfg.widthMm, curSizeCfg.heightMm);
-              }
+            const canvas = await captureElementToCanvas(node, 2);
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+            if (i > 0) {
+              pdf.addPage(pdfFormat, 'portrait');
             }
+            pdf.addImage(imgData, 'JPEG', 0, 0, curSizeCfg.widthMm, curSizeCfg.heightMm, undefined, 'FAST');
           }
 
-          if (pdf) {
-            pdf.save(`PressCraft-${studioState.paperMeta.title}-${studioState.pages.length}-Pages.pdf`);
-          }
+          const sanitizedTitle = (studioState.paperMeta.title || 'Newspaper').replace(/[^a-zA-Z0-9\u0900-\u097F_-]/g, '_');
+          pdf.save(`PressCraft-${sanitizedTitle}-${studioState.pages.length}-Pages.pdf`);
+          downloaded = true;
         }
+
+        showStudioToast('✅ PDF सफलतापूर्वक डाउनलोड हो गया!');
       } catch (err) {
+        const errorMsg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'PDF export failed. Please try again.');
         console.error('PDF Export Error:', err);
-        alert('PDF Export error: ' + err.message);
+        alert('PDF Export error: ' + errorMsg);
       } finally {
         node.classList.remove('exporting');
         const badges = node.querySelectorAll('.ad-size-badge, .no-print');
@@ -5874,7 +5946,17 @@
           if (badge && nameEl) {
             badge.classList.remove('hidden');
             nameEl.textContent = u.name || u.newspaperName || u.username;
-            if (u.role === 'admin') {
+            if (u.is_impersonating) {
+              if (planEl) planEl.textContent = 'Admin Viewing Mode';
+              if (adminBtn) {
+                adminBtn.classList.remove('hidden');
+                adminBtn.innerText = '🚪 Exit to Admin';
+                adminBtn.onclick = async () => {
+                  await fetch('/api/admin/exit-impersonate', { method: 'POST' });
+                  window.top.location.href = '/admin';
+                };
+              }
+            } else if (u.role === 'admin') {
               if (planEl) planEl.textContent = 'Admin';
               if (adminBtn) adminBtn.classList.remove('hidden');
             } else {
@@ -5895,6 +5977,13 @@
     }
 
     async function handleUserLogout() {
+      if (currentAuthUser?.is_impersonating) {
+        if (confirm('क्या आप ग्राहक खाता देखना बंद करके वापस एडमिन पैनल पर लौटना चाहते हैं?')) {
+          await fetch('/api/admin/exit-impersonate', { method: 'POST' });
+          window.top.location.href = '/admin';
+        }
+        return;
+      }
       if (confirm('क्या आप लॉगआउट करना चाहते हैं?')) {
         await fetch('/api/auth/logout', { method: 'POST' });
         window.top.location.href = '/login';

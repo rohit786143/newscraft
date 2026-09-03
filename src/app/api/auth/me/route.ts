@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserById } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const sessionCookie = req.cookies.get('presscraft_session')?.value;
@@ -18,11 +20,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    // Dynamic expiry & block check
+    const isImpersonating = Boolean(sessionData.is_impersonating);
+
+    // Dynamic expiry & block check (bypassed if admin is inspecting/impersonating)
     const now = new Date();
     const expiryDate = new Date(user.endDate);
 
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && !isImpersonating) {
       if (user.status === 'blocked') {
         return NextResponse.json(
           {
@@ -59,7 +63,10 @@ export async function GET(req: NextRequest) {
         planType: user.planType,
         startDate: user.startDate,
         endDate: user.endDate,
-        status: user.status
+        status: user.status,
+        is_impersonating: isImpersonating,
+        original_admin_id: sessionData.original_admin_id,
+        original_admin_name: sessionData.original_admin_name
       }
     });
   } catch (error) {

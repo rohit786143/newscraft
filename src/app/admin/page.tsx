@@ -18,6 +18,14 @@ interface UserItem {
   notes?: string;
 }
 
+interface DeviceItem {
+  id: number;
+  user_id: string;
+  device_id: string;
+  device_name: string;
+  created_at: string;
+}
+
 interface StatsData {
   totalUsers: number;
   activeUsers: number;
@@ -29,6 +37,7 @@ interface StatsData {
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [devicesMap, setDevicesMap] = useState<Record<string, DeviceItem[]>>({});
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,12 +60,26 @@ export default function AdminDashboardPage() {
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [editPassword, setEditPassword] = useState('');
 
+  // Device Management Modal State
+  const [deviceModalUser, setDeviceModalUser] = useState<UserItem | null>(null);
+  const [newBindDeviceId, setNewBindDeviceId] = useState('');
+  const [newBindDeviceName, setNewBindDeviceName] = useState('Workstation PC');
+  const [deviceActionLoading, setDeviceActionLoading] = useState(false);
+  const [deviceModalError, setDeviceModalError] = useState('');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
   // Toast Notification
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCode(text);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const fetchDashboardData = async () => {
@@ -77,7 +100,19 @@ export default function AdminDashboardPage() {
         setUsers(usersData.users);
       }
 
-      // 3. Fetch stats
+      // 3. Fetch all approved devices
+      const devicesRes = await fetch('/api/admin/devices/list');
+      const devicesData = await devicesRes.json();
+      if (devicesRes.ok && Array.isArray(devicesData.devices)) {
+        const grouped: Record<string, DeviceItem[]> = {};
+        devicesData.devices.forEach((dev: DeviceItem) => {
+          if (!grouped[dev.user_id]) grouped[dev.user_id] = [];
+          grouped[dev.user_id].push(dev);
+        });
+        setDevicesMap(grouped);
+      }
+
+      // 4. Fetch stats
       const statsRes = await fetch('/api/admin/stats');
       const statsData = await statsRes.json();
       if (statsRes.ok && statsData.stats) {
@@ -133,7 +168,6 @@ export default function AdminDashboardPage() {
 
       showToast(`User "${newName}" added successfully with active subscription!`);
       setShowAddModal(false);
-      // Reset form
       setNewName('');
       setNewUsername('');
       setNewEmail('');
@@ -214,6 +248,30 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Login as User (Admin Impersonation)
+  const handleImpersonate = async (userId: string, userName: string) => {
+    try {
+      const res = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'इंपर्सनेशन विफल रहा।', 'error');
+        return;
+      }
+
+      showToast(`इंपर्सनेशन मोड सक्रिय! ${userName} के स्टूडियो में प्रवेश किया जा रहा है...`);
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 400);
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    }
+  };
+
   // Delete User
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to delete user "${userName}"?`)) return;
@@ -227,6 +285,84 @@ export default function AdminDashboardPage() {
       }
       showToast('User removed successfully!');
       fetchDashboardData();
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  // Bind New Device
+  const handleAddDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deviceModalUser || !newBindDeviceId) {
+      setDeviceModalError('Device ID (e.g. DEV-XXXX-XXXX) is required.');
+      return;
+    }
+
+    setDeviceActionLoading(true);
+    setDeviceModalError('');
+
+    try {
+      const res = await fetch('/api/admin/devices/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: deviceModalUser.id,
+          deviceId: newBindDeviceId.trim(),
+          deviceName: newBindDeviceName.trim() || 'Workstation PC'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setDeviceModalError(data.error || 'Failed to bind device.');
+        return;
+      }
+
+      showToast(`Device "${newBindDeviceId}" activated for ${deviceModalUser.name}!`);
+      setNewBindDeviceId('');
+      setNewBindDeviceName('Workstation PC');
+
+      // Refresh devices for this user
+      const listRes = await fetch(`/api/admin/devices/list?userId=${deviceModalUser.id}`);
+      const listData = await listRes.json();
+      if (listRes.ok && Array.isArray(listData.devices)) {
+        setDevicesMap(prev => ({ ...prev, [deviceModalUser.id]: listData.devices }));
+      }
+    } catch (err: any) {
+      setDeviceModalError(err.message);
+    } finally {
+      setDeviceActionLoading(false);
+    }
+  };
+
+  // Remove / Revoke Device
+  const handleRemoveDevice = async (deviceId: string, deviceName: string) => {
+    if (!deviceModalUser) return;
+    if (!confirm(`Are you sure you want to revoke access for "${deviceName}" (${deviceId})?`)) return;
+
+    try {
+      const res = await fetch('/api/admin/devices/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: deviceModalUser.id,
+          deviceId
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Revoke failed.', 'error');
+        return;
+      }
+
+      showToast(`Device ${deviceId} removed.`);
+      // Refresh devices for this user
+      const listRes = await fetch(`/api/admin/devices/list?userId=${deviceModalUser.id}`);
+      const listData = await listRes.json();
+      if (listRes.ok && Array.isArray(listData.devices)) {
+        setDevicesMap(prev => ({ ...prev, [deviceModalUser.id]: listData.devices }));
+      }
     } catch (err: any) {
       showToast(err.message, 'error');
     }
@@ -256,7 +392,7 @@ export default function AdminDashboardPage() {
 
   // Filtered Users List
   const filteredUsers = users.filter((u) => {
-    if (u.role === 'admin') return false; // Don't show admin in client subscription list
+    if (u.role === 'admin') return false;
     
     const matchesSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -285,7 +421,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* TOP ADMIN NAVBAR (BRIGHT PROFESSIONAL) */}
+      {/* TOP ADMIN NAVBAR */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-600 flex items-center justify-center text-white font-bold font-serif text-2xl shadow-md shadow-red-500/25">
@@ -295,6 +431,7 @@ export default function AdminDashboardPage() {
             <h1 className="font-black text-slate-900 text-2xl tracking-tight font-serif">
               PressCraft <span className="text-red-600">Admin Portal</span>
             </h1>
+            <p className="text-[11px] text-slate-400 font-medium">Subscription & Multi-Device License Control Center</p>
           </div>
         </div>
 
@@ -319,7 +456,7 @@ export default function AdminDashboardPage() {
       {/* MAIN ADMIN CONTENT */}
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
         
-        {/* 1. METRICS / STATS CARDS (BRIGHT & VIBRANT) */}
+        {/* 1. METRICS / STATS CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Card 1: Total Users */}
@@ -333,7 +470,7 @@ export default function AdminDashboardPage() {
                 👥
               </div>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 font-medium">All registered newspaper clients</p>
+            <p className="text-[11px] text-slate-500 mt-2 font-medium">Registered newspaper clients</p>
           </div>
 
           {/* Card 2: Active Subscriptions */}
@@ -359,7 +496,7 @@ export default function AdminDashboardPage() {
             <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full blur-2xl pointer-events-none"></div>
             <div className="flex justify-between items-start relative z-10">
               <div>
-                <p className="text-xs font-bold text-red-700 uppercase tracking-wider">Expired (Auto-Blocked)</p>
+                <p className="text-xs font-bold text-red-700 uppercase tracking-wider">Expired Accounts</p>
                 <p className="text-3xl font-black text-red-600 mt-1">{stats?.expiredUsers ?? '...'}</p>
               </div>
               <div className="w-11 h-11 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl border border-red-200 shadow-inner">
@@ -385,7 +522,7 @@ export default function AdminDashboardPage() {
 
         </div>
 
-        {/* 2. USER MANAGEMENT ACTIONS BAR (BRIGHT) */}
+        {/* 2. USER MANAGEMENT ACTIONS BAR */}
         <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
           
           {/* Search & Filter */}
@@ -439,16 +576,15 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        {/* 3. USERS TABLE (BRIGHT & CRISP) */}
+        {/* 3. USERS TABLE WITH MULTI-DEVICE MANAGEMENT CHIPS */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">User / Publication Name</th>
-                  <th className="py-3.5 px-4">Login Username</th>
-                  <th className="py-3.5 px-4">Subscription Plan</th>
-                  <th className="py-3.5 px-4">Expiration Date</th>
+                  <th className="py-3.5 px-4">User / Publication</th>
+                  <th className="py-3.5 px-4">Username & Devices</th>
+                  <th className="py-3.5 px-4">Plan & Validity</th>
                   <th className="py-3.5 px-4">Account Status</th>
                   <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
@@ -456,7 +592,7 @@ export default function AdminDashboardPage() {
               <tbody className="divide-y divide-slate-100 text-xs font-medium">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center text-slate-400 font-medium">
+                    <td colSpan={5} className="py-14 text-center text-slate-400 font-medium">
                       {loading ? 'Loading subscription data...' : 'No users found matching your criteria. Click "+ Add New User" to register a client.'}
                     </td>
                   </tr>
@@ -464,6 +600,7 @@ export default function AdminDashboardPage() {
                   filteredUsers.map((u) => {
                     const expiry = getExpiryDetails(u.endDate, u.status);
                     const isAccountBlocked = u.status === 'blocked' || u.status === 'expired' || new Date(u.endDate) <= new Date();
+                    const userDevices = devicesMap[u.id] || [];
 
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/80 transition">
@@ -475,26 +612,45 @@ export default function AdminDashboardPage() {
                           </p>
                         </td>
 
-                        {/* Username & Email */}
+                        {/* Username & Approved Devices Chip */}
                         <td className="py-3.5 px-4">
-                          <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200">
-                            {u.username}
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200">
+                              {u.username}
+                            </span>
+                            
+                            {/* MULTI-DEVICE CHIP BUTTON */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeviceModalUser(u);
+                                setDeviceModalError('');
+                              }}
+                              className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border flex items-center gap-1 transition shadow-xs cursor-pointer ${
+                                userDevices.length > 0
+                                  ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
+                              }`}
+                              title="Click to manage authorized workstations and phones"
+                            >
+                              <span>💻</span>
+                              <span>{userDevices.length} Device{userDevices.length !== 1 ? 's' : ''}</span>
+                              <span className="text-[9px] text-purple-600 font-extrabold">+</span>
+                            </button>
+                          </div>
                           <span className="block text-slate-400 text-[10px] mt-1 font-sans">{u.email}</span>
                         </td>
 
-                        {/* Plan */}
+                        {/* Plan & Expiration */}
                         <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                            {u.planType === '1-month' ? '1 Month' : u.planType === '3-months' ? '3 Months' : u.planType === '6-months' ? '6 Months' : u.planType === '1-year' ? '1 Year' : 'Custom Plan'}
-                          </span>
-                        </td>
-
-                        {/* Expiry Date & Countdown */}
-                        <td className="py-3.5 px-4">
-                          <p className="font-bold text-slate-800">
-                            {new Date(u.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              {u.planType === '1-month' ? '1 Month' : u.planType === '3-months' ? '3 Months' : u.planType === '6-months' ? '6 Months' : u.planType === '1-year' ? '1 Year' : 'Custom'}
+                            </span>
+                            <span className="font-bold text-slate-800 text-xs">
+                              {new Date(u.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
                           <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${expiry.badgeClass}`}>
                             {expiry.text}
                           </span>
@@ -523,7 +679,7 @@ export default function AdminDashboardPage() {
                             {isAccountBlocked ? (
                               <button
                                 onClick={() => handleUserAction(u.id, 'unblock')}
-                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
                                 title="Unblock user and auto-renew subscription (+1 Month from today)"
                               >
                                 <span>🔓</span> Unblock
@@ -544,22 +700,43 @@ export default function AdminDashboardPage() {
                               className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition border border-blue-200 cursor-pointer shadow-sm"
                               title="Extend subscription by +1 month"
                             >
-                              +1 Month
+                              +1M
+                            </button>
+
+                            {/* LOGIN AS USER (IMPERSONATION) BUTTON */}
+                            <button
+                              onClick={() => handleImpersonate(u.id, u.name)}
+                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-amber-200 cursor-pointer shadow-xs"
+                              title={`Log in to ${u.name}'s account directly (Bypasses password and device lock)`}
+                            >
+                              <span>👤</span> Login as User
+                            </button>
+
+                            {/* MANAGE DEVICES BUTTON */}
+                            <button
+                              onClick={() => {
+                                setDeviceModalUser(u);
+                                setDeviceModalError('');
+                              }}
+                              className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-bold transition border border-purple-200 cursor-pointer"
+                              title="Manage bound devices for this user"
+                            >
+                              📱 Devices
                             </button>
 
                             {/* EDIT BUTTON */}
                             <button
                               onClick={() => setEditingUser(u)}
-                              className="p-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs transition border border-slate-200 cursor-pointer"
+                              className="p-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs transition border border-slate-200 cursor-pointer"
                               title="Edit user details"
                             >
-                              ✏️ Edit
+                              ✏️
                             </button>
 
                             {/* DELETE BUTTON */}
                             <button
                               onClick={() => handleDeleteUser(u.id, u.name)}
-                              className="p-1.5 px-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs transition border border-red-200 cursor-pointer"
+                              className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs transition border border-red-200 cursor-pointer"
                               title="Delete user"
                             >
                               🗑️
@@ -578,7 +755,158 @@ export default function AdminDashboardPage() {
 
       </main>
 
-      {/* MODAL: ADD NEW USER (BRIGHT PROFESSIONAL) */}
+      {/* MODAL: MULTI-DEVICE MANAGEMENT */}
+      {deviceModalUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-6 shadow-2xl space-y-5">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3.5">
+              <div>
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2 font-serif">
+                  <span className="text-xl">💻</span> Approved Devices & Workstations
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  User: <span className="font-bold text-slate-800">{deviceModalUser.name}</span> ({deviceModalUser.username})
+                </p>
+              </div>
+              <button
+                onClick={() => setDeviceModalUser(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {deviceModalError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
+                ⚠️ {deviceModalError}
+              </div>
+            )}
+
+            {/* List of currently approved devices */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                Authorized Computers & Phones ({devicesMap[deviceModalUser.id]?.length || 0})
+              </span>
+
+              {(!devicesMap[deviceModalUser.id] || devicesMap[deviceModalUser.id].length === 0) ? (
+                <div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center space-y-1">
+                  <p className="text-xs font-bold text-slate-600">कोई डिवाइस बाइंड नहीं है (No Devices Bound)</p>
+                  <p className="text-[11px] text-slate-400">
+                    ग्राहक द्वारा भेजा गया Device ID नीचे दर्ज करके डिवाइस एक्टिवेट करें।
+                  </p>
+                </div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {devicesMap[deviceModalUser.id].map((dev) => (
+                    <div
+                      key={dev.id}
+                      className="p-3 bg-slate-50 border border-slate-200 hover:border-blue-200 rounded-2xl flex items-center justify-between gap-3 transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm shrink-0">
+                          💻
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-slate-900 truncate">{dev.device_name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-mono text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-bold select-all">
+                              {dev.device_id}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(dev.device_id)}
+                              className="text-[10px] text-slate-400 hover:text-slate-700 font-medium"
+                              title="Copy Device ID"
+                            >
+                              {copiedCode === dev.device_id ? '✓' : '📋'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] text-slate-400 hidden sm:inline">
+                          {new Date(dev.created_at).toLocaleDateString()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDevice(dev.device_id, dev.device_name)}
+                          className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center gap-1 border border-rose-200 cursor-pointer"
+                          title="Revoke access for this computer"
+                        >
+                          <span>🗑️</span>
+                          <span className="hidden sm:inline">Revoke</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bind New Device Form */}
+            <form onSubmit={handleAddDevice} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span>➕</span> नया डिवाइस लिंक करें (Authorize New Device)
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Device ID Code *
+                  </label>
+                  <input
+                    type="text"
+                    value={newBindDeviceId}
+                    onChange={(e) => setNewBindDeviceId(e.target.value.toUpperCase())}
+                    placeholder="e.g. DEV-A4B9-C8D2"
+                    className="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-xl px-3 py-2 text-slate-900 font-mono font-bold uppercase outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Device Label / Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newBindDeviceName}
+                    onChange={(e) => setNewBindDeviceName(e.target.value)}
+                    placeholder="e.g. Main Office Desktop"
+                    className="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={deviceActionLoading}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {deviceActionLoading ? 'Activating...' : '+ Bind & Authorize Device'}
+                </button>
+              </div>
+            </form>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDeviceModalUser(null)}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer"
+              >
+                Done / Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD NEW USER */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
