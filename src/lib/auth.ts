@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 export interface User {
   id: string;
@@ -17,47 +18,137 @@ export interface User {
   notes?: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const SEED_USERS: User[] = [
+  {
+    id: "usr-admin",
+    name: "Super Admin",
+    username: "admin",
+    email: "admin@presscraft.com",
+    password: "admin123",
+    role: "admin",
+    newspaperName: "PressCraft Network",
+    planType: "lifetime",
+    startDate: "2026-01-01T00:00:00.000Z",
+    endDate: "2099-12-31T23:59:59.000Z",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    notes: "Main Administrator Account"
+  },
+  {
+    id: "usr-demo",
+    name: "Alam Porle",
+    username: "himachalnews",
+    email: "editor@himachalnews.co",
+    password: "user123",
+    role: "user",
+    newspaperName: "हिमाचल न्यूज़",
+    planType: "1-month",
+    startDate: "2026-08-31T00:00:00.000Z",
+    endDate: "2026-09-15T00:00:00.000Z",
+    status: "active",
+    createdAt: "2026-08-31T00:00:00.000Z",
+    notes: "1 Month Standard Subscription"
+  }
+];
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+// Global in-memory cache to handle serverless environments reliably
+let inMemoryUsers: User[] | null = null;
+
+function getStoragePath(): string {
+  // If running in Vercel or production serverless, write to /tmp
+  const isServerless = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
+
+  if (isServerless) {
+    const tmpDir = path.join(os.tmpdir(), 'presscraft-data');
+    try {
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+      return path.join(tmpDir, 'users.json');
+    } catch {
+      return path.join(os.tmpdir(), 'users.json');
+    }
+  }
+
+  // Local development fallback
+  const localDataDir = path.join(process.cwd(), 'data');
+  try {
+    if (!fs.existsSync(localDataDir)) {
+      fs.mkdirSync(localDataDir, { recursive: true });
+    }
+    return path.join(localDataDir, 'users.json');
+  } catch {
+    return path.join(os.tmpdir(), 'users.json');
   }
 }
 
 export function getAllUsers(): User[] {
-  ensureDataDir();
-  if (!fs.existsSync(USERS_FILE)) {
-    return [];
-  }
-  try {
-    const raw = fs.readFileSync(USERS_FILE, 'utf-8');
-    const users: User[] = JSON.parse(raw);
-    const now = new Date();
+  let users: User[] = [];
+  const targetFile = getStoragePath();
+  const bundledFile = path.join(process.cwd(), 'data', 'users.json');
 
-    // Auto-compute expired status dynamically for users
-    return users.map((user) => {
-      if (user.role === 'admin') return user;
-      
-      const end = new Date(user.endDate);
-      if (user.status === 'blocked') {
-        return user; // Manually blocked by admin
-      }
-      if (end < now) {
-        return { ...user, status: 'expired' }; // Automatically expired
-      }
-      return { ...user, status: 'active' };
-    });
-  } catch (error) {
-    console.error('Error reading users file:', error);
-    return [];
+  // 1. Try reading from target storage file
+  if (fs.existsSync(targetFile)) {
+    try {
+      const raw = fs.readFileSync(targetFile, 'utf-8');
+      users = JSON.parse(raw);
+    } catch (err) {
+      console.warn('Error reading storage file, falling back:', err);
+    }
   }
+
+  // 2. If storage is empty, try reading bundled seed file
+  if (!users || users.length === 0) {
+    if (fs.existsSync(bundledFile)) {
+      try {
+        const raw = fs.readFileSync(bundledFile, 'utf-8');
+        users = JSON.parse(raw);
+        // Attempt to copy bundled users into writable targetFile
+        try {
+          fs.writeFileSync(targetFile, JSON.stringify(users, null, 2), 'utf-8');
+        } catch {
+          // Ignore write failure on readonly system
+        }
+      } catch (err) {
+        console.warn('Error reading bundled seed file:', err);
+      }
+    }
+  }
+
+  // 3. Fallback to in-memory cache or default seeds
+  if (!users || users.length === 0) {
+    users = inMemoryUsers && inMemoryUsers.length > 0 ? inMemoryUsers : [...SEED_USERS];
+  }
+
+  inMemoryUsers = users;
+
+  const now = new Date();
+  return users.map((user) => {
+    if (user.role === 'admin') return user;
+
+    const end = new Date(user.endDate);
+    if (user.status === 'blocked') {
+      return user; // Manually blocked by admin
+    }
+    if (end < now) {
+      return { ...user, status: 'expired' }; // Automatically expired
+    }
+    return { ...user, status: 'active' };
+  });
 }
 
 export function saveUsers(users: User[]): void {
-  ensureDataDir();
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  inMemoryUsers = users;
+  const targetFile = getStoragePath();
+  try {
+    const parentDir = path.dirname(targetFile);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    fs.writeFileSync(targetFile, JSON.stringify(users, null, 2), 'utf-8');
+  } catch (error) {
+    console.warn('Could not write users to disk, using in-memory state:', error);
+  }
 }
 
 export function findUserById(id: string): User | null {
