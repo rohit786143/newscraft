@@ -3663,7 +3663,10 @@
                     align-items: center;
                     justify-content: center;
                   ">
-                    <img src="${meta.headerLogo}" alt="Header Logo/Graphic" class="max-w-full max-h-full object-contain block" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));">
+                    <img src="${meta.headerLogo}" alt="Header Logo/Graphic" class="max-w-full max-h-full object-contain block" style="
+                      ${meta.headerLogoBlendMode && meta.headerLogoBlendMode !== 'normal' ? `mix-blend-mode: ${meta.headerLogoBlendMode};` : ''}
+                      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+                    ">
                   </div>
                 ` : ''}
                 <h1 class="select-text m-0" style="${titleStyle}">
@@ -4092,17 +4095,28 @@
           const imgData = ctx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
-          // Helper: Check if pixel is background (white, off-white, or fake checkerboard square)
+          // Corner sample pixels
+          const cornerIdxs = [
+            0,
+            (w - 1) * 4,
+            ((h - 1) * w) * 4,
+            ((h - 1) * w + w - 1) * 4
+          ];
+          const bgSamples = cornerIdxs.map(idx => ({ r: data[idx], g: data[idx+1], b: data[idx+2], a: data[idx+3] }));
+
           function isBgPixel(r, g, b, a) {
-            if (a < 20) return true; // already transparent
-            // 1. Pure or Near White
-            if (r >= 220 && g >= 220 && b >= 220) return true;
-            // 2. Checkerboard Grey Squares (e.g. #cccccc, #dcdcdc, #e0e0e0, #ebebeb)
-            const diffRG = Math.abs(r - g);
-            const diffGB = Math.abs(g - b);
-            const diffRB = Math.abs(r - b);
-            const isNeutralGray = diffRG <= 15 && diffGB <= 15 && diffRB <= 15;
-            if (isNeutralGray && r >= 160 && r <= 245) return true;
+            if (a < 15) return true; // transparent
+            // Check distance to corner sample
+            for (const s of bgSamples) {
+              if (s.a < 15) return true;
+              const dist = Math.abs(r - s.r) + Math.abs(g - s.g) + Math.abs(b - s.b);
+              if (dist < 60) return true;
+            }
+            // Pure or Off-White
+            if (r >= 200 && g >= 200 && b >= 200) return true;
+            // Fake Checkerboard Grey (#cccccc, #e0e0e0, #ededed, #b8b8b8, etc.)
+            const isGray = Math.abs(r - g) <= 25 && Math.abs(g - b) <= 25 && Math.abs(r - b) <= 25;
+            if (isGray && r >= 130 && r <= 255) return true;
             return false;
           }
 
@@ -4139,7 +4153,6 @@
             if (isBgPixel(r, g, b, a)) {
               data[pIdx + 3] = 0; // Make 100% transparent
             } else {
-              // Hit foreground subject, do not expand inward
               continue;
             }
 
@@ -4745,17 +4758,31 @@
             </div>
 
             ${meta.headerLogo ? `
-              <!-- ✨ SMART BACKGROUND REMOVER BUTTONS -->
-              <div class="flex items-center gap-1.5 bg-slate-950 p-2 rounded-lg border border-amber-900/50">
-                <button type="button" id="btnRemoveLogoBg" onclick="triggerHeaderLogoBgRemoval()" class="flex-1 py-1.5 px-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white rounded text-[10.5px] font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer">
-                  <i class="fa-solid fa-wand-magic-sparkles text-amber-300 animate-pulse"></i>
-                  <span>✨ बैकग्राउंड पारदर्शी बनाएं (Auto Remove BG)</span>
-                </button>
-                ${meta.rawHeaderLogo ? `
-                  <button type="button" onclick="restoreOriginalHeaderLogo()" class="py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-700 rounded text-[10px] font-medium transition cursor-pointer" title="मूल (Original) इमेज वापस लाएं">
-                    <i class="fa-solid fa-rotate-left"></i>
+              <!-- ✨ SMART BACKGROUND REMOVER & BLEND MODE -->
+              <div class="space-y-2 bg-slate-950 p-2.5 rounded-lg border border-amber-900/50">
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="btnRemoveLogoBg" onclick="triggerHeaderLogoBgRemoval()" class="flex-1 py-1.5 px-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white rounded text-[10.5px] font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-300 animate-pulse"></i>
+                    <span>✨ बैकग्राउंड मिटाएं (Erase BG Now)</span>
                   </button>
-                ` : ''}
+                  ${meta.rawHeaderLogo ? `
+                    <button type="button" onclick="restoreOriginalHeaderLogo()" class="py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-700 rounded text-[10px] font-medium transition cursor-pointer" title="मूल (Original) इमेज वापस लाएं">
+                      <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                  ` : ''}
+                </div>
+
+                <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between gap-2">
+                  <span class="text-slate-300 text-[10px] font-semibold flex items-center gap-1">
+                    <i class="fa-solid fa-circle-half-stroke text-cyan-400"></i> ब्लेंड मोड:
+                  </span>
+                  <select onchange="updatePaperMetaField('headerLogoBlendMode', this.value)" class="bg-slate-900 border border-slate-700 text-amber-200 text-[10px] rounded px-2 py-1 outline-none font-bold">
+                    <option value="normal" ${!meta.headerLogoBlendMode || meta.headerLogoBlendMode === 'normal' ? 'selected' : ''}>Normal (सामान्य)</option>
+                    <option value="multiply" ${meta.headerLogoBlendMode === 'multiply' ? 'selected' : ''}>Multiply (सफेद बैकग्राउंड छिपाएं)</option>
+                    <option value="darken" ${meta.headerLogoBlendMode === 'darken' ? 'selected' : ''}>Darken</option>
+                    <option value="color-burn" ${meta.headerLogoBlendMode === 'color-burn' ? 'selected' : ''}>Color Burn</option>
+                  </select>
+                </div>
               </div>
             ` : ''}
 
