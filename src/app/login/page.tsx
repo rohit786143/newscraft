@@ -172,24 +172,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* DEFAULT DEMO CREDENTIALS HINT */}
-        <div className="mt-6 pt-5 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5 bg-slate-50 p-3.5 rounded-2xl">
-          <p className="font-bold text-slate-700 flex items-center gap-1.5">
-            <span>🔑</span> Default Access Credentials:
-          </p>
-          <div className="grid grid-cols-2 gap-2 font-mono text-[10.5px]">
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-amber-700 font-bold block">Admin Portal (/admin):</span>
-              <span className="text-slate-800">admin / admin123</span>
-            </div>
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-blue-700 font-bold block">Client Editor (/):</span>
-              <span className="text-slate-800">himachalnews / user123</span>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <div className="text-center text-slate-500 text-xs mt-6 font-medium">
