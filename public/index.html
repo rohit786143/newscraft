@@ -4075,24 +4075,145 @@
       autoSave();
     }
 
+    // SMART AUTOMATIC BACKGROUND REMOVER (REMOVES FAKE CHECKERBOARDS & WHITE BACKGROUNDS)
+    async function processRemoveBackground(dataUrl) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const cvs = document.createElement('canvas');
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          cvs.width = w;
+          cvs.height = h;
+          const ctx = cvs.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const data = imgData.data;
+
+          // Helper: Check if pixel is background (white, off-white, or fake checkerboard square)
+          function isBgPixel(r, g, b, a) {
+            if (a < 20) return true; // already transparent
+            // 1. Pure or Near White
+            if (r >= 220 && g >= 220 && b >= 220) return true;
+            // 2. Checkerboard Grey Squares (e.g. #cccccc, #dcdcdc, #e0e0e0, #ebebeb)
+            const diffRG = Math.abs(r - g);
+            const diffGB = Math.abs(g - b);
+            const diffRB = Math.abs(r - b);
+            const isNeutralGray = diffRG <= 15 && diffGB <= 15 && diffRB <= 15;
+            if (isNeutralGray && r >= 160 && r <= 245) return true;
+            return false;
+          }
+
+          // Flood-fill BFS from all 4 outer borders
+          const visited = new Uint8Array(w * h);
+          const queue = new Int32Array(w * h * 2);
+          let head = 0;
+          let tail = 0;
+
+          // Enqueue all perimeter pixels
+          for (let x = 0; x < w; x++) {
+            queue[tail++] = x; queue[tail++] = 0;
+            queue[tail++] = x; queue[tail++] = h - 1;
+          }
+          for (let y = 0; y < h; y++) {
+            queue[tail++] = 0; queue[tail++] = y;
+            queue[tail++] = w - 1; queue[tail++] = y;
+          }
+
+          while (head < tail) {
+            const cx = queue[head++];
+            const cy = queue[head++];
+            const idx = cy * w + cx;
+
+            if (visited[idx]) continue;
+            visited[idx] = 1;
+
+            const pIdx = idx * 4;
+            const r = data[pIdx];
+            const g = data[pIdx + 1];
+            const b = data[pIdx + 2];
+            const a = data[pIdx + 3];
+
+            if (isBgPixel(r, g, b, a)) {
+              data[pIdx + 3] = 0; // Make 100% transparent
+            } else {
+              // Hit foreground subject, do not expand inward
+              continue;
+            }
+
+            // Push 4-way neighbors
+            if (cx > 0 && !visited[idx - 1]) { queue[tail++] = cx - 1; queue[tail++] = cy; }
+            if (cx < w - 1 && !visited[idx + 1]) { queue[tail++] = cx + 1; queue[tail++] = cy; }
+            if (cy > 0 && !visited[idx - w]) { queue[tail++] = cx; queue[tail++] = cy - 1; }
+            if (cy < h - 1 && !visited[idx + w]) { queue[tail++] = cx; queue[tail++] = cy + 1; }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(cvs.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
     // HEADER PNG LOGO & GRAPHIC HANDLERS
-    function handleHeaderLogoUpload(file) {
+    async function handleHeaderLogoUpload(file) {
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        studioState.paperMeta.headerLogo = e.target.result;
+      reader.onload = async function(e) {
+        const originalData = e.target.result;
+        studioState.paperMeta.rawHeaderLogo = originalData;
+        
+        // Auto-remove fake checkerboard & white background
+        const transparentData = await processRemoveBackground(originalData);
+        studioState.paperMeta.headerLogo = transparentData;
+
         if (!studioState.paperMeta.headerLogoSize) studioState.paperMeta.headerLogoSize = 65;
         if (studioState.paperMeta.headerLogoOffsetX === undefined) studioState.paperMeta.headerLogoOffsetX = -150;
         if (studioState.paperMeta.headerLogoOffsetY === undefined) studioState.paperMeta.headerLogoOffsetY = 0;
+        
         renderHeaderSidebarTab();
         renderActiveCanvasPage();
         autoSave();
+        showStudioToast('✨ लोगो अपलोड व बैकग्राउंड पारदर्शी किया गया!');
       };
       reader.readAsDataURL(file);
     }
 
+    async function triggerHeaderLogoBgRemoval() {
+      const src = studioState.paperMeta.rawHeaderLogo || studioState.paperMeta.headerLogo;
+      if (!src) return;
+      
+      const btn = document.getElementById('btnRemoveLogoBg');
+      if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> <span>रिमूव हो रहा है...</span>`;
+
+      try {
+        const transparentData = await processRemoveBackground(src);
+        studioState.paperMeta.headerLogo = transparentData;
+        renderHeaderSidebarTab();
+        renderActiveCanvasPage();
+        autoSave();
+        showStudioToast('✨ बैकग्राउंड पारदर्शी (Transparent) कर दिया गया!');
+      } catch (err) {
+        console.error('Error removing background:', err);
+      }
+    }
+
+    function restoreOriginalHeaderLogo() {
+      if (studioState.paperMeta.rawHeaderLogo) {
+        studioState.paperMeta.headerLogo = studioState.paperMeta.rawHeaderLogo;
+        renderHeaderSidebarTab();
+        renderActiveCanvasPage();
+        autoSave();
+        showStudioToast('मूल (Original) लोगो रीस्टोर किया गया।');
+      }
+    }
+
     function removeHeaderLogo() {
       studioState.paperMeta.headerLogo = '';
+      studioState.paperMeta.rawHeaderLogo = '';
       renderHeaderSidebarTab();
       renderActiveCanvasPage();
       autoSave();
@@ -4622,6 +4743,21 @@
               <span class="text-slate-400 block mb-0.5 text-[9.5px]">या Direct Logo Image URL दर्ज करें:</span>
               <input type="text" oninput="updatePaperMetaField('headerLogo', this.value)" value="${meta.headerLogo || ''}" placeholder="https://example.com/newspaper-logo.png" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10.5px] outline-none font-mono">
             </div>
+
+            ${meta.headerLogo ? `
+              <!-- ✨ SMART BACKGROUND REMOVER BUTTONS -->
+              <div class="flex items-center gap-1.5 bg-slate-950 p-2 rounded-lg border border-amber-900/50">
+                <button type="button" id="btnRemoveLogoBg" onclick="triggerHeaderLogoBgRemoval()" class="flex-1 py-1.5 px-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white rounded text-[10.5px] font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer">
+                  <i class="fa-solid fa-wand-magic-sparkles text-amber-300 animate-pulse"></i>
+                  <span>✨ बैकग्राउंड पारदर्शी बनाएं (Auto Remove BG)</span>
+                </button>
+                ${meta.rawHeaderLogo ? `
+                  <button type="button" onclick="restoreOriginalHeaderLogo()" class="py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-700 rounded text-[10px] font-medium transition cursor-pointer" title="मूल (Original) इमेज वापस लाएं">
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+                ` : ''}
+              </div>
+            ` : ''}
 
             ${meta.headerLogo ? `
               <!-- Size / Scale Slider -->
