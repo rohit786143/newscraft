@@ -136,6 +136,10 @@ export interface PaperMeta {
   rightAdText?: string;
   rightAdTag?: string;
   showAds?: boolean;
+  headerLogo?: string;
+  headerLogoSize?: number;
+  headerLogoOffsetX?: number;
+  headerLogoOffsetY?: number;
   subHeaderStyle?: string;
   customSubHeaderHeight?: number;
   defaultHeadlineFont?: string;

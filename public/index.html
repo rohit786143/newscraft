@@ -3651,7 +3651,21 @@
               ` : `<div class="w-[23%] max-w-[225px] shrink-0"></div>`}
 
               <!-- CENTER: LOGO & TAGLINE -->
-              <div class="flex-1 text-center px-1 self-center min-w-0">
+              <div class="relative flex-1 text-center px-1 self-center min-w-0">
+                ${meta.headerLogo ? `
+                  <div id="headerCustomLogoWrapper" class="absolute pointer-events-none select-none z-10" style="
+                    left: calc(50% + ${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150}px);
+                    top: calc(50% + ${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}px);
+                    transform: translate(-50%, -50%);
+                    width: ${meta.headerLogoSize || 65}px;
+                    height: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  ">
+                    <img src="${meta.headerLogo}" alt="Header Logo/Graphic" class="max-w-full max-h-full object-contain block" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));">
+                  </div>
+                ` : ''}
                 <h1 class="select-text m-0" style="${titleStyle}">
                   ${meta.title}
                 </h1>
@@ -4057,6 +4071,37 @@
       studioState.paperMeta.customHeaderHeight = parseInt(val, 10) || 140;
       const lbl = document.getElementById('customHeaderHeightLabel');
       if (lbl) lbl.textContent = `${studioState.paperMeta.customHeaderHeight}px`;
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    // HEADER PNG LOGO & GRAPHIC HANDLERS
+    function handleHeaderLogoUpload(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        studioState.paperMeta.headerLogo = e.target.result;
+        if (!studioState.paperMeta.headerLogoSize) studioState.paperMeta.headerLogoSize = 65;
+        if (studioState.paperMeta.headerLogoOffsetX === undefined) studioState.paperMeta.headerLogoOffsetX = -150;
+        if (studioState.paperMeta.headerLogoOffsetY === undefined) studioState.paperMeta.headerLogoOffsetY = 0;
+        renderHeaderSidebarTab();
+        renderActiveCanvasPage();
+        autoSave();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeHeaderLogo() {
+      studioState.paperMeta.headerLogo = '';
+      renderHeaderSidebarTab();
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function setHeaderLogoPosition(offsetX, offsetY) {
+      studioState.paperMeta.headerLogoOffsetX = offsetX;
+      studioState.paperMeta.headerLogoOffsetY = offsetY;
+      renderHeaderSidebarTab();
       renderActiveCanvasPage();
       autoSave();
     }
@@ -4550,10 +4595,112 @@
             </div>
           </div>
 
-          <!-- 2. TAGLINE / MOTTO SETTINGS -->
+          <!-- 2. HEADER PNG LOGO & GRAPHIC EMBLEM (हेडर PNG लोगो व ग्राफिक) -->
+          <div class="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 p-3 rounded-xl border border-amber-600/50 space-y-3">
+            <span class="text-amber-300 font-bold text-xs block border-b border-amber-800/60 pb-1 flex items-center justify-between">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-stamp text-amber-400"></i> 2. हेडर PNG लोगो / प्रतीक (Logo & Insignia)</span>
+              <span class="text-[9px] text-amber-300 bg-amber-950 px-1.5 py-0.2 rounded border border-amber-700/60 font-semibold">PNG / Logo</span>
+            </span>
+
+            <input type="file" id="headerLogoFileInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden" onchange="handleHeaderLogoUpload(this.files[0])">
+
+            <!-- Upload / Remove buttons -->
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="document.getElementById('headerLogoFileInput').click()" class="flex-1 py-1.5 px-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-slate-950 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer">
+                <i class="fa-solid fa-cloud-arrow-up text-slate-950"></i>
+                <span>${meta.headerLogo ? 'लोगो इमेज बदलें' : 'PNG लोगो अपलोड करें (PNG/JPG)'}</span>
+              </button>
+
+              ${meta.headerLogo ? `
+                <button type="button" onclick="removeHeaderLogo()" class="py-1.5 px-2.5 bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 rounded-lg text-xs font-bold transition cursor-pointer" title="लोगो हटाएं">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+
+            <div>
+              <span class="text-slate-400 block mb-0.5 text-[9.5px]">या Direct Logo Image URL दर्ज करें:</span>
+              <input type="text" oninput="updatePaperMetaField('headerLogo', this.value)" value="${meta.headerLogo || ''}" placeholder="https://example.com/newspaper-logo.png" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-[10.5px] outline-none font-mono">
+            </div>
+
+            ${meta.headerLogo ? `
+              <!-- Size / Scale Slider -->
+              <div class="pt-2 border-t border-slate-800 space-y-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-300 text-[10px] font-semibold">लोगो साइज़ (Scale / Width):</span>
+                  <span class="text-amber-300 font-mono text-[10.5px] font-bold">${meta.headerLogoSize || 65}px</span>
+                </div>
+                <input type="range" min="15" max="250" step="2" value="${meta.headerLogoSize || 65}" 
+                       oninput="updatePaperMetaField('headerLogoSize', parseInt(this.value))"
+                       class="w-full accent-amber-500 bg-slate-950 h-1.5 rounded cursor-pointer">
+                <div class="flex gap-1 pt-0.5">
+                  ${[35, 50, 65, 90, 120, 160].map(sz => `
+                    <button type="button" onclick="updatePaperMetaField('headerLogoSize', ${sz})" class="flex-1 py-0.5 rounded text-[9px] font-mono ${(meta.headerLogoSize || 65) === sz ? 'bg-amber-600 text-slate-950 font-bold' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'}">
+                      ${sz}px
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Horizontal Left-Right Position (X-Offset) -->
+              <div class="pt-2 border-t border-slate-800 space-y-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-300 text-[10px] font-semibold flex items-center gap-1">
+                    <i class="fa-solid fa-arrows-left-right text-blue-400"></i> बाएँ / दाएँ स्थिति (X-Offset):
+                  </span>
+                  <span class="text-blue-300 font-mono text-[10.5px] font-bold">${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150}px</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetX', (meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150) - 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="बाएँ खिसकाएं">◀ बाएँ</button>
+                  <input type="range" min="-350" max="350" step="2" value="${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150}" 
+                         oninput="updatePaperMetaField('headerLogoOffsetX', parseInt(this.value))"
+                         class="flex-1 accent-blue-500 bg-slate-950 h-1.5 rounded cursor-pointer">
+                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetX', (meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150) + 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="दाएँ खिसकाएं">दाएँ ▶</button>
+                </div>
+              </div>
+
+              <!-- Vertical Top-Bottom Position (Y-Offset) -->
+              <div class="pt-2 border-t border-slate-800 space-y-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-300 text-[10px] font-semibold flex items-center gap-1">
+                    <i class="fa-solid fa-arrows-up-down text-emerald-400"></i> ऊपर / नीचे स्थिति (Y-Offset):
+                  </span>
+                  <span class="text-emerald-300 font-mono text-[10.5px] font-bold">${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}px</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetY', (meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0) - 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="ऊपर खिसकाएं">▲ ऊपर</button>
+                  <input type="range" min="-120" max="120" step="2" value="${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}" 
+                         oninput="updatePaperMetaField('headerLogoOffsetY', parseInt(this.value))"
+                         class="flex-1 accent-emerald-500 bg-slate-950 h-1.5 rounded cursor-pointer">
+                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetY', (meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0) + 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="नीचे खिसकाएं">नीचे ▼</button>
+                </div>
+              </div>
+
+              <!-- Quick Placement Presets -->
+              <div class="pt-2 border-t border-slate-800 space-y-1">
+                <span class="text-slate-400 block text-[9.5px] font-semibold">त्वरित अलाइनमेंट (Quick Presets):</span>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <button type="button" onclick="setHeaderLogoPosition(-150, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                    👈 शीर्षक के बाएँ
+                  </button>
+                  <button type="button" onclick="setHeaderLogoPosition(150, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                    👉 शीर्षक के दाएँ
+                  </button>
+                  <button type="button" onclick="setHeaderLogoPosition(0, -42)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                    👑 शीर्षक के ऊपर
+                  </button>
+                  <button type="button" onclick="setHeaderLogoPosition(0, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                    🎯 बिल्कुल सेंटर
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 3. TAGLINE / MOTTO SETTINGS -->
           <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 space-y-2">
             <span class="text-amber-400 font-bold text-xs block border-b border-slate-700 pb-1 flex items-center gap-1.5">
-              <i class="fa-solid fa-quote-left text-emerald-400"></i> टैगलाइन / मोटो (Tagline Editor)
+              <i class="fa-solid fa-quote-left text-emerald-400"></i> 3. टैगलाइन / मोटो (Tagline Editor)
             </span>
             <input type="text" id="inputTagline" oninput="updatePaperMetaField('tagline', this.value)"
               value="${meta.tagline || 'हिमाचल प्रदेश का नंबर 1 दैनिक समाचार पत्र'}"
