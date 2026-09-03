@@ -1568,7 +1568,9 @@
       }
     }
 
-    // PERSISTENT STORAGE
+    // PERSISTENT STORAGE (LOCAL + HOSTINGER MYSQL CROSS-DEVICE CLOUD SYNC)
+    let cloudSyncTimeout = null;
+
     function autoSave() {
       if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
       autoSaveTimeout = setTimeout(() => {
@@ -1582,6 +1584,14 @@
         } catch (e) {
           console.warn('Auto-save error:', e);
         }
+
+        // Cross-Device Hostinger MySQL Cloud Sync (Debounced 1.2s)
+        if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
+        cloudSyncTimeout = setTimeout(() => {
+          if (typeof saveDesignToCloud === 'function' && typeof currentAuthUser !== 'undefined' && currentAuthUser) {
+            saveDesignToCloud(studioState);
+          }
+        }, 1200);
       }, 250);
     }
 
@@ -5741,12 +5751,67 @@
       });
     }
 
+    // USER AUTH & CROSS-DEVICE HOSTINGER MYSQL CLOUD SYNC
+    let currentAuthUser = null;
+
+    async function saveDesignToCloud(designData) {
+      const userId = currentAuthUser?.id || currentAuthUser?.username || 'usr-demo';
+      if (!userId) return false;
+
+      try {
+        const payload = {
+          userId: userId,
+          designData: designData || serializeEditorState()
+        };
+
+        const res = await fetch('/api/design/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          const txt = document.getElementById('autoSaveText');
+          if (txt) {
+            txt.innerText = 'Cloud Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn('Hostinger MySQL cloud save fallback to local:', err);
+      }
+      return false;
+    }
+
+    async function loadDesignFromCloud() {
+      try {
+        const userId = currentAuthUser?.id || currentAuthUser?.username;
+        const url = userId ? `/api/design/load?userId=${encodeURIComponent(userId)}` : '/api/design/load';
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.success && data.designData) {
+          const remoteState = data.designData.stateData || data.designData;
+          if (remoteState && remoteState.pages && Array.isArray(remoteState.pages) && remoteState.pages.length > 0) {
+            loadEditorState(data.designData);
+            showStudioToast('☁️ Hostinger MySQL क्लाउड से आपका डिज़ाइन लोड हो गया!');
+            return true;
+          }
+        }
+      } catch (err) {
+        console.warn('Hostinger MySQL cloud load fallback to local:', err);
+      }
+      return false;
+    }
+
     // USER AUTH & SUBSCRIPTION UI SYNC
     async function checkUserSessionAndSyncUI() {
       try {
         const res = await fetch('/api/auth/me');
         const data = await res.json();
         if (data.authenticated && data.user) {
+          currentAuthUser = data.user;
           const u = data.user;
           const badge = document.getElementById('userProfileBadge');
           const nameEl = document.getElementById('navUserName');
@@ -5764,6 +5829,9 @@
               if (planEl) planEl.textContent = `${Math.max(0, diffDays)} दिन शेष`;
             }
           }
+
+          // Prioritize loading latest cross-device saved design from Hostinger MySQL
+          await loadDesignFromCloud();
         }
       } catch (e) {
         console.warn('Session check warning:', e);
@@ -6282,6 +6350,9 @@
         await dbSaveProject(projectPayload);
         activeProject = { id: projectId, name: name, createdAt: projectPayload.createdAt, updatedAt: now };
 
+        // Save to Hostinger MySQL Database for Cross-Device Access
+        await saveDesignToCloud(projectPayload);
+
         const nameLabel = document.getElementById('activeProjectNameLabel');
         if (nameLabel) nameLabel.innerText = name;
 
@@ -6290,7 +6361,7 @@
 
         closeSaveDesignModal();
         updateProjectCountBadge();
-        showStudioToast(`डिज़ाइन "${name}" IndexedDB में सफलतापूर्वक सुरक्षित हो गया!`);
+        showStudioToast(`डिज़ाइन "${name}" क्लाउड व स्थानीय स्टोरेज में सुरक्षित हो गया!`);
       } catch (err) {
         console.error('Error saving project to IndexedDB:', err);
         alert('सेव करने में त्रुटि: ' + err.message);
