@@ -3623,7 +3623,26 @@
               <span class="font-semibold text-slate-800 text-[11px]">${meta.date || getFormattedHindiDate()}</span>
             </div>
 
-            <div class="flex items-center justify-between gap-2 pt-2.5 pb-0">
+            <div class="relative flex items-center justify-between gap-2 pt-2.5 pb-0 overflow-visible">
+              <!-- FULL-SPAN HEADER PNG LOGO OVERLAY -->
+              ${meta.headerLogo ? `
+                <div id="headerCustomLogoWrapper" class="absolute pointer-events-none select-none z-20" style="
+                  left: calc(50% + ${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -240}px);
+                  top: calc(50% + ${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}px);
+                  transform: translate(-50%, -50%);
+                  width: ${meta.headerLogoSize || 85}px;
+                  height: auto;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                ">
+                  <img src="${meta.headerLogo}" alt="Header Logo/Graphic" class="max-w-full max-h-full object-contain block" style="
+                    ${meta.headerLogoBlendMode && meta.headerLogoBlendMode !== 'normal' ? `mix-blend-mode: ${meta.headerLogoBlendMode};` : ''}
+                    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.18));
+                  ">
+                </div>
+              ` : ''}
+
               <!-- LEFT EAR: WEATHER & PANCHANG WIDGET (3 CITIES + SUNRISE/SUNSET/AQI) -->
               ${meta.showWeather !== false ? `
                 <div class="w-[23%] max-w-[225px] border border-black p-1 text-center bg-sky-50/80 rounded-[2px] shrink-0 self-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -3651,24 +3670,7 @@
               ` : `<div class="w-[23%] max-w-[225px] shrink-0"></div>`}
 
               <!-- CENTER: LOGO & TAGLINE -->
-              <div class="relative flex-1 text-center px-1 self-center min-w-0">
-                ${meta.headerLogo ? `
-                  <div id="headerCustomLogoWrapper" class="absolute pointer-events-none select-none z-10" style="
-                    left: calc(50% + ${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150}px);
-                    top: calc(50% + ${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}px);
-                    transform: translate(-50%, -50%);
-                    width: ${meta.headerLogoSize || 65}px;
-                    height: auto;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                  ">
-                    <img src="${meta.headerLogo}" alt="Header Logo/Graphic" class="max-w-full max-h-full object-contain block" style="
-                      ${meta.headerLogoBlendMode && meta.headerLogoBlendMode !== 'normal' ? `mix-blend-mode: ${meta.headerLogoBlendMode};` : ''}
-                      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
-                    ">
-                  </div>
-                ` : ''}
+              <div class="flex-1 text-center px-1 self-center min-w-0">
                 <h1 class="select-text m-0" style="${titleStyle}">
                   ${meta.title}
                 </h1>
@@ -4214,6 +4216,42 @@
       renderHeaderSidebarTab();
       renderActiveCanvasPage();
       autoSave();
+    }
+
+    function updateHeaderLogoField(field, val) {
+      studioState.paperMeta[field] = val;
+
+      if (field === 'headerLogoOffsetX') {
+        const slider = document.getElementById('inputHeaderLogoOffsetX');
+        const lbl = document.getElementById('lblHeaderLogoOffsetX');
+        if (slider) slider.value = val;
+        if (lbl) lbl.textContent = `${val}px`;
+      } else if (field === 'headerLogoOffsetY') {
+        const slider = document.getElementById('inputHeaderLogoOffsetY');
+        const lbl = document.getElementById('lblHeaderLogoOffsetY');
+        if (slider) slider.value = val;
+        if (lbl) lbl.textContent = `${val}px`;
+      } else if (field === 'headerLogoSize') {
+        const slider = document.getElementById('inputHeaderLogoSize');
+        const lbl = document.getElementById('lblHeaderLogoSize');
+        if (slider) slider.value = val;
+        if (lbl) lbl.textContent = `${val}px`;
+      }
+
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function nudgeHeaderLogo(axis, delta) {
+      if (axis === 'x') {
+        const current = studioState.paperMeta.headerLogoOffsetX !== undefined ? studioState.paperMeta.headerLogoOffsetX : -240;
+        const next = Math.max(-650, Math.min(650, current + delta));
+        updateHeaderLogoField('headerLogoOffsetX', next);
+      } else if (axis === 'y') {
+        const current = studioState.paperMeta.headerLogoOffsetY !== undefined ? studioState.paperMeta.headerLogoOffsetY : 0;
+        const next = Math.max(-160, Math.min(160, current + delta));
+        updateHeaderLogoField('headerLogoOffsetY', next);
+      }
     }
 
     function setHeaderLogoPosition(offsetX, offsetY) {
@@ -4775,68 +4813,78 @@
               <div class="pt-2 border-t border-slate-800 space-y-1.5">
                 <div class="flex justify-between items-center">
                   <span class="text-slate-300 text-[10px] font-semibold">लोगो साइज़ (Scale / Width):</span>
-                  <span class="text-amber-300 font-mono text-[10.5px] font-bold">${meta.headerLogoSize || 65}px</span>
+                  <span id="lblHeaderLogoSize" class="text-amber-300 font-mono text-[10.5px] font-bold">${meta.headerLogoSize || 85}px</span>
                 </div>
-                <input type="range" min="15" max="250" step="2" value="${meta.headerLogoSize || 65}" 
-                       oninput="updatePaperMetaField('headerLogoSize', parseInt(this.value))"
+                <input type="range" min="20" max="320" step="2" id="inputHeaderLogoSize" value="${meta.headerLogoSize || 85}" 
+                       oninput="updateHeaderLogoField('headerLogoSize', parseInt(this.value))"
                        class="w-full accent-amber-500 bg-slate-950 h-1.5 rounded cursor-pointer">
                 <div class="flex gap-1 pt-0.5">
-                  ${[35, 50, 65, 90, 120, 160].map(sz => `
-                    <button type="button" onclick="updatePaperMetaField('headerLogoSize', ${sz})" class="flex-1 py-0.5 rounded text-[9px] font-mono ${(meta.headerLogoSize || 65) === sz ? 'bg-amber-600 text-slate-950 font-bold' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'}">
+                  ${[45, 65, 85, 120, 160, 220].map(sz => `
+                    <button type="button" onclick="updateHeaderLogoField('headerLogoSize', ${sz})" class="flex-1 py-0.5 rounded text-[9px] font-mono ${(meta.headerLogoSize || 85) === sz ? 'bg-amber-600 text-slate-950 font-bold' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'}">
                       ${sz}px
                     </button>
                   `).join('')}
                 </div>
               </div>
 
-              <!-- Horizontal Left-Right Position (X-Offset) -->
+              <!-- Horizontal Left-Right Position (X-Offset: -650px to +650px Full Page Span) -->
               <div class="pt-2 border-t border-slate-800 space-y-1.5">
                 <div class="flex justify-between items-center">
                   <span class="text-slate-300 text-[10px] font-semibold flex items-center gap-1">
-                    <i class="fa-solid fa-arrows-left-right text-blue-400"></i> बाएँ / दाएँ स्थिति (X-Offset):
+                    <i class="fa-solid fa-arrows-left-right text-blue-400"></i> बाएँ / दाएँ स्थिति (X-Axis Range):
                   </span>
-                  <span class="text-blue-300 font-mono text-[10.5px] font-bold">${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150}px</span>
+                  <span id="lblHeaderLogoOffsetX" class="text-blue-300 font-mono text-[10.5px] font-bold">${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -240}px</span>
                 </div>
-                <div class="flex items-center gap-2">
-                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetX', (meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150) - 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="बाएँ खिसकाएं">◀ बाएँ</button>
-                  <input type="range" min="-350" max="350" step="2" value="${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150}" 
-                         oninput="updatePaperMetaField('headerLogoOffsetX', parseInt(this.value))"
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="nudgeHeaderLogo('x', -25)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-blue-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="25px बाएँ">◀◀ बाएँ</button>
+                  <button type="button" onclick="nudgeHeaderLogo('x', -5)" class="px-1.5 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="5px बाएँ">◀</button>
+                  <input type="range" min="-650" max="650" step="5" id="inputHeaderLogoOffsetX" value="${meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -240}" 
+                         oninput="updateHeaderLogoField('headerLogoOffsetX', parseInt(this.value))"
                          class="flex-1 accent-blue-500 bg-slate-950 h-1.5 rounded cursor-pointer">
-                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetX', (meta.headerLogoOffsetX !== undefined ? meta.headerLogoOffsetX : -150) + 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="दाएँ खिसकाएं">दाएँ ▶</button>
+                  <button type="button" onclick="nudgeHeaderLogo('x', 5)" class="px-1.5 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="5px दाएँ">▶</button>
+                  <button type="button" onclick="nudgeHeaderLogo('x', 25)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-blue-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="25px दाएँ">दाएँ ▶▶</button>
                 </div>
               </div>
 
-              <!-- Vertical Top-Bottom Position (Y-Offset) -->
+              <!-- Vertical Top-Bottom Position (Y-Offset: -160px to +160px) -->
               <div class="pt-2 border-t border-slate-800 space-y-1.5">
                 <div class="flex justify-between items-center">
                   <span class="text-slate-300 text-[10px] font-semibold flex items-center gap-1">
-                    <i class="fa-solid fa-arrows-up-down text-emerald-400"></i> ऊपर / नीचे स्थिति (Y-Offset):
+                    <i class="fa-solid fa-arrows-up-down text-emerald-400"></i> ऊपर / नीचे स्थिति (Y-Axis Range):
                   </span>
-                  <span class="text-emerald-300 font-mono text-[10.5px] font-bold">${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}px</span>
+                  <span id="lblHeaderLogoOffsetY" class="text-emerald-300 font-mono text-[10.5px] font-bold">${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}px</span>
                 </div>
-                <div class="flex items-center gap-2">
-                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetY', (meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0) - 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="ऊपर खिसकाएं">▲ ऊपर</button>
-                  <input type="range" min="-120" max="120" step="2" value="${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}" 
-                         oninput="updatePaperMetaField('headerLogoOffsetY', parseInt(this.value))"
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="nudgeHeaderLogo('y', -15)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-emerald-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="15px ऊपर">▲▲ ऊपर</button>
+                  <button type="button" onclick="nudgeHeaderLogo('y', -3)" class="px-1.5 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="3px ऊपर">▲</button>
+                  <input type="range" min="-160" max="160" step="2" id="inputHeaderLogoOffsetY" value="${meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0}" 
+                         oninput="updateHeaderLogoField('headerLogoOffsetY', parseInt(this.value))"
                          class="flex-1 accent-emerald-500 bg-slate-950 h-1.5 rounded cursor-pointer">
-                  <button type="button" onclick="updatePaperMetaField('headerLogoOffsetY', (meta.headerLogoOffsetY !== undefined ? meta.headerLogoOffsetY : 0) + 5)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[10px] font-bold border border-slate-700" title="नीचे खिसकाएं">नीचे ▼</button>
+                  <button type="button" onclick="nudgeHeaderLogo('y', 3)" class="px-1.5 py-1 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="3px नीचे">▼</button>
+                  <button type="button" onclick="nudgeHeaderLogo('y', 15)" class="px-2 py-1 bg-slate-950 hover:bg-slate-900 text-emerald-300 rounded text-[9.5px] font-bold border border-slate-700 active:scale-95 transition cursor-pointer" title="15px नीचे">नीचे ▼▼</button>
                 </div>
               </div>
 
-              <!-- Quick Placement Presets -->
+              <!-- Full-Span 6 Placement Presets -->
               <div class="pt-2 border-t border-slate-800 space-y-1">
                 <span class="text-slate-400 block text-[9.5px] font-semibold">त्वरित अलाइनमेंट (Quick Presets):</span>
                 <div class="grid grid-cols-2 gap-1.5">
-                  <button type="button" onclick="setHeaderLogoPosition(-150, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                  <button type="button" onclick="setHeaderLogoPosition(-450, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-amber-600/60 text-slate-300 rounded text-[9px] font-medium text-left truncate cursor-pointer transition">
+                    ◀◀ बिल्कुल बायाँ कोना
+                  </button>
+                  <button type="button" onclick="setHeaderLogoPosition(450, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-amber-600/60 text-slate-300 rounded text-[9px] font-medium text-left truncate cursor-pointer transition">
+                    ▶▶ बिल्कुल दायाँ कोना
+                  </button>
+                  <button type="button" onclick="setHeaderLogoPosition(-260, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-amber-600/60 text-slate-300 rounded text-[9px] font-medium text-left truncate cursor-pointer transition">
                     👈 शीर्षक के बाएँ
                   </button>
-                  <button type="button" onclick="setHeaderLogoPosition(150, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                  <button type="button" onclick="setHeaderLogoPosition(260, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-amber-600/60 text-slate-300 rounded text-[9px] font-medium text-left truncate cursor-pointer transition">
                     👉 शीर्षक के दाएँ
                   </button>
-                  <button type="button" onclick="setHeaderLogoPosition(0, -42)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                  <button type="button" onclick="setHeaderLogoPosition(0, -45)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-amber-600/60 text-slate-300 rounded text-[9px] font-medium text-left truncate cursor-pointer transition">
                     👑 शीर्षक के ऊपर
                   </button>
-                  <button type="button" onclick="setHeaderLogoPosition(0, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 rounded text-[9.5px] font-medium text-left truncate cursor-pointer">
+                  <button type="button" onclick="setHeaderLogoPosition(0, 0)" class="py-1 px-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-amber-600/60 text-slate-300 rounded text-[9px] font-medium text-left truncate cursor-pointer transition">
                     🎯 बिल्कुल सेंटर
                   </button>
                 </div>
