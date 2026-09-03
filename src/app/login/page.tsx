@@ -167,16 +167,17 @@ export default function LoginPage() {
             </div>
 
             {/* WHATSAPP ACTION */}
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 flex items-center justify-between pt-1 border-t border-amber-200/60">
+              <span className="text-[11px] text-amber-800 font-semibold">Admin: +91 98576-40014</span>
               <a
-                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                  `नमस्ते एडमिन, कृपया मेरे नए डिवाइस को PressCraft में एक्टिवेट करें।\nUsername: ${username || 'मेरा यूज़रनेम'}\nDevice ID: ${deviceId}`
+                href={`https://api.whatsapp.com/send?phone=919857640014&text=${encodeURIComponent(
+                  `नमस्ते एडमिन, कृपया मेरे नए डिवाइस को PressCraft Studio में एक्टिवेट करें।\nUsername: ${username || 'मेरा यूज़रनेम'}\nDevice ID: ${deviceId}`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 underline"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition"
               >
-                <span>💬 WhatsApp पर एडमिन को भेजें →</span>
+                <span>💬 WhatsApp पर भेजें →</span>
               </a>
             </div>
           </div>
@@ -196,7 +197,7 @@ export default function LoginPage() {
                 <p>{errorMsg}</p>
                 {(isExpired || isBlocked) && (
                   <p className="mt-2 text-[11px] text-amber-800 font-bold">
-                    📞 Please contact your Administrator to unblock or renew your subscription.
+                    📞 Please contact Admin at <a href="https://api.whatsapp.com/send?phone=919857640014" target="_blank" rel="noreferrer" className="underline font-black text-emerald-800">+91 98576-40014 (WhatsApp)</a> to unblock or renew.
                   </p>
                 )}
               </div>
