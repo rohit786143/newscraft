@@ -133,7 +133,7 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. himachalnews or admin"
+              placeholder="Username / Email"
               className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl px-4 py-2.5 text-slate-900 text-sm outline-none transition font-medium"
               required
               autoFocus
