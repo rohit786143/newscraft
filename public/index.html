@@ -1599,27 +1599,49 @@
                   <span class="text-xs text-amber-400 font-bold" id="iconCutLayout_lead_hero">✓</span>
                 </button>
 
-                <!-- Layout 2: Photo Left / Text Right -->
+                <!-- Layout 2: Photo Left / Text Right (Broadsheet Left Image) -->
                 <button type="button" onclick="setCuttingLayout('photo-left')" id="btnCutLayout_photo_left"
                   class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
                   <div class="flex items-center gap-2.5">
-                    <span class="text-lg">👈</span>
+                    <div class="w-8 h-8 rounded-lg bg-slate-950 border border-slate-700 p-1 flex gap-1 shrink-0">
+                      <div class="w-1/2 flex flex-col gap-0.5">
+                        <div class="h-3.5 bg-amber-500/90 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                      </div>
+                      <div class="w-1/2 flex flex-col gap-0.5 justify-center">
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                      </div>
+                    </div>
                     <div>
-                      <span class="font-bold text-white text-xs block">2. फोटो बाएँ + टेक्स्ट दाएँ (Split Left)</span>
-                      <span class="text-[10.5px] text-slate-400 block">बाएं भाग में फोटो और दाएं भाग में शीर्षक व खबर</span>
+                      <span class="font-bold text-white text-xs block">2. लेफ्ट इमेज रैप (Left Image)</span>
+                      <span class="text-[10.5px] text-slate-400 block">बाईं ओर बॉर्डर्ड फोटो + मल्टी-कॉलम टेक्स्ट रैप (ई-पेपर स्टाइल)</span>
                     </div>
                   </div>
                   <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_photo_left">✓</span>
                 </button>
 
-                <!-- Layout 3: Text Left / Photo Right -->
+                <!-- Layout 3: Text Left / Photo Right (Broadsheet Right Image) -->
                 <button type="button" onclick="setCuttingLayout('photo-right')" id="btnCutLayout_photo_right"
                   class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
                   <div class="flex items-center gap-2.5">
-                    <span class="text-lg">👉</span>
+                    <div class="w-8 h-8 rounded-lg bg-slate-950 border border-slate-700 p-1 flex gap-1 shrink-0">
+                      <div class="w-1/2 flex flex-col gap-0.5 justify-center">
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                      </div>
+                      <div class="w-1/2 flex flex-col gap-0.5">
+                        <div class="h-3.5 bg-amber-500/90 rounded-xs"></div>
+                        <div class="h-1 bg-slate-400 rounded-xs"></div>
+                      </div>
+                    </div>
                     <div>
-                      <span class="font-bold text-white text-xs block">3. टेक्स्ट बाएँ + फोटो दाएँ (Split Right)</span>
-                      <span class="text-[10.5px] text-slate-400 block">बाएं भाग में खबर और दाएं भाग में फोटो</span>
+                      <span class="font-bold text-white text-xs block">3. राइट इमेज रैप (Right Image)</span>
+                      <span class="text-[10.5px] text-slate-400 block">दाईं ओर बॉर्डर्ड फोटो + मल्टी-कॉलम टेक्स्ट रैप (ई-पेपर स्टाइल)</span>
                     </div>
                   </div>
                   <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_photo_right">✓</span>
@@ -3303,33 +3325,31 @@
           </div>
         `;
       } else if (cuttingState.layout === 'photo-left') {
+        const frameBorder = cuttingState.paperStyle === 'dark-clipping' ? '#475569' : '#000000';
+        const frameBg = cuttingState.paperStyle === 'dark-clipping' ? '#1e293b' : '#ffffff';
         layoutContentHtml = `
-          <div class="relative block">
+          <div class="clearfix cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
             ${cuttingState.image ? `
-              <div class="float-left mr-3.5 mb-2.5" style="width: 44%; max-width: 290px;">
-                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 220, 160)}px;">
-                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
+              <div class="float-left w-[44%] max-w-[220px] mr-3 mb-2 p-0.5 shadow-xs" style="border: 1px solid ${frameBorder}; background-color: ${frameBg}; break-inside: avoid; -webkit-column-break-inside: avoid;">
+                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover" style="max-height: ${Math.min(220, Math.max(parseFloat(cuttingState.imageHeight) || 165, 100))}px;">
+                ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-600 dark:text-slate-400 leading-snug text-center">${escapeHtml(cuttingState.caption)}</div>` : ''}
               </div>
             ` : ''}
-            <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
-              ${formattedBody}
-            </div>
-            <div class="clear-both"></div>
+            ${formattedBody}
           </div>
         `;
       } else if (cuttingState.layout === 'photo-right') {
+        const frameBorder = cuttingState.paperStyle === 'dark-clipping' ? '#475569' : '#000000';
+        const frameBg = cuttingState.paperStyle === 'dark-clipping' ? '#1e293b' : '#ffffff';
         layoutContentHtml = `
-          <div class="relative block">
+          <div class="clearfix cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
             ${cuttingState.image ? `
-              <div class="float-right ml-3.5 mb-2.5" style="width: 44%; max-width: 290px;">
-                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 220, 160)}px;">
-                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500 text-right leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
+              <div class="float-right w-[44%] max-w-[220px] ml-3 mb-2 p-0.5 shadow-xs" style="border: 1px solid ${frameBorder}; background-color: ${frameBg}; break-inside: avoid; -webkit-column-break-inside: avoid;">
+                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover" style="max-height: ${Math.min(220, Math.max(parseFloat(cuttingState.imageHeight) || 165, 100))}px;">
+                ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-600 dark:text-slate-400 leading-snug text-center">${escapeHtml(cuttingState.caption)}</div>` : ''}
               </div>
             ` : ''}
-            <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
-              ${formattedBody}
-            </div>
-            <div class="clear-both"></div>
+            ${formattedBody}
           </div>
         `;
       } else if (cuttingState.layout === 'cutout-wrap') {
