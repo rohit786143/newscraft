@@ -2870,45 +2870,61 @@
       if (!rawText) return { col1: '', col2: '' };
 
       const bodySize = parseFloat(cuttingState.bodySize) || 13;
-      const lineHeight = bodySize * 1.625;
-      const charsPerLine = Math.max(30, Math.round(485 / (bodySize * 0.62)));
+      const lineHeight = bodySize * 1.62;
+      const charsPerLine = Math.max(35, Math.round(490 / (bodySize * 0.63)));
 
-      // Equivalent character capacity occupied by image + caption
-      let imgChars = 0;
+      let imgLines = 0;
       if (cuttingState.image) {
-        const imgH = Math.max(parseFloat(cuttingState.imageHeight) || 190, 120);
-        const captionH = cuttingState.caption ? 26 : 10;
-        const totalImgH = imgH + captionH;
-        imgChars = Math.round((totalImgH / lineHeight) * charsPerLine);
+        const imgH = Math.max(parseFloat(cuttingState.imageHeight) || 190, 100);
+        const captionH = cuttingState.caption ? 24 : 8;
+        const totalImgH = imgH + captionH + 12;
+        imgLines = totalImgH / lineHeight;
       }
 
+      const imgChars = Math.round(imgLines * charsPerLine);
       const totalLen = rawText.length;
-      let targetLen1;
-      if (imgChars > 0 && totalLen > imgChars) {
-        targetLen1 = Math.round((totalLen + imgChars) / 2);
-      } else {
-        targetLen1 = Math.round(totalLen * 0.52);
+
+      let fullColChars = Math.round((totalLen + imgChars) / 2);
+      let photoColChars = Math.max(Math.round(totalLen * 0.1), fullColChars - imgChars);
+
+      const sumTarget = fullColChars + photoColChars;
+      if (sumTarget > 0) {
+        fullColChars = Math.round((fullColChars / sumTarget) * totalLen);
+        photoColChars = totalLen - fullColChars;
       }
 
       function findSplitPoint(text, target) {
         if (target <= 0) return 0;
         if (target >= text.length) return text.length;
-        const searchStart = Math.max(0, target - 50);
-        const searchEnd = Math.min(text.length, target + 50);
+        const searchStart = Math.max(0, target - 35);
+        const searchEnd = Math.min(text.length, target + 35);
         const win = text.substring(searchStart, searchEnd);
         
-        // Prefer paragraph break, then purna viram, then period/question, then comma, then space
-        const puncts = ['\n', '।', '.', '!', '?', ';', ',', ' '];
-        for (const p of puncts) {
+        const sentPuncts = ['। ', '. ', '! ', '? ', '।\n', '.\n'];
+        for (const p of sentPuncts) {
           const idx = win.lastIndexOf(p);
           if (idx !== -1) {
-            return searchStart + idx + (p === ' ' || p === '\n' ? 1 : 1);
+            return searchStart + idx + p.length;
+          }
+        }
+
+        const clausePuncts = [', ', '; ', ' - '];
+        for (const p of clausePuncts) {
+          const idx = win.lastIndexOf(p);
+          if (idx !== -1) {
+            return searchStart + idx + p.length;
+          }
+        }
+
+        for (let i = win.length - 1; i >= 0; i--) {
+          if (win[i] === ' ' || win[i] === '\n') {
+            return searchStart + i + 1;
           }
         }
         return target;
       }
 
-      const splitIdx = findSplitPoint(rawText, targetLen1);
+      const splitIdx = findSplitPoint(rawText, fullColChars);
       const part1 = rawText.substring(0, splitIdx).trim();
       const part2 = rawText.substring(splitIdx).trim();
 
@@ -2916,10 +2932,12 @@
         if (!txt) return '';
         const lines = txt.split('\n').filter(p => p.trim().length > 0);
         return lines.map((p, idx) => {
+          const isLast = idx === lines.length - 1;
+          const mbClass = isLast ? 'mb-0' : 'mb-2';
           if (isFirst && idx === 0 && location) {
-            return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
+            return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
           }
-          return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
+          return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
         }).join('');
       }
 
@@ -2935,31 +2953,28 @@
       if (!rawText) return { col1: '', col2: '', col3: '' };
 
       const bodySize = parseFloat(cuttingState.bodySize) || 13;
-      const lineHeight = bodySize * 1.625;
-      const charsPerLine = Math.max(20, Math.round(315 / (bodySize * 0.62)));
+      const lineHeight = bodySize * 1.62;
+      const charsPerLine = Math.max(25, Math.round(320 / (bodySize * 0.63)));
 
-      // Calculate equivalent character capacity occupied by image + caption
-      let imgChars = 0;
+      let imgLines = 0;
       if (cuttingState.image) {
-        const imgH = Math.max(parseFloat(cuttingState.imageHeight) || 170, 110);
-        const captionH = cuttingState.caption ? 26 : 10;
-        const totalImgH = imgH + captionH;
-        imgChars = Math.round((totalImgH / lineHeight) * charsPerLine);
+        const imgH = Math.max(parseFloat(cuttingState.imageHeight) || 170, 100);
+        const captionH = cuttingState.caption ? 24 : 8;
+        const totalImgH = imgH + captionH + 12;
+        imgLines = totalImgH / lineHeight;
       }
 
+      const imgChars = Math.round(imgLines * charsPerLine);
       const totalLen = rawText.length;
-      let fullColChars, photoColChars;
 
-      if (imgChars > 0 && totalLen > imgChars * 1.3) {
-        fullColChars = Math.round((totalLen + imgChars) / 3);
-        photoColChars = Math.max(Math.round(totalLen * 0.12), fullColChars - imgChars);
-      } else if (imgChars > 0) {
-        // Shorter content: distribute gracefully
-        fullColChars = Math.round(totalLen * 0.44);
-        photoColChars = Math.max(0, totalLen - (fullColChars * 2));
-      } else {
-        fullColChars = Math.round(totalLen / 3);
-        photoColChars = fullColChars;
+      let fullColChars = Math.round((totalLen + imgChars) / 3);
+      let photoColChars = Math.max(Math.round(totalLen * 0.08), fullColChars - imgChars);
+
+      // Normalize so sum equals totalLen exactly
+      const sumTarget = (fullColChars * 2) + photoColChars;
+      if (sumTarget > 0) {
+        fullColChars = Math.round((fullColChars / sumTarget) * totalLen);
+        photoColChars = totalLen - (fullColChars * 2);
       }
 
       let targetLen1, targetLen2;
@@ -2977,16 +2992,29 @@
       function findSplitPoint(text, target) {
         if (target <= 0) return 0;
         if (target >= text.length) return text.length;
-        const searchStart = Math.max(0, target - 50);
-        const searchEnd = Math.min(text.length, target + 50);
+        const searchStart = Math.max(0, target - 35);
+        const searchEnd = Math.min(text.length, target + 35);
         const win = text.substring(searchStart, searchEnd);
         
-        // Priority: paragraph break, purna viram, punctuation, space
-        const puncts = ['\n', '।', '.', '!', '?', ';', ',', ' '];
-        for (const p of puncts) {
+        const sentPuncts = ['। ', '. ', '! ', '? ', '।\n', '.\n'];
+        for (const p of sentPuncts) {
           const idx = win.lastIndexOf(p);
           if (idx !== -1) {
-            return searchStart + idx + 1;
+            return searchStart + idx + p.length;
+          }
+        }
+
+        const clausePuncts = [', ', '; ', ' - '];
+        for (const p of clausePuncts) {
+          const idx = win.lastIndexOf(p);
+          if (idx !== -1) {
+            return searchStart + idx + p.length;
+          }
+        }
+
+        for (let i = win.length - 1; i >= 0; i--) {
+          if (win[i] === ' ' || win[i] === '\n') {
+            return searchStart + i + 1;
           }
         }
         return target;
@@ -3006,10 +3034,12 @@
         if (!txt) return '';
         const lines = txt.split('\n').filter(p => p.trim().length > 0);
         return lines.map((p, idx) => {
+          const isLast = idx === lines.length - 1;
+          const mbClass = isLast ? 'mb-0' : 'mb-2';
           if (isFirst && idx === 0 && location) {
-            return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
+            return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
           }
-          return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
+          return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
         }).join('');
       }
 
@@ -3195,14 +3225,14 @@
       } else if (cuttingState.layout === 'col2-top-photo') {
         const { col1, col2 } = splitCuttingContentForTwoCols(cuttingState.content, cuttingState.location);
         layoutContentHtml = `
-          <div class="grid grid-cols-2 gap-3.5 items-start">
+          <div class="grid grid-cols-2 gap-3.5 items-stretch w-full mb-1">
             <!-- Left Column 1 (Pure Text Flow) -->
-            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col1}
             </div>
 
             <!-- Right Column 2 (Top Landscape Photo + Continuation Text Below) -->
-            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock2" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
                   <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 190, 130)}px;">
@@ -3216,9 +3246,9 @@
       } else if (cuttingState.layout === 'col3-col1-photo') {
         const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 1);
         layoutContentHtml = `
-          <div class="grid grid-cols-3 gap-3 items-start">
+          <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Top Landscape Photo + Continuation Text Below) -->
-            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
                   <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
@@ -3229,12 +3259,12 @@
             </div>
 
             <!-- Middle Column 2 (Full Text Flow) -->
-            <div class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col2}
             </div>
 
             <!-- Right Column 3 (Full Text Flow) -->
-            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col3}
             </div>
           </div>
@@ -3242,14 +3272,14 @@
       } else if (cuttingState.layout === 'col3-col2-photo') {
         const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 2);
         layoutContentHtml = `
-          <div class="grid grid-cols-3 gap-3 items-start">
+          <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Full Text Flow) -->
-            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col1}
             </div>
 
             <!-- Middle Column 2 (Top Landscape Photo + Continuation Text Below) -->
-            <div class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
                   <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
@@ -3260,7 +3290,7 @@
             </div>
 
             <!-- Right Column 3 (Full Text Flow) -->
-            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col3}
             </div>
           </div>
@@ -3268,19 +3298,19 @@
       } else if (cuttingState.layout === 'col3-col3-photo') {
         const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 3);
         layoutContentHtml = `
-          <div class="grid grid-cols-3 gap-3 items-start">
+          <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Full Text Flow) -->
-            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col1}
             </div>
 
             <!-- Middle Column 2 (Full Text Flow) -->
-            <div class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${col2}
             </div>
 
             <!-- Right Column 3 (Top Landscape Photo + Continuation Text Below) -->
-            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+            <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
                   <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
