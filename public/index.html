@@ -2792,30 +2792,32 @@
         `;
       } else if (cuttingState.layout === 'photo-left') {
         layoutContentHtml = `
-          <div class="grid grid-cols-12 gap-3 mb-2">
+          <div class="relative block">
             ${cuttingState.image ? `
-              <div class="col-span-5">
-                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 240, 200)}px;">
-                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500">${escapeHtml(cuttingState.caption)}</div>` : ''}
+              <div class="float-left mr-3.5 mb-2.5" style="width: 44%; max-width: 290px;">
+                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 220, 160)}px;">
+                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
               </div>
             ` : ''}
-            <div class="${cuttingState.image ? 'col-span-7' : 'col-span-12'} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            <div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
               ${formattedBody}
             </div>
+            <div class="clear-both"></div>
           </div>
         `;
       } else if (cuttingState.layout === 'photo-right') {
         layoutContentHtml = `
-          <div class="grid grid-cols-12 gap-3 mb-2">
-            <div class="${cuttingState.image ? 'col-span-7' : 'col-span-12'} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
-              ${formattedBody}
-            </div>
+          <div class="relative block">
             ${cuttingState.image ? `
-              <div class="col-span-5">
-                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 240, 200)}px;">
-                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500">${escapeHtml(cuttingState.caption)}</div>` : ''}
+              <div class="float-right ml-3.5 mb-2.5" style="width: 44%; max-width: 290px;">
+                <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 220, 160)}px;">
+                ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500 text-right leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
               </div>
             ` : ''}
+            <div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+              ${formattedBody}
+            </div>
+            <div class="clear-both"></div>
           </div>
         `;
       } else if (cuttingState.layout === 'cutout-wrap') {
