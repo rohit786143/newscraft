@@ -64,25 +64,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pages = state.pages;
-    if (!Array.isArray(pages) || pages.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Design must contain at least 1 page' },
-        { status: 400 }
-      );
-    }
+    const isCutting = parsedState.type === 'cutting' || state.type === 'cutting' || Boolean(state.cuttingState) || Boolean(parsedState.cuttingState);
 
-    // Count total articles / sections across all pages
-    const totalArticles = pages.reduce(
-      (acc: number, p: any) => acc + (Array.isArray(p?.sections) ? p.sections.length : 0),
-      0
-    );
+    let pagesCount = 1;
+    let totalArticles = 1;
 
-    if (totalArticles === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Design cannot be empty: must contain at least 1 article/news slot' },
-        { status: 400 }
+    if (!isCutting) {
+      const pages = state.pages;
+      if (!Array.isArray(pages) || pages.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Design must contain at least 1 page' },
+          { status: 400 }
+        );
+      }
+
+      // Count total articles / sections across all pages
+      totalArticles = pages.reduce(
+        (acc: number, p: any) => acc + (Array.isArray(p?.sections) ? p.sections.length : 0),
+        0
       );
+
+      if (totalArticles === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Design cannot be empty: must contain at least 1 article/news slot' },
+          { status: 400 }
+        );
+      }
+      pagesCount = pages.length;
     }
 
     await ensureTableExists();
@@ -102,7 +110,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Design saved',
-      pagesCount: pages.length,
+      pagesCount: pagesCount,
       articlesCount: totalArticles
     });
   } catch (error: any) {

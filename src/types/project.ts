@@ -158,12 +158,18 @@ export interface EditorState {
 
 export interface SavedProject {
   id: string;
+  type?: 'epaper' | 'cutting';
   name: string;
-  thumbnail: string; // Base64 data URL preview of page 1
+  thumbnail: string; // Base64 data URL preview of page 1 or clipping card
   createdAt: string; // ISO 8601 string
   updatedAt: string; // ISO 8601 string
-  pageSize: string; // '11x17', '11x14', '14x22'
+  pageSize: string; // '11x17', '11x14', '14x22', '1:1', etc.
+  ratio?: string;
+  layout?: string;
+  tag?: string;
   pageCount: number;
   sectionCount: number;
-  stateData: EditorState;
+  cuttingState?: any;
+  stateData: EditorState | any;
 }
+

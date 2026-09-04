@@ -253,20 +253,49 @@
     }
     .cutting-cols-1 {
       column-count: 1 !important;
+      -webkit-column-count: 1 !important;
+      columns: 1 !important;
+      display: block !important;
+      width: 100% !important;
     }
     .cutting-cols-2 {
       column-count: 2 !important;
-      column-rule: 1px solid #e2e8f0;
-      column-gap: 16px;
+      -webkit-column-count: 2 !important;
+      columns: 2 !important;
+      column-rule: 1px solid #d4cebe !important;
+      -webkit-column-rule: 1px solid #d4cebe !important;
+      column-gap: 16px !important;
+      -webkit-column-gap: 16px !important;
       column-fill: balance !important;
       -webkit-column-fill: balance !important;
+      display: block !important;
+      width: 100% !important;
     }
     .cutting-cols-3 {
       column-count: 3 !important;
-      column-rule: 1px solid #e2e8f0;
-      column-gap: 14px;
+      -webkit-column-count: 3 !important;
+      columns: 3 !important;
+      column-rule: 1px solid #d4cebe !important;
+      -webkit-column-rule: 1px solid #d4cebe !important;
+      column-gap: 14px !important;
+      -webkit-column-gap: 14px !important;
       column-fill: balance !important;
       -webkit-column-fill: balance !important;
+      display: block !important;
+      width: 100% !important;
+    }
+    .cutting-cols-4 {
+      column-count: 4 !important;
+      -webkit-column-count: 4 !important;
+      columns: 4 !important;
+      column-rule: 1px solid #d4cebe !important;
+      -webkit-column-rule: 1px solid #d4cebe !important;
+      column-gap: 12px !important;
+      -webkit-column-gap: 12px !important;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+      display: block !important;
+      width: 100% !important;
     }
 
     /* Custom Scrollbars */
@@ -1624,6 +1653,19 @@
                   <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_breaking_alert">✓</span>
                 </button>
 
+                <!-- Layout 8: 2-Column with Column 2 Top Landscape Photo -->
+                <button type="button" onclick="setCuttingLayout('col2-top-photo')" id="btnCutLayout_col2_top_photo"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">🖼️</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">8. 2-कॉलम + दूसरे कॉलम में लैंडस्केप फोटो</span>
+                      <span class="text-[10.5px] text-slate-400 block">बाएँ कॉलम में टेक्स्ट, दाएँ (2nd) कॉलम के ऊपर फोटो व नीचे टेक्स्ट</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_col2_top_photo">✓</span>
+                </button>
+
               </div>
             </div>
 
@@ -2425,6 +2467,7 @@
 
         syncCuttingInputsFromState();
         renderCuttingCanvas();
+        updateProjectCountBadge();
         showStudioToast('✂️ न्यूज़पेपर कटिंग मोड एक्टिवेट हुआ!');
       } else {
         if (btnEpaper) {
@@ -2442,6 +2485,7 @@
         if (cuttingCanvas) cuttingCanvas.classList.add('hidden');
 
         renderActiveCanvasPage();
+        updateProjectCountBadge();
         showStudioToast('📰 सम्पूर्ण ई-पेपर मोड एक्टिवेट हुआ!');
       }
     }
@@ -2497,7 +2541,7 @@
     function setCuttingLayout(layoutId) {
       cuttingState.layout = layoutId;
 
-      const layouts = ['lead-hero', 'photo-left', 'photo-right', 'cutout-wrap', 'big-quote', 'text-only', 'breaking-alert'];
+      const layouts = ['lead-hero', 'photo-left', 'photo-right', 'cutout-wrap', 'big-quote', 'text-only', 'breaking-alert', 'col2-top-photo'];
       layouts.forEach(l => {
         const btn = document.getElementById(`btnCutLayout_${l.replace(/-/g, '_')}`);
         const icon = document.getElementById(`iconCutLayout_${l.replace(/-/g, '_')}`);
@@ -2718,9 +2762,81 @@
         if (!cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = 13;
         if (!cuttingState.subHeadlineColor) cuttingState.subHeadlineColor = '#475569';
         if (!cuttingState.subHeadlineAlign) cuttingState.subHeadlineAlign = 'left';
+        if (!cuttingState.bodyCols) cuttingState.bodyCols = 2;
+        cuttingState.bodyCols = parseInt(cuttingState.bodyCols) || 2;
       } catch (e) {
         console.warn('Failed to load cutting state:', e);
       }
+    }
+
+    // HELPER: Split News Content into 2 Columns with Col 2 Top Image Balance
+    function splitCuttingContentForTwoCols(content, location) {
+      const paras = (content || '').split('\n').filter(p => p.trim().length > 0);
+      if (paras.length === 0) return { col1: '', col2: '' };
+
+      if (paras.length === 1) {
+        const text = paras[0];
+        const targetLen = Math.floor(text.length * 0.52);
+
+        let splitIdx = -1;
+        const searchStart = Math.max(0, targetLen - 70);
+        const searchEnd = Math.min(text.length, targetLen + 70);
+        const searchWindow = text.substring(searchStart, searchEnd);
+
+        const puncts = ['।', '.', '!', '?', ';'];
+        for (const p of puncts) {
+          const idx = searchWindow.lastIndexOf(p);
+          if (idx !== -1) {
+            splitIdx = searchStart + idx + 1;
+            break;
+          }
+        }
+        if (splitIdx === -1) {
+          const spaceIdx = searchWindow.lastIndexOf(' ');
+          if (spaceIdx !== -1) {
+            splitIdx = searchStart + spaceIdx + 1;
+          } else {
+            splitIdx = targetLen;
+          }
+        }
+
+        const part1 = text.substring(0, splitIdx).trim();
+        const part2 = text.substring(splitIdx).trim();
+
+        const col1 = `<p class="mb-2 text-justify leading-relaxed">${location ? `<strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ` : ''}${escapeHtml(part1)}</p>`;
+        const col2 = part2 ? `<p class="mb-2 text-justify leading-relaxed">${escapeHtml(part2)}</p>` : '';
+        return { col1, col2 };
+      }
+
+      // Multiple paragraphs
+      const totalLen = paras.reduce((sum, p) => sum + p.length, 0);
+      let accumulated = 0;
+      const col1Paras = [];
+      const col2Paras = [];
+
+      paras.forEach((p) => {
+        if (accumulated < totalLen * 0.52 || col1Paras.length === 0) {
+          col1Paras.push(p);
+          accumulated += p.length;
+        } else {
+          col2Paras.push(p);
+        }
+      });
+
+      if (col2Paras.length === 0 && col1Paras.length > 1) {
+        col2Paras.push(col1Paras.pop());
+      }
+
+      const col1 = col1Paras.map((p, idx) => {
+        if (idx === 0 && location) {
+          return `<p class="mb-2 text-justify leading-relaxed"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
+        }
+        return `<p class="mb-2 text-justify leading-relaxed">${escapeHtml(p)}</p>`;
+      }).join('');
+
+      const col2 = col2Paras.map(p => `<p class="mb-2 text-justify leading-relaxed">${escapeHtml(p)}</p>`).join('');
+
+      return { col1, col2 };
     }
 
     // MAIN RENDERER FOR NEWSPAPER CUTTING CANVAS
@@ -2766,13 +2882,23 @@
 
       const scissorClass = cuttingState.scissorBorder ? 'scissor-cut-border' : 'border border-slate-300';
 
+      // Column setup
+      const cols = parseInt(cuttingState.bodyCols) || 1;
+      const colRuleColor = cuttingState.paperStyle === 'dark-clipping' ? '#334155' : (cuttingState.paperStyle === 'vintage-newsprint' ? '#d4cebe' : '#e2e8f0');
+      const colGap = cols >= 3 ? '14px' : (cols === 2 ? '16px' : '0px');
+      const colStyle = cols > 1 
+        ? `columns: ${cols}; -webkit-columns: ${cols}; column-count: ${cols}; -webkit-column-count: ${cols}; column-gap: ${colGap}; -webkit-column-gap: ${colGap}; column-rule: 1px solid ${colRuleColor}; -webkit-column-rule: 1px solid ${colRuleColor}; column-fill: balance; -webkit-column-fill: balance; display: block; width: 100%;` 
+        : `column-count: 1; -webkit-column-count: 1; columns: 1; -webkit-columns: 1; display: block; width: 100%;`;
+      const bodyTextColor = cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : (cuttingState.paperStyle === 'vintage-newsprint' ? '#292524' : '#1e293b');
+      const locColor = cuttingState.paperStyle === 'dark-clipping' ? '#ffffff' : (cuttingState.paperStyle === 'vintage-newsprint' ? '#1c1917' : '#0f172a');
+
       // Paragraph formatting
       const paragraphs = (cuttingState.content || '').split('\n').filter(p => p.trim().length > 0);
       const formattedBody = paragraphs.map((p, idx) => {
         if (idx === 0 && cuttingState.location) {
-          return `<p class="mb-2 text-justify leading-relaxed"><strong class="font-bold text-slate-900">${escapeHtml(cuttingState.location)}</strong> ${escapeHtml(p)}</p>`;
+          return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word; break-inside: auto; -webkit-column-break-inside: auto;"><strong class="font-bold" style="color: ${locColor};">${escapeHtml(cuttingState.location)}</strong> ${escapeHtml(p)}</p>`;
         }
-        return `<p class="mb-2 text-justify leading-relaxed">${escapeHtml(p)}</p>`;
+        return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word; break-inside: auto; -webkit-column-break-inside: auto;">${escapeHtml(p)}</p>`;
       }).join('');
 
       let layoutContentHtml = '';
@@ -2786,7 +2912,7 @@
               ${cuttingState.caption ? `<div class="text-[10.5px] mt-1 italic text-slate-500 text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
             </div>
           ` : ''}
-          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+          <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
             ${formattedBody}
           </div>
         `;
@@ -2799,7 +2925,7 @@
                 ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
               </div>
             ` : ''}
-            <div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
               ${formattedBody}
             </div>
             <div class="clear-both"></div>
@@ -2814,7 +2940,7 @@
                 ${cuttingState.caption ? `<div class="text-[10px] mt-1 italic text-slate-500 text-right leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
               </div>
             ` : ''}
-            <div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
               ${formattedBody}
             </div>
             <div class="clear-both"></div>
@@ -2828,7 +2954,7 @@
             ${cutoutSrc ? `
               <img src="${escapeHtml(cutoutSrc)}" alt="Persona Cutout" class="object-contain" style="float: ${floatDir}; width: ${cuttingState.cutoutWidth || 160}px; margin-${floatDir === 'left' ? 'right' : 'left'}: 14px; margin-bottom: 8px; shape-outside: inset(0);">
             ` : ''}
-            <div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+            <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
               ${formattedBody}
             </div>
             <div class="clear-both"></div>
@@ -2855,13 +2981,13 @@
             </div>
           ` : ''}
 
-          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+          <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
             ${formattedBody}
           </div>
         `;
       } else if (cuttingState.layout === 'text-only') {
         layoutContentHtml = `
-          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify leading-relaxed py-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+          <div class="cutting-cols-${cols} text-justify leading-relaxed py-1" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
             ${formattedBody}
           </div>
         `;
@@ -2881,8 +3007,29 @@
             </div>
           ` : ''}
 
-          <div class="cutting-cols-${cuttingState.bodyCols || 2} text-justify" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#e2e8f0' : '#1e293b'};">
+          <div class="cutting-cols-${cols} text-justify leading-relaxed" style="${colStyle} font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
             ${formattedBody}
+          </div>
+        `;
+      } else if (cuttingState.layout === 'col2-top-photo') {
+        const { col1, col2 } = splitCuttingContentForTwoCols(cuttingState.content, cuttingState.location);
+        layoutContentHtml = `
+          <div class="grid grid-cols-2 gap-3.5 items-start">
+            <!-- Left Column 1 (Pure Text Flow) -->
+            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col1}
+            </div>
+
+            <!-- Right Column 2 (Top Landscape Photo + Continuation Text Below) -->
+            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${cuttingState.image ? `
+                <div class="mb-2.5">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 190, 130)}px;">
+                  ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
+                </div>
+              ` : ''}
+              ${col2}
+            </div>
           </div>
         `;
       }
@@ -7450,7 +7597,9 @@
     const DB_VERSION = 1;
     const STORE_NAME = 'projects';
 
-    let activeProject = null; // Currently loaded SavedProject or null
+    let activeProject = null; // Currently loaded SavedProject (E-Paper) or null
+    let activeCuttingProject = null; // Currently loaded SavedProject (News Cutting) or null
+    let savedModalTab = 'epaper'; // 'epaper' | 'cutting' | 'all'
     let dbInstance = null;
 
     // Toast Notification System
@@ -7679,6 +7828,80 @@
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     }
 
+    // Realistic Dynamic News Cutting Card Preview Generator (Instant SVG Renderer)
+    function getDynamicCuttingThumbnail(project) {
+      if (project && project.thumbnail && project.thumbnail.startsWith('data:image/')) {
+        return project.thumbnail;
+      }
+
+      const cs = (project && (project.cuttingState || (project.stateData && project.stateData.cuttingState))) || cuttingState || {};
+      const title = cs.mastheadTitle || 'हिमाचल न्यूज़';
+      const edition = cs.edition || 'शिमला संस्करण';
+      const dateStr = cs.date || '31 अगस्त 2026';
+      const pageNo = cs.pageNo || 'पेज 1 से साभार';
+      const tag = cs.tag || 'बड़ी खबर';
+      const tagBg = cs.tagBgColor || '#dc2626';
+      const tagTxt = cs.tagTextColor || '#ffffff';
+      const rawHeadline = cs.headline || 'न्यूज़ कटिंग - मुख्य समाचार शीर्षक';
+      const headline = rawHeadline.length > 40 ? rawHeadline.slice(0, 40) + '...' : rawHeadline;
+      const rawSub = cs.subHeadline || 'खबर का विवरण एवं विस्तृत जानकारी';
+      const subline = rawSub.length > 48 ? rawSub.slice(0, 48) + '...' : rawSub;
+      const ratio = cs.ratio || project?.ratio || '1:1';
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="#ffffff">
+        <!-- Newspaper Cutting Background with dashed scissor border -->
+        <rect width="300" height="300" fill="#fdfcfb" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5,4"/>
+        
+        <!-- Scissor Cut Badge -->
+        <circle cx="20" cy="18" r="9" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+        <text x="20" y="22" font-size="9" text-anchor="middle">✂️</text>
+
+        <!-- Top Masthead Header Strip -->
+        <rect x="36" y="10" width="254" height="16" fill="#0f172a" rx="2"/>
+        <text x="42" y="21" fill="#f8fafc" font-size="8" font-family="sans-serif" font-weight="bold">${title}</text>
+        <text x="282" y="21" fill="#94a3b8" font-size="7" font-family="sans-serif" text-anchor="end">${edition} | ${pageNo}</text>
+
+        <!-- Tag Pill & Date -->
+        <rect x="12" y="34" width="62" height="13" fill="${tagBg}" rx="2"/>
+        <text x="43" y="43.5" fill="${tagTxt}" font-size="7.5" font-family="sans-serif" font-weight="bold" text-anchor="middle">${tag}</text>
+        <text x="288" y="44" fill="#64748b" font-size="7.5" font-family="sans-serif" text-anchor="end">${dateStr}</text>
+
+        <!-- Headline -->
+        <text x="12" y="66" fill="#111827" font-size="12.5" font-family="serif" font-weight="bold">${headline}</text>
+        <text x="12" y="80" fill="#475569" font-size="8.5" font-family="serif">${subline}</text>
+        <line x1="12" y1="87" x2="288" y2="87" stroke="#e2e8f0" stroke-width="1"/>
+
+        <!-- Photo & Story Layout Preview -->
+        <rect x="12" y="96" width="125" height="155" fill="#f1f5f9" stroke="#cbd5e1" rx="2"/>
+        <circle cx="74" cy="165" r="16" fill="#cbd5e1"/>
+        <path d="M66 177 L82 177 L77 167 L72 172 Z" fill="#94a3b8"/>
+        <text x="74" y="195" fill="#64748b" font-size="8" font-family="sans-serif" font-weight="bold" text-anchor="middle">न्यूज़ फोटो</text>
+
+        <!-- 2 Column Text Lines -->
+        <g fill="#94a3b8">
+          <rect x="145" y="96" width="143" height="6" rx="1"/>
+          <rect x="145" y="108" width="143" height="6" rx="1"/>
+          <rect x="145" y="120" width="143" height="6" rx="1"/>
+          <rect x="145" y="132" width="143" height="6" rx="1"/>
+          <rect x="145" y="144" width="143" height="6" rx="1"/>
+          <rect x="145" y="156" width="143" height="6" rx="1"/>
+          <rect x="145" y="168" width="143" height="6" rx="1"/>
+          <rect x="145" y="180" width="143" height="6" rx="1"/>
+          <rect x="145" y="192" width="143" height="6" rx="1"/>
+          <rect x="145" y="204" width="143" height="6" rx="1"/>
+          <rect x="145" y="216" width="143" height="6" rx="1"/>
+          <rect x="145" y="228" width="143" height="6" rx="1"/>
+          <rect x="145" y="240" width="105" height="6" rx="1"/>
+        </g>
+
+        <!-- Footer / Watermark Banner -->
+        <rect x="12" y="262" width="276" height="24" fill="#f8fafc" stroke="#e2e8f0" rx="2"/>
+        <text x="150" y="277" fill="#64748b" font-size="8" font-family="sans-serif" font-weight="bold" text-anchor="middle">PressCraft Newspaper Cutting • ${ratio} Social Clipping</text>
+      </svg>`;
+
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
     // Capture crisp Page 1 canvas thumbnail for project previews
     async function generateCanvasThumbnail() {
       const initialActivePage = studioState.activePageIndex;
@@ -7737,7 +7960,40 @@
       }
     }
 
-    // 1. STATE SERIALIZATION FUNCTION
+    // Capture crisp News Cutting canvas thumbnail for project previews
+    async function generateCuttingCanvasThumbnail() {
+      try {
+        const node = document.getElementById('cuttingCanvas');
+        if (!node) return getDynamicCuttingThumbnail({ cuttingState, name: cuttingState.headline });
+
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        await new Promise(r => setTimeout(r, 100));
+
+        let thumbnailData = '';
+        const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
+        if (htmlToImageLib && typeof htmlToImageLib.toJpeg === 'function') {
+          thumbnailData = await htmlToImageLib.toJpeg(node, {
+            quality: 0.85,
+            pixelRatio: 0.45,
+            backgroundColor: '#ffffff'
+          });
+        } else if (window.html2canvas) {
+          const cvs = await window.html2canvas(node, {
+            scale: 0.45,
+            backgroundColor: '#ffffff',
+            logging: false,
+            useCORS: true
+          });
+          thumbnailData = cvs.toDataURL('image/jpeg', 0.85);
+        }
+        return thumbnailData || getDynamicCuttingThumbnail({ cuttingState, name: cuttingState.headline });
+      } catch (err) {
+        console.warn('Cutting canvas snapshot warning:', err);
+        return getDynamicCuttingThumbnail({ cuttingState, name: cuttingState.headline });
+      }
+    }
+
+    // 1. STATE SERIALIZATION FUNCTION (E-Paper)
     function serializeEditorState() {
       const stateClone = JSON.parse(JSON.stringify(studioState));
       return {
@@ -7749,7 +8005,7 @@
       };
     }
 
-    // 2. STATE HYDRATION / LOAD FUNCTION
+    // 2. STATE HYDRATION / LOAD FUNCTION (E-Paper)
     function loadEditorState(projectData, isFromCloud = false) {
       if (!projectData) return;
 
@@ -7830,60 +8086,153 @@
         if (nameLabel) nameLabel.innerText = projectData.name;
       }
 
-      // Re-apply styles and re-render entire UI
-      applyPageSizeStyles(studioState.paperMeta.pageSize || '11x17');
-      updatePageSelectorsUI();
-      renderPagesList();
-      renderSidebarSections();
-      syncHeaderUIFromState();
-      syncCustomHeaderUI();
-      renderActiveCanvasPage();
-      setZoom('fit');
+      // If currently in cutting mode, switch to full e-paper mode
+      if (currentStudioMode !== 'epaper') {
+        switchStudioMode('epaper');
+      } else {
+        applyPageSizeStyles(studioState.paperMeta.pageSize || '11x17');
+        updatePageSelectorsUI();
+        renderPagesList();
+        renderSidebarSections();
+        syncHeaderUIFromState();
+        syncCustomHeaderUI();
+        renderActiveCanvasPage();
+        setZoom('fit');
+      }
 
       if (!isFromCloud) {
         autoSave();
-        showStudioToast(`डिज़ाइन "${projectData.name || 'Layout'}" सफलतापूर्वक लोड हो गया!`);
+        showStudioToast(`फुल ई-पेपर "${projectData.name || 'Layout'}" सफलतापूर्वक लोड हो गया!`);
       }
     }
 
-    // Refresh project count badge in header
+    // 3. LOAD NEWS CUTTING PROJECT FUNCTION
+    function loadCuttingProject(projectData) {
+      if (!projectData) return;
+
+      const rawCutting = projectData.cuttingState || (projectData.stateData && projectData.stateData.cuttingState) || projectData;
+      if (rawCutting && typeof rawCutting === 'object') {
+        cuttingState = Object.assign({}, defaultCuttingState, rawCutting);
+      }
+      if (!cuttingState.headlineColor) cuttingState.headlineColor = '#111111';
+      if (!cuttingState.headlineAlign) cuttingState.headlineAlign = 'left';
+      if (!cuttingState.subHeadlineFont) cuttingState.subHeadlineFont = cuttingState.bodyFont || "'Martel', serif";
+      if (!cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = 13;
+      if (!cuttingState.subHeadlineColor) cuttingState.subHeadlineColor = '#475569';
+      if (!cuttingState.subHeadlineAlign) cuttingState.subHeadlineAlign = 'left';
+      if (!cuttingState.bodyCols) cuttingState.bodyCols = 2;
+      cuttingState.bodyCols = parseInt(cuttingState.bodyCols) || 2;
+
+      saveCuttingState();
+
+      if (projectData.id) {
+        activeCuttingProject = {
+          id: projectData.id,
+          name: projectData.name,
+          createdAt: projectData.createdAt,
+          updatedAt: projectData.updatedAt
+        };
+      }
+
+      // Switch to news cutting mode if not already
+      if (currentStudioMode !== 'cutting') {
+        switchStudioMode('cutting');
+      } else {
+        syncCuttingInputsFromState();
+        renderCuttingCanvas();
+      }
+
+      showStudioToast(`न्यूज़ कटिंग "${projectData.name || 'News Cutting'}" लोड हो गई!`);
+    }
+
+    // Refresh project count badge in header (Filtered by active studio mode)
     async function updateProjectCountBadge() {
       try {
         const list = await dbGetAllProjects();
         const badge = document.getElementById('savedProjectsCountBadge');
-        if (badge) badge.innerText = list.length;
+        if (badge) {
+          if (currentStudioMode === 'cutting') {
+            const count = list.filter(p => p.type === 'cutting').length;
+            badge.innerText = count;
+            badge.className = 'bg-amber-900/90 text-amber-300 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full border border-amber-700/60';
+          } else {
+            const count = list.filter(p => p.type !== 'cutting').length;
+            badge.innerText = count;
+            badge.className = 'bg-blue-900/90 text-blue-300 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full border border-blue-700/60';
+          }
+        }
       } catch (e) {
         console.warn('Error updating badge:', e);
       }
     }
 
-    // UI: Open Save Design Modal
+    // UI: Open Save Design Modal (Dynamic for E-Paper and News Cutting)
     function openSaveDesignModal() {
       const modal = document.getElementById('saveDesignModal');
       const input = document.getElementById('saveDesignNameInput');
+      const modalTitle = document.getElementById('saveModalTitle');
+      const modalSubtitle = document.getElementById('saveModalSubtitle');
+      const snapshotLabel1 = document.getElementById('modalSnapshotLabel1');
       const snapshotSize = document.getElementById('modalSnapshotSize');
+      const snapshotLabel2 = document.getElementById('modalSnapshotLabel2');
       const snapshotPages = document.getElementById('modalSnapshotPages');
+      const snapshotLabel3 = document.getElementById('modalSnapshotLabel3');
       const snapshotSlots = document.getElementById('modalSnapshotSlots');
       const updateOption = document.getElementById('saveModeUpdateOption');
 
       if (!modal) return;
 
-      const totalSlots = studioState.pages.reduce((acc, p) => acc + (p.sections?.length || 0), 0);
-      if (snapshotSize) snapshotSize.innerText = studioState.paperMeta.pageSize || '11x17';
-      if (snapshotPages) snapshotPages.innerText = `${studioState.pages.length} Page(s)`;
-      if (snapshotSlots) snapshotSlots.innerText = `${totalSlots} Slots`;
+      const isCutting = currentStudioMode === 'cutting';
 
-      if (activeProject) {
-        if (input) input.value = activeProject.name;
-        if (updateOption) {
-          updateOption.classList.remove('hidden');
-          setSaveModeUI('update');
+      if (modalTitle) {
+        modalTitle.innerText = isCutting ? 'Save News Cutting Design' : 'Save Full E-Paper Layout';
+      }
+      if (modalSubtitle) {
+        modalSubtitle.innerText = isCutting ? 'Social Media & Clipping Graphic' : 'Broadsheet Multi-Page Layout';
+      }
+
+      if (isCutting) {
+        if (snapshotLabel1) snapshotLabel1.innerText = 'Aspect Ratio';
+        if (snapshotSize) snapshotSize.innerText = cuttingState.ratio || '1:1 Square';
+        if (snapshotLabel2) snapshotLabel2.innerText = 'Card Layout';
+        if (snapshotPages) snapshotPages.innerText = cuttingState.layout || 'lead-hero';
+        if (snapshotLabel3) snapshotLabel3.innerText = 'Tag / Category';
+        if (snapshotSlots) snapshotSlots.innerText = cuttingState.tag || 'News';
+
+        if (activeCuttingProject) {
+          if (input) input.value = activeCuttingProject.name;
+          if (updateOption) {
+            updateOption.classList.remove('hidden');
+            setSaveModeUI('update');
+          }
+        } else {
+          const curDateStr = new Date().toLocaleDateString('hi-IN', { month: 'short', day: 'numeric' });
+          const hlPreview = (cuttingState.headline || 'News Cutting').slice(0, 25);
+          if (input) input.value = `Cutting - ${hlPreview} (${curDateStr})`;
+          if (updateOption) updateOption.classList.add('hidden');
+          setSaveModeUI('new');
         }
       } else {
-        const curDateStr = new Date().toLocaleDateString('hi-IN', { month: 'short', day: 'numeric' });
-        if (input) input.value = `Design - ${studioState.paperMeta.title || 'Newspaper'} (${curDateStr})`;
-        if (updateOption) updateOption.classList.add('hidden');
-        setSaveModeUI('new');
+        const totalSlots = studioState.pages.reduce((acc, p) => acc + (p.sections?.length || 0), 0);
+        if (snapshotLabel1) snapshotLabel1.innerText = 'Page Size';
+        if (snapshotSize) snapshotSize.innerText = studioState.paperMeta.pageSize || '11x17';
+        if (snapshotLabel2) snapshotLabel2.innerText = 'Total Pages';
+        if (snapshotPages) snapshotPages.innerText = `${studioState.pages.length} Page(s)`;
+        if (snapshotLabel3) snapshotLabel3.innerText = 'News/Ad Slots';
+        if (snapshotSlots) snapshotSlots.innerText = `${totalSlots} Slots`;
+
+        if (activeProject) {
+          if (input) input.value = activeProject.name;
+          if (updateOption) {
+            updateOption.classList.remove('hidden');
+            setSaveModeUI('update');
+          }
+        } else {
+          const curDateStr = new Date().toLocaleDateString('hi-IN', { month: 'short', day: 'numeric' });
+          if (input) input.value = `Design - ${studioState.paperMeta.title || 'Newspaper'} (${curDateStr})`;
+          if (updateOption) updateOption.classList.add('hidden');
+          setSaveModeUI('new');
+        }
       }
 
       modal.classList.remove('hidden');
@@ -7916,7 +8265,7 @@
       }
     }
 
-    // UI: Submit Save Design
+    // UI: Submit Save Design (E-Paper vs News Cutting)
     async function handleSaveDesignSubmit(e) {
       if (e) e.preventDefault();
       const input = document.getElementById('saveDesignNameInput');
@@ -7940,41 +8289,83 @@
       }
 
       try {
-        const serialized = serializeEditorState();
-        const thumbnail = await generateCanvasThumbnail();
         const now = new Date().toISOString();
+        const isCutting = currentStudioMode === 'cutting';
 
-        const isUpdate = currentSaveMode === 'update' && activeProject?.id;
-        const projectId = isUpdate ? activeProject.id : `proj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        const totalSlots = serialized.pages.reduce((acc, p) => acc + (p.sections?.length || 0), 0);
+        if (isCutting) {
+          const isUpdate = currentSaveMode === 'update' && activeCuttingProject?.id;
+          const projectId = isUpdate ? activeCuttingProject.id : `cut_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          const serializedCutting = JSON.parse(JSON.stringify(cuttingState));
+          const thumbnail = await generateCuttingCanvasThumbnail();
 
-        const projectPayload = {
-          id: projectId,
-          name: name,
-          thumbnail: thumbnail,
-          createdAt: isUpdate && activeProject?.createdAt ? activeProject.createdAt : now,
-          updatedAt: now,
-          pageSize: serialized.paperMeta.pageSize || '11x17',
-          pageCount: serialized.pages.length,
-          sectionCount: totalSlots,
-          stateData: serialized
-        };
+          const projectPayload = {
+            id: projectId,
+            type: 'cutting',
+            name: name,
+            thumbnail: thumbnail,
+            createdAt: isUpdate && activeCuttingProject?.createdAt ? activeCuttingProject.createdAt : now,
+            updatedAt: now,
+            pageSize: cuttingState.ratio || '1:1',
+            ratio: cuttingState.ratio || '1:1',
+            layout: cuttingState.layout || 'lead-hero',
+            tag: cuttingState.tag || '',
+            pageCount: 1,
+            sectionCount: 1,
+            cuttingState: serializedCutting,
+            stateData: {
+              type: 'cutting',
+              cuttingState: serializedCutting
+            }
+          };
 
-        await dbSaveProject(projectPayload);
-        activeProject = { id: projectId, name: name, createdAt: projectPayload.createdAt, updatedAt: now };
+          await dbSaveProject(projectPayload);
+          activeCuttingProject = { id: projectId, name: name, createdAt: projectPayload.createdAt, updatedAt: now };
 
-        // Save to Hostinger MySQL Database for Cross-Device Access
-        await saveDesignToCloud(projectPayload);
+          // Cloud sync for cross-device access
+          await saveDesignToCloud(projectPayload);
 
-        const nameLabel = document.getElementById('activeProjectNameLabel');
-        if (nameLabel) nameLabel.innerText = name;
+          const autoTxt = document.getElementById('autoSaveText');
+          if (autoTxt) autoTxt.innerText = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-        const autoTxt = document.getElementById('autoSaveText');
-        if (autoTxt) autoTxt.innerText = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          closeSaveDesignModal();
+          updateProjectCountBadge();
+          showStudioToast(`न्यूज़ कटिंग "${name}" सुरक्षित हो गई!`);
+        } else {
+          const isUpdate = currentSaveMode === 'update' && activeProject?.id;
+          const projectId = isUpdate ? activeProject.id : `proj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          const serialized = serializeEditorState();
+          const thumbnail = await generateCanvasThumbnail();
+          const totalSlots = serialized.pages.reduce((acc, p) => acc + (p.sections?.length || 0), 0);
 
-        closeSaveDesignModal();
-        updateProjectCountBadge();
-        showStudioToast(`डिज़ाइन "${name}" क्लाउड व स्थानीय स्टोरेज में सुरक्षित हो गया!`);
+          const projectPayload = {
+            id: projectId,
+            type: 'epaper',
+            name: name,
+            thumbnail: thumbnail,
+            createdAt: isUpdate && activeProject?.createdAt ? activeProject.createdAt : now,
+            updatedAt: now,
+            pageSize: serialized.paperMeta.pageSize || '11x17',
+            pageCount: serialized.pages.length,
+            sectionCount: totalSlots,
+            stateData: serialized
+          };
+
+          await dbSaveProject(projectPayload);
+          activeProject = { id: projectId, name: name, createdAt: projectPayload.createdAt, updatedAt: now };
+
+          // Cloud sync for cross-device access
+          await saveDesignToCloud(projectPayload);
+
+          const nameLabel = document.getElementById('activeProjectNameLabel');
+          if (nameLabel) nameLabel.innerText = name;
+
+          const autoTxt = document.getElementById('autoSaveText');
+          if (autoTxt) autoTxt.innerText = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+          closeSaveDesignModal();
+          updateProjectCountBadge();
+          showStudioToast(`फुल ई-पेपर लेआउट "${name}" सुरक्षित हो गया!`);
+        }
       } catch (err) {
         console.error('Error saving project to IndexedDB:', err);
         alert('सेव करने में त्रुटि: ' + err.message);
@@ -7989,6 +8380,37 @@
       }
     }
 
+    // Tab Switching within Saved Designs Modal
+    function setSavedModalTab(tab) {
+      savedModalTab = tab;
+      const btnEpaper = document.getElementById('savedTabBtnEpaper');
+      const btnCutting = document.getElementById('savedTabBtnCutting');
+      const btnAll = document.getElementById('savedTabBtnAll');
+      const newBtnText = document.getElementById('savedModalNewBtnText');
+
+      if (btnEpaper) {
+        btnEpaper.className = tab === 'epaper' 
+          ? 'px-3 py-1.5 rounded-xl font-bold text-xs bg-red-600 text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer'
+          : 'px-3 py-1.5 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer';
+      }
+      if (btnCutting) {
+        btnCutting.className = tab === 'cutting'
+          ? 'px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer'
+          : 'px-3 py-1.5 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer';
+      }
+      if (btnAll) {
+        btnAll.className = tab === 'all'
+          ? 'px-3 py-1.5 rounded-xl font-bold text-xs bg-blue-600 text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer'
+          : 'px-3 py-1.5 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer';
+      }
+
+      if (newBtnText) {
+        newBtnText.innerText = tab === 'cutting' ? '+ New News Cutting' : '+ New Blank E-Paper';
+      }
+
+      renderSavedProjectsGrid();
+    }
+
     // UI: Open Saved Projects Drawer / Modal
     async function openSavedProjectsModal() {
       const modal = document.getElementById('savedProjectsModal');
@@ -7996,7 +8418,9 @@
 
       modal.classList.remove('hidden');
       modal.classList.add('flex');
-      await renderSavedProjectsGrid();
+
+      // Default to the tab matching active studio mode
+      setSavedModalTab(currentStudioMode === 'cutting' ? 'cutting' : 'epaper');
     }
 
     function closeSavedProjectsModal() {
@@ -8007,7 +8431,7 @@
       }
     }
 
-    // Render Grid of Saved Projects
+    // Render Grid of Saved Projects (Filtered by selected tab and search query)
     async function renderSavedProjectsGrid() {
       const container = document.getElementById('savedProjectsGridContainer');
       const searchInput = document.getElementById('savedProjectsSearchInput');
@@ -8026,25 +8450,52 @@
       `;
 
       try {
-        const projects = await dbGetAllProjects();
+        const allProjects = await dbGetAllProjects();
         updateProjectCountBadge();
 
-        const filtered = projects.filter(p => 
+        const epaperProjects = allProjects.filter(p => p.type !== 'cutting');
+        const cuttingProjects = allProjects.filter(p => p.type === 'cutting');
+
+        // Update badge counts in modal tabs
+        const epaperCountEl = document.getElementById('savedModalEpaperCount');
+        const cuttingCountEl = document.getElementById('savedModalCuttingCount');
+        const allCountEl = document.getElementById('savedModalAllCount');
+        if (epaperCountEl) epaperCountEl.innerText = epaperProjects.length;
+        if (cuttingCountEl) cuttingCountEl.innerText = cuttingProjects.length;
+        if (allCountEl) allCountEl.innerText = allProjects.length;
+
+        let targetList = allProjects;
+        if (savedModalTab === 'epaper') {
+          targetList = epaperProjects;
+        } else if (savedModalTab === 'cutting') {
+          targetList = cuttingProjects;
+        }
+
+        const filtered = targetList.filter(p => 
           p.name.toLowerCase().includes(query) || 
-          (p.pageSize && p.pageSize.toLowerCase().includes(query))
+          (p.pageSize && p.pageSize.toLowerCase().includes(query)) ||
+          (p.ratio && p.ratio.toLowerCase().includes(query)) ||
+          (p.tag && p.tag.toLowerCase().includes(query))
         );
 
         if (filtered.length === 0) {
+          const isCuttingTab = savedModalTab === 'cutting';
           container.innerHTML = `
             <div class="col-span-full py-12 text-center text-slate-400 px-4">
               <div class="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500 text-2xl mx-auto mb-3">
-                📰
+                ${isCuttingTab ? '✂️' : '📰'}
               </div>
               <h4 class="text-sm font-bold text-slate-200">
-                ${query ? 'कोई डिज़ाइन नहीं मिली (No designs match search)' : 'अभी तक कोई डिज़ाइन सुरक्षित नहीं है'}
+                ${query 
+                  ? 'कोई डिज़ाइन नहीं मिली (No designs match search)' 
+                  : (isCuttingTab ? 'अभी तक कोई न्यूज़ कटिंग सुरक्षित नहीं है' : 'अभी तक कोई फुल ई-पेपर लेआउट सुरक्षित नहीं है')}
               </h4>
               <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                ${query ? 'कृपया अन्य नाम से खोजें।' : 'ऊपर "Save Design" बटन पर क्लिक करके अपने लेआउट को सहेजें!'}
+                ${query 
+                  ? 'कृपया अन्य नाम से खोजें।' 
+                  : (isCuttingTab 
+                    ? 'News Cutting मोड में ऊपर "Save Design" पर क्लिक करके सोशल मीडिया कटिंग सहेजें!' 
+                    : 'Full E-Paper मोड में ऊपर "Save Design" पर क्लिक करके अपने लेआउट को सहेजें!')}
               </p>
             </div>
           `;
@@ -8052,33 +8503,40 @@
         }
 
         container.innerHTML = filtered.map(p => {
-          const isActive = activeProject?.id === p.id;
+          const isCut = p.type === 'cutting';
+          const isActive = isCut ? (activeCuttingProject?.id === p.id) : (activeProject?.id === p.id);
           const formattedDate = new Date(p.updatedAt).toLocaleDateString('hi-IN', {
             day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
           });
+          const thumbnailSrc = isCut ? getDynamicCuttingThumbnail(p) : getDynamicNewspaperThumbnail(p);
+          const loadFn = isCut ? `handleLoadCuttingProjectById('${p.id}')` : `handleLoadProjectById('${p.id}')`;
 
           return `
-            <div class="group relative bg-slate-950 border ${isActive ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg shadow-blue-500/10' : 'border-slate-800 hover:border-blue-500/70'} rounded-2xl overflow-hidden shadow-md flex flex-col transition">
+            <div class="group relative bg-slate-950 border ${isActive ? (isCut ? 'border-amber-500 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10' : 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg shadow-blue-500/10') : 'border-slate-800 hover:border-blue-500/70'} rounded-2xl overflow-hidden shadow-md flex flex-col transition">
               
               <!-- Thumbnail Aspect Box -->
-              <div onclick="handleLoadProjectById('${p.id}')" class="relative w-full aspect-[3/4] bg-slate-900 overflow-hidden cursor-pointer flex items-center justify-center group-hover:scale-[1.01] transition duration-300">
-                <img src="${getDynamicNewspaperThumbnail(p)}" alt="${p.name}" class="w-full h-full object-cover object-top border-b border-slate-800">
+              <div onclick="${loadFn}" class="relative w-full aspect-[3/4] bg-slate-900 overflow-hidden cursor-pointer flex items-center justify-center group-hover:scale-[1.01] transition duration-300">
+                <img src="${thumbnailSrc}" alt="${p.name}" class="w-full h-full object-cover object-top border-b border-slate-800">
 
                 ${isActive ? `
-                  <div class="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                  <div class="absolute top-2.5 left-2.5 ${isCut ? 'bg-amber-600' : 'bg-blue-600'} text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
                     <span>Currently Active</span>
                   </div>
-                ` : ''}
+                ` : `
+                  <div class="absolute top-2.5 left-2.5 ${isCut ? 'bg-amber-950/90 text-amber-300 border-amber-800/80' : 'bg-blue-950/90 text-blue-300 border-blue-800/80'} text-[9.5px] font-bold px-2 py-0.5 rounded-md border shadow">
+                    ${isCut ? '✂️ News Cutting' : '📰 Full E-Paper'}
+                  </div>
+                `}
 
                 <div class="absolute top-2.5 right-2.5 bg-slate-950/80 backdrop-blur-sm text-amber-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border border-amber-900/60 shadow">
-                  ${p.pageSize || '11x17'}
+                  ${isCut ? (p.ratio || p.pageSize || '1:1') : (p.pageSize || '11x17')}
                 </div>
 
                 <!-- Hover Overlay -->
                 <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 backdrop-blur-[2px] transition flex items-center justify-center">
-                  <span class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition">
-                    <span>Edit This Design</span>
+                  <span class="px-4 py-2 ${isCut ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500' : 'bg-blue-600 hover:bg-blue-500'} text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition">
+                    <span>${isCut ? 'Open in Cutting Studio' : 'Edit This Design'}</span>
                     <i class="fa-solid fa-arrow-right text-[10px]"></i>
                   </span>
                 </div>
@@ -8087,13 +8545,19 @@
               <!-- Card Meta Details -->
               <div class="p-3.5 flex-1 flex flex-col justify-between space-y-3 bg-slate-950">
                 <div>
-                  <h4 onclick="handleLoadProjectById('${p.id}')" class="font-bold text-xs text-white group-hover:text-blue-400 transition cursor-pointer truncate" title="${p.name}">
+                  <h4 onclick="${loadFn}" class="font-bold text-xs text-white group-hover:text-blue-400 transition cursor-pointer truncate" title="${p.name}">
                     ${p.name}
                   </h4>
                   <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
-                    <span>${p.pageCount || 1} Page(s)</span>
-                    <span>•</span>
-                    <span>${p.sectionCount || 0} Slots</span>
+                    ${isCut ? `
+                      <span class="text-amber-300 font-medium">${p.ratio || '1:1 Square'}</span>
+                      <span>•</span>
+                      <span>${p.layout || 'lead-hero'}</span>
+                    ` : `
+                      <span>${p.pageCount || 1} Page(s)</span>
+                      <span>•</span>
+                      <span>${p.sectionCount || 0} Slots</span>
+                    `}
                   </div>
                   <span class="text-[9.5px] text-slate-500 block mt-0.5">
                     Saved: ${formattedDate}
@@ -8102,7 +8566,7 @@
 
                 <!-- Action Buttons Bar -->
                 <div class="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-800/80 text-[11px]">
-                  <button type="button" onclick="handleLoadProjectById('${p.id}')" class="col-span-1 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition flex items-center justify-center gap-1 shadow-sm" title="Edit this layout in the studio">
+                  <button type="button" onclick="${loadFn}" class="col-span-1 py-1.5 ${isCut ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'} text-white rounded-lg font-bold transition flex items-center justify-center gap-1 shadow-sm" title="Edit this layout in the studio">
                     <i class="fa-solid fa-pen text-[10px]"></i> Edit
                   </button>
                   <button type="button" onclick="handleDuplicateProjectById('${p.id}')" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-semibold transition flex items-center justify-center gap-1" title="Duplicate Design">
@@ -8122,7 +8586,7 @@
       }
     }
 
-    // UI Action: Load Project directly into full editor
+    // UI Action: Load E-Paper Project directly into full editor
     async function handleLoadProjectById(id) {
       try {
         const project = await dbGetProject(id);
@@ -8139,7 +8603,24 @@
       }
     }
 
-    // UI Action: Duplicate Project
+    // UI Action: Load News Cutting Project directly into cutting studio
+    async function handleLoadCuttingProjectById(id) {
+      try {
+        const project = await dbGetProject(id);
+        if (!project) {
+          alert('कटिंग प्रोजेक्ट नहीं मिला (Cutting project not found)');
+          return;
+        }
+
+        loadCuttingProject(project);
+        closeSavedProjectsModal();
+      } catch (err) {
+        console.error('Error loading cutting project:', err);
+        alert('कटिंग लोड करने में त्रुटि: ' + err.message);
+      }
+    }
+
+    // UI Action: Duplicate Project (E-Paper or Cutting)
     async function handleDuplicateProjectById(id) {
       try {
         const orig = await dbGetProject(id);
@@ -8148,11 +8629,12 @@
         const now = new Date().toISOString();
         const clone = {
           ...orig,
-          id: `proj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          id: `${orig.type === 'cutting' ? 'cut' : 'proj'}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           name: `${orig.name} (Copy)`,
           createdAt: now,
           updatedAt: now,
-          stateData: JSON.parse(JSON.stringify(orig.stateData))
+          cuttingState: orig.cuttingState ? JSON.parse(JSON.stringify(orig.cuttingState)) : undefined,
+          stateData: orig.stateData ? JSON.parse(JSON.stringify(orig.stateData)) : undefined
         };
 
         await dbSaveProject(clone);
@@ -8175,6 +8657,9 @@
           const nameLabel = document.getElementById('activeProjectNameLabel');
           if (nameLabel) nameLabel.innerText = 'Unsaved Design';
         }
+        if (activeCuttingProject?.id === id) {
+          activeCuttingProject = null;
+        }
         showStudioToast(`डिज़ाइन "${name}" हटा दी गई।`);
         await renderSavedProjectsGrid();
       } catch (err) {
@@ -8183,7 +8668,25 @@
       }
     }
 
-    // UI Action: Start fresh template
+    // UI Action: Start fresh template (Dynamic for current mode / active tab)
+    function handleNewBlankCanvasAction() {
+      if (savedModalTab === 'cutting' || currentStudioMode === 'cutting') {
+        if (confirm('क्या आप नई कोरी न्यूज़ कटिंग शुरू करना चाहते हैं? (वर्तमान अनसेव्ड बदलाव हट सकते हैं)')) {
+          cuttingState = JSON.parse(JSON.stringify(defaultCuttingState));
+          activeCuttingProject = null;
+          saveCuttingState();
+          switchStudioMode('cutting');
+          syncCuttingInputsFromState();
+          renderCuttingCanvas();
+          closeSavedProjectsModal();
+          showStudioToast('नई कोरी न्यूज़ कटिंग शुरू की गई!');
+        }
+      } else {
+        handleNewBlankCanvas();
+      }
+    }
+
+    // UI Action: Start fresh broadsheet template
     function handleNewBlankCanvas() {
       if (confirm('क्या आप नया कोरा अखबार शुरू करना चाहते हैं? (वर्तमान अनसेव्ड बदलाव हट सकते हैं)')) {
         studioState = JSON.parse(JSON.stringify(defaultStudioState));
@@ -8266,11 +8769,11 @@
             <i class="fa-solid fa-floppy-disk"></i>
           </div>
           <div>
-            <h3 class="font-bold text-sm text-white">Save Newspaper Layout</h3>
-            <p class="text-[11px] text-slate-400">IndexedDB High-Capacity Storage</p>
+            <h3 id="saveModalTitle" class="font-bold text-sm text-white">Save Newspaper Layout</h3>
+            <p id="saveModalSubtitle" class="text-[11px] text-slate-400">IndexedDB High-Capacity Storage</p>
           </div>
         </div>
-        <button onclick="closeSaveDesignModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-sm">
+        <button onclick="closeSaveDesignModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-sm cursor-pointer">
           ✕
         </button>
       </div>
@@ -8280,10 +8783,10 @@
         
         <!-- Toggle: Update Active vs Save as New -->
         <div id="saveModeUpdateOption" class="hidden flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-          <button type="button" id="btnSaveModeUpdate" onclick="setSaveModeUI('update')" class="flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-sm">
+          <button type="button" id="btnSaveModeUpdate" onclick="setSaveModeUI('update')" class="flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-sm cursor-pointer">
             <span>Update Existing</span>
           </button>
-          <button type="button" id="btnSaveModeNew" onclick="setSaveModeUI('new')" class="flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200">
+          <button type="button" id="btnSaveModeNew" onclick="setSaveModeUI('new')" class="flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 cursor-pointer">
             <span>Save as New Copy</span>
           </button>
         </div>
@@ -8292,23 +8795,23 @@
           <label class="block text-slate-300 font-semibold mb-1">
             Design / Project Name <span class="text-red-400">*</span>
           </label>
-          <input type="text" id="saveDesignNameInput" placeholder="e.g. Design 1, Front Page Special, Morning Edition" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-medium text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition" required>
+          <input type="text" id="saveDesignNameInput" placeholder="e.g. Front Page Special, Breaking News, Morning Edition" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-medium text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition" required>
         </div>
 
         <!-- Layout Snapshot Badges -->
         <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 space-y-2">
-          <span class="text-slate-400 text-[11px] font-semibold block">Layout Snapshot:</span>
+          <span class="text-slate-400 text-[11px] font-semibold block">Design Snapshot:</span>
           <div class="grid grid-cols-3 gap-2 text-[11px]">
             <div class="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
-              <span class="text-slate-400 block text-[9.5px]">Page Size</span>
+              <span id="modalSnapshotLabel1" class="text-slate-400 block text-[9.5px]">Page Size</span>
               <span id="modalSnapshotSize" class="font-bold text-amber-300">11x17</span>
             </div>
             <div class="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
-              <span class="text-slate-400 block text-[9.5px]">Total Pages</span>
+              <span id="modalSnapshotLabel2" class="text-slate-400 block text-[9.5px]">Total Pages</span>
               <span id="modalSnapshotPages" class="font-bold text-blue-300">1 Page(s)</span>
             </div>
             <div class="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
-              <span class="text-slate-400 block text-[9.5px]">News/Ad Slots</span>
+              <span id="modalSnapshotLabel3" class="text-slate-400 block text-[9.5px]">News/Ad Slots</span>
               <span id="modalSnapshotSlots" class="font-bold text-emerald-300">8 Slots</span>
             </div>
           </div>
@@ -8349,9 +8852,9 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <button onclick="handleNewBlankCanvas()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow cursor-pointer">
+          <button onclick="handleNewBlankCanvasAction()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow cursor-pointer">
             <i class="fa-solid fa-plus"></i>
-            <span>New Blank Canvas</span>
+            <span id="savedModalNewBtnText">+ New Blank E-Paper</span>
           </button>
           <button onclick="closeSavedProjectsModal()" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" title="Close">
             ✕
@@ -8359,10 +8862,28 @@
         </div>
       </div>
 
+      <!-- Categories Navigation Bar (Full E-Paper vs News Cutting vs All) -->
+      <div class="px-6 py-2.5 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
+          <button id="savedTabBtnEpaper" onclick="setSavedModalTab('epaper')" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-red-600 text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer">
+            <i class="fa-solid fa-newspaper text-xs"></i>
+            <span>Full E-Paper (<span id="savedModalEpaperCount">0</span>)</span>
+          </button>
+          <button id="savedTabBtnCutting" onclick="setSavedModalTab('cutting')" class="px-3 py-1.5 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer">
+            <i class="fa-solid fa-scissors text-xs text-amber-400"></i>
+            <span>News Cutting (<span id="savedModalCuttingCount">0</span>)</span>
+          </button>
+          <button id="savedTabBtnAll" onclick="setSavedModalTab('all')" class="px-3 py-1.5 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer">
+            <i class="fa-solid fa-layer-group text-xs"></i>
+            <span>All Designs (<span id="savedModalAllCount">0</span>)</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Search & Filter Bar -->
       <div class="px-6 py-3 bg-slate-900/90 border-b border-slate-800 flex items-center gap-3">
         <div class="relative flex-1">
-          <input type="text" id="savedProjectsSearchInput" oninput="renderSavedProjectsGrid()" placeholder="Search saved designs by name or size..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
+          <input type="text" id="savedProjectsSearchInput" oninput="renderSavedProjectsGrid()" placeholder="Search saved designs by name, tag or size..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
           <i class="fa-solid fa-magnifying-glass text-slate-500 absolute left-3 top-3 text-xs"></i>
         </div>
       </div>
