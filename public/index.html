@@ -3014,9 +3014,16 @@
       let photoH = 0;
       if (cuttingState.image) {
         const imgH = Math.min(185, Math.max(parseFloat(cuttingState.imageHeight) || 165, 110));
-        const captionH = cuttingState.caption ? 20 : 0;
-        const marginH = 10;
-        photoH = imgH + captionH + marginH;
+        sandbox.style.width = `${colW}px`;
+        sandbox.innerHTML = `
+          <div class="mb-2.5">
+            <div style="width: 100%; aspect-ratio: 16/10; max-height: ${imgH}px; overflow: hidden; border-radius: 4px;">
+              <img src="${escapeHtml(cuttingState.image)}" alt="Photo" class="w-full h-full object-cover">
+            </div>
+            ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
+          </div>
+        `;
+        photoH = sandbox.offsetHeight;
       }
 
       const totalTextH = measureWordsHeight(allWords, true);
@@ -3145,9 +3152,16 @@
       let photoH = 0;
       if (cuttingState.image) {
         const imgH = Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90));
-        const captionH = cuttingState.caption ? 20 : 0;
-        const marginH = 10;
-        photoH = imgH + captionH + marginH;
+        sandbox.style.width = `${colW}px`;
+        sandbox.innerHTML = `
+          <div class="mb-2.5">
+            <div style="width: 100%; aspect-ratio: 16/10; max-height: ${imgH}px; overflow: hidden; border-radius: 4px;">
+              <img src="${escapeHtml(cuttingState.image)}" alt="Photo" class="w-full h-full object-cover">
+            </div>
+            ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
+          </div>
+        `;
+        photoH = sandbox.offsetHeight;
       }
 
       const totalTextH = measureWordsHeight(allWords, true);
@@ -3195,7 +3209,6 @@
       }
 
       // 2D NEIGHBORHOOD SEARCH OPTIMIZATION PASS
-      // Finds exact (bestI1, bestI2) pair that minimizes max height difference across all 3 columns
       let bestI1 = bestSplit1;
       let bestI2 = bestSplit2;
 
@@ -3204,7 +3217,7 @@
       let initH3 = measureWordsHeight(allWords.slice(bestI2), false) + (photoCol === 3 ? photoH : 0);
       let minOverallDiff = Math.max(initH1, initH2, initH3) - Math.min(initH1, initH2, initH3);
 
-      const searchRadius = 12;
+      const searchRadius = 14;
       for (let d1 = -searchRadius; d1 <= searchRadius; d1++) {
         const tryI1 = bestSplit1 + d1;
         if (tryI1 < 2 || tryI1 >= allWords.length - 2) continue;
@@ -3431,7 +3444,9 @@
             <div id="cutColBlock2" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
+                  <div style="width: 100%; aspect-ratio: 16/10; max-height: ${imgH}px; overflow: hidden; border-radius: 4px;">
+                    <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover">
+                  </div>
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3448,7 +3463,9 @@
             <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
+                  <div style="width: 100%; aspect-ratio: 16/10; max-height: ${imgH}px; overflow: hidden; border-radius: 4px;">
+                    <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover">
+                  </div>
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3480,7 +3497,9 @@
             <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
+                  <div style="width: 100%; aspect-ratio: 16/10; max-height: ${imgH}px; overflow: hidden; border-radius: 4px;">
+                    <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover">
+                  </div>
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-center">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3512,7 +3531,9 @@
             <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
+                  <div style="width: 100%; aspect-ratio: 16/10; max-height: ${imgH}px; overflow: hidden; border-radius: 4px;">
+                    <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full h-full object-cover">
+                  </div>
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
