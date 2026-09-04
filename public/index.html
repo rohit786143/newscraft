@@ -1275,7 +1275,11 @@
                 <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
                   <i class="fa-solid fa-heading"></i> मुख्य समाचार शीर्षक (Main Headline)
                 </span>
-                <span class="text-[10px] text-slate-400 font-mono" id="cutHeadlineCharCount">0 chars</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-slate-400 font-mono" id="cutHeadlineCharCount">0 chars</span>
+                  <input type="color" id="cutInputHeadlineColor" onchange="updateCuttingField('headlineColor', this.value)"
+                    value="#111111" class="w-6 h-5 bg-slate-900 border border-slate-700 rounded p-0 cursor-pointer" title="शीर्षक रंग (Headline Color)">
+                </div>
               </div>
               <textarea id="cutInputHeadline" oninput="updateCuttingField('headline', this.value)" rows="2"
                 placeholder="यहाँ मुख्य खबर का शीर्षक लिखें..."
@@ -1283,38 +1287,118 @@
 
               <div class="grid grid-cols-2 gap-2 pt-1 text-[11px]">
                 <div>
-                  <label class="text-slate-400 text-[10px] block mb-0.5">फॉन्ट (Typeface)</label>
+                  <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">फॉन्ट (Font)</label>
                   <select id="cutHeadlineFont" onchange="updateCuttingField('headlineFont', this.value)"
                     class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
                     <option value="'Rozha One', serif">Rozha One (शाही देवानागरी)</option>
+                    <option value="'Baloo 2', sans-serif">Baloo 2 ExtraBold</option>
                     <option value="'Mukta', sans-serif">Mukta Bold (मुक्ता बोल्ड)</option>
+                    <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
                     <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari (अखबार)</option>
                     <option value="'Martel', serif">Martel Serif (क्लासिक)</option>
-                    <option value="'Baloo 2', sans-serif">Baloo 2 ExtraBold</option>
                     <option value="'Yatra One', cursive">Yatra One</option>
+                    <option value="'Arya', sans-serif">Arya (आर्या)</option>
+                    <option value="'Poppins', sans-serif">Poppins (पॉपिन्स)</option>
+                    <option value="'Inter', sans-serif">Inter Clean</option>
                   </select>
                 </div>
                 <div>
-                  <label class="text-slate-400 text-[10px] block mb-0.5">साइज (Font Size: <span id="cutHeadlineSizeVal">28</span>px)</label>
-                  <input type="range" id="cutHeadlineSize" min="18" max="52" value="28"
+                  <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">साइज (<span id="cutHeadlineSizeVal">28</span>px)</label>
+                  <input type="range" id="cutHeadlineSize" min="16" max="60" value="28"
                     oninput="updateCuttingField('headlineSize', parseInt(this.value)); document.getElementById('cutHeadlineSizeVal').innerText=this.value;"
                     class="w-full accent-amber-500">
                 </div>
               </div>
+
+              <!-- Headline Alignment Controls -->
+              <div class="pt-1 flex items-center justify-between border-t border-slate-800/80">
+                <label class="text-slate-400 text-[10px] font-semibold">अलाइनमेंट (Alignment):</label>
+                <div class="flex gap-1 bg-slate-900 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateCuttingField('headlineAlign', 'left')" id="btnCutHeadlineAlign_left"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="बाएँ (Left)">
+                    <i class="fa-solid fa-align-left"></i>
+                  </button>
+                  <button type="button" onclick="updateCuttingField('headlineAlign', 'center')" id="btnCutHeadlineAlign_center"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="मध्य (Center)">
+                    <i class="fa-solid fa-align-center"></i>
+                  </button>
+                  <button type="button" onclick="updateCuttingField('headlineAlign', 'right')" id="btnCutHeadlineAlign_right"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="दाएँ (Right)">
+                    <i class="fa-solid fa-align-right"></i>
+                  </button>
+                  <button type="button" onclick="updateCuttingField('headlineAlign', 'justify')" id="btnCutHeadlineAlign_justify"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="जस्टिफाई (Justify)">
+                    <i class="fa-solid fa-align-justify"></i>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <!-- Sub-Headline & Byline -->
+            <!-- Sub-Headline -->
             <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
-              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
-                <i class="fa-solid fa-subscript"></i> उप-शीर्षक व रिपोर्टर (Subhead & Dateline)
-              </span>
-              <div>
-                <label class="text-slate-400 text-[10px] block mb-0.5">उप-शीर्षक (Sub-Headline)</label>
-                <input type="text" id="cutInputSubHeadline" oninput="updateCuttingField('subHeadline', this.value)"
-                  placeholder="e.g. कैबिनेट बैठक में अहम फैसलों पर लगी मुहर"
-                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none">
+              <div class="flex justify-between items-center">
+                <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-subscript"></i> उप-शीर्षक (Sub-Headline)
+                </span>
+                <input type="color" id="cutInputSubHeadlineColor" onchange="updateCuttingField('subHeadlineColor', this.value)"
+                  value="#475569" class="w-6 h-5 bg-slate-900 border border-slate-700 rounded p-0 cursor-pointer" title="उप-शीर्षक रंग (Sub-Headline Color)">
+              </div>
+              <input type="text" id="cutInputSubHeadline" oninput="updateCuttingField('subHeadline', this.value)"
+                placeholder="e.g. कैबिनेट बैठक में अहम फैसलों पर लगी मुहर"
+                class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-semibold">
+
+              <div class="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">फॉन्ट (Font)</label>
+                  <select id="cutSubHeadlineFont" onchange="updateCuttingField('subHeadlineFont', this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs outline-none font-bold">
+                    <option value="'Martel', serif">Martel Serif (क्लासिक)</option>
+                    <option value="'Mukta', sans-serif">Mukta Sans (मुक्ता)</option>
+                    <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
+                    <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari</option>
+                    <option value="'Baloo 2', sans-serif">Baloo 2</option>
+                    <option value="'Rozha One', serif">Rozha One</option>
+                    <option value="'Poppins', sans-serif">Poppins</option>
+                    <option value="'Inter', sans-serif">Inter Clean</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">साइज (<span id="cutSubHeadlineSizeVal">13</span>px)</label>
+                  <input type="range" id="cutSubHeadlineSize" min="10" max="28" value="13"
+                    oninput="updateCuttingField('subHeadlineSize', parseInt(this.value)); document.getElementById('cutSubHeadlineSizeVal').innerText=this.value;"
+                    class="w-full accent-amber-500">
+                </div>
               </div>
 
+              <!-- Sub-Headline Alignment Controls -->
+              <div class="pt-1 flex items-center justify-between border-t border-slate-800/80">
+                <label class="text-slate-400 text-[10px] font-semibold">अलाइनमेंट (Alignment):</label>
+                <div class="flex gap-1 bg-slate-900 p-0.5 rounded border border-slate-800">
+                  <button type="button" onclick="updateCuttingField('subHeadlineAlign', 'left')" id="btnCutSubHeadlineAlign_left"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="बाएँ (Left)">
+                    <i class="fa-solid fa-align-left"></i>
+                  </button>
+                  <button type="button" onclick="updateCuttingField('subHeadlineAlign', 'center')" id="btnCutSubHeadlineAlign_center"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="मध्य (Center)">
+                    <i class="fa-solid fa-align-center"></i>
+                  </button>
+                  <button type="button" onclick="updateCuttingField('subHeadlineAlign', 'right')" id="btnCutSubHeadlineAlign_right"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="दाएँ (Right)">
+                    <i class="fa-solid fa-align-right"></i>
+                  </button>
+                  <button type="button" onclick="updateCuttingField('subHeadlineAlign', 'justify')" id="btnCutSubHeadlineAlign_justify"
+                    class="w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-300 hover:bg-slate-800" title="जस्टिफाई (Justify)">
+                    <i class="fa-solid fa-align-justify"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dateline & Reporter (स्थान व संवाददाता) -->
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <span class="text-amber-400 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-location-dot"></i> स्थान व रिपोर्टर (Dateline & Byline)
+              </span>
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="text-slate-400 text-[10px] block mb-0.5">स्थान (Location)</label>
@@ -2281,7 +2365,12 @@
       headlineFont: "'Rozha One', serif",
       headlineSize: 28,
       headlineColor: '#111111',
+      headlineAlign: 'left',
       subHeadline: 'आधुनिक फोरलेन, बायपास और रोपवे कनेक्टिविटी से जुड़ेंगे सभी प्रमुख पर्यटन स्थल',
+      subHeadlineFont: "'Martel', serif",
+      subHeadlineSize: 13,
+      subHeadlineColor: '#475569',
+      subHeadlineAlign: 'left',
       byline: 'विशेष संवाददाता',
       location: 'शिमला (ब्यूरो):',
       content: 'हिमाचल प्रदेश में बुनियादी ढांचे और पर्यटन उद्योग को नई ऊंचाइयों पर ले जाने के लिए सरकार ने ऐतिहासिक पहल की है। नए प्रस्ताव के तहत राज्य के प्रमुख पर्यटन स्थलों को ऑल-वेदर सड़कों और आधुनिक रोपवे नेटवर्क से जोड़ा जाएगा।\n\nमुख्यमंत्री ने घोषणा की कि इससे स्थानीय युवाओं को रोजगार के व्यापक अवसर मिलेंगे और यात्रा का समय घटकर आधा रह जाएगा। पर्यावरण सुरक्षा के सभी कड़े मानकों का पालन सुनिश्चित किया गया है।',
@@ -2525,9 +2614,13 @@
         ['cutInputTopLine', cuttingState.topLine],
         ['cutInputTopLineColor', cuttingState.topLineColor],
         ['cutInputHeadline', cuttingState.headline],
-        ['cutHeadlineFont', cuttingState.headlineFont],
-        ['cutHeadlineSize', cuttingState.headlineSize],
+        ['cutInputHeadlineColor', cuttingState.headlineColor || '#111111'],
+        ['cutHeadlineFont', cuttingState.headlineFont || "'Rozha One', serif"],
+        ['cutHeadlineSize', cuttingState.headlineSize || 28],
         ['cutInputSubHeadline', cuttingState.subHeadline],
+        ['cutInputSubHeadlineColor', cuttingState.subHeadlineColor || '#475569'],
+        ['cutSubHeadlineFont', cuttingState.subHeadlineFont || "'Martel', serif"],
+        ['cutSubHeadlineSize', cuttingState.subHeadlineSize || 13],
         ['cutInputLocation', cuttingState.location],
         ['cutInputByline', cuttingState.byline],
         ['cutInputContent', cuttingState.content],
@@ -2558,7 +2651,10 @@
       if (checkScissor) checkScissor.checked = !!cuttingState.scissorBorder;
 
       const hSizeVal = document.getElementById('cutHeadlineSizeVal');
-      if (hSizeVal) hSizeVal.innerText = cuttingState.headlineSize;
+      if (hSizeVal) hSizeVal.innerText = cuttingState.headlineSize || 28;
+
+      const subHSizeVal = document.getElementById('cutSubHeadlineSizeVal');
+      if (subHSizeVal) subHSizeVal.innerText = cuttingState.subHeadlineSize || 13;
 
       const bSizeVal = document.getElementById('cutBodySizeVal');
       if (bSizeVal) bSizeVal.innerText = cuttingState.bodySize;
@@ -2571,6 +2667,32 @@
 
       const charCount = document.getElementById('cutHeadlineCharCount');
       if (charCount) charCount.innerText = (cuttingState.headline || '').length + ' chars';
+
+      // Sync Headline Alignment buttons
+      const hAlign = cuttingState.headlineAlign || 'left';
+      ['left', 'center', 'right', 'justify'].forEach(a => {
+        const btn = document.getElementById(`btnCutHeadlineAlign_${a}`);
+        if (btn) {
+          if (hAlign === a) {
+            btn.className = 'w-7 h-6 rounded text-[11px] flex items-center justify-center bg-blue-600 text-white font-bold shadow-sm';
+          } else {
+            btn.className = 'w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+          }
+        }
+      });
+
+      // Sync Sub-Headline Alignment buttons
+      const subAlign = cuttingState.subHeadlineAlign || 'left';
+      ['left', 'center', 'right', 'justify'].forEach(a => {
+        const btn = document.getElementById(`btnCutSubHeadlineAlign_${a}`);
+        if (btn) {
+          if (subAlign === a) {
+            btn.className = 'w-7 h-6 rounded text-[11px] flex items-center justify-center bg-blue-600 text-white font-bold shadow-sm';
+          } else {
+            btn.className = 'w-7 h-6 rounded text-[11px] flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+          }
+        }
+      });
     }
 
     function saveCuttingState() {
@@ -2590,6 +2712,12 @@
             cuttingState = Object.assign({}, defaultCuttingState, parsed);
           }
         }
+        if (!cuttingState.headlineColor) cuttingState.headlineColor = '#111111';
+        if (!cuttingState.headlineAlign) cuttingState.headlineAlign = 'left';
+        if (!cuttingState.subHeadlineFont) cuttingState.subHeadlineFont = cuttingState.bodyFont || "'Martel', serif";
+        if (!cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = 13;
+        if (!cuttingState.subHeadlineColor) cuttingState.subHeadlineColor = '#475569';
+        if (!cuttingState.subHeadlineAlign) cuttingState.subHeadlineAlign = 'left';
       } catch (e) {
         console.warn('Failed to load cutting state:', e);
       }
@@ -2799,15 +2927,15 @@
             </div>
 
             <!-- 3. MAIN HEADLINE -->
-            <h2 class="mb-2 leading-snug font-bold" style="font-family: ${cuttingState.headlineFont || "'Rozha One', serif"}; font-size: ${cuttingState.headlineSize || 28}px; color: ${cuttingState.paperStyle === 'dark-clipping' ? '#ffffff' : (cuttingState.headlineColor || '#111111')};">
+            <h2 class="mb-2 leading-snug font-bold" style="font-family: ${cuttingState.headlineFont || "'Rozha One', serif"}; font-size: ${cuttingState.headlineSize || 28}px; color: ${cuttingState.paperStyle === 'dark-clipping' && (!cuttingState.headlineColor || cuttingState.headlineColor === '#111111') ? '#ffffff' : (cuttingState.headlineColor || '#111111')}; text-align: ${cuttingState.headlineAlign || 'left'};">
               ${escapeHtml(cuttingState.headline)}
             </h2>
 
             <!-- 4. SUB-HEADLINE -->
             ${cuttingState.subHeadline ? `
-              <div class="text-xs sm:text-sm font-semibold mb-3 pb-2 border-b border-slate-200 dark:border-slate-800 flex items-start gap-1.5" style="color: ${themeSubtext}; font-family: ${cuttingState.bodyFont};">
-                <span class="text-amber-500 font-bold">•</span>
-                <span>${escapeHtml(cuttingState.subHeadline)}</span>
+              <div class="text-xs sm:text-sm font-semibold mb-3 pb-2 border-b border-slate-200 dark:border-slate-800 flex items-start gap-1.5" style="color: ${cuttingState.paperStyle === 'dark-clipping' && (!cuttingState.subHeadlineColor || cuttingState.subHeadlineColor === '#475569') ? '#cbd5e1' : (cuttingState.subHeadlineColor || themeSubtext)}; font-family: ${cuttingState.subHeadlineFont || cuttingState.bodyFont || "'Martel', serif"}; font-size: ${cuttingState.subHeadlineSize || 13}px; justify-content: ${cuttingState.subHeadlineAlign === 'center' ? 'center' : (cuttingState.subHeadlineAlign === 'right' ? 'flex-end' : (cuttingState.subHeadlineAlign === 'justify' ? 'stretch' : 'flex-start'))}; text-align: ${cuttingState.subHeadlineAlign || 'left'};">
+                <span class="text-amber-500 font-bold shrink-0">•</span>
+                <span class="flex-1" style="text-align: ${cuttingState.subHeadlineAlign || 'left'};">${escapeHtml(cuttingState.subHeadline)}</span>
               </div>
             ` : ''}
 
