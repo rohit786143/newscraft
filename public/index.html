@@ -1690,6 +1690,45 @@
                   <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_col2_top_photo">✓</span>
                 </button>
 
+                <!-- Layout 9: 3-Column with Column 1 Top Landscape Photo -->
+                <button type="button" onclick="setCuttingLayout('col3-col1-photo')" id="btnCutLayout_col3_col1_photo"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">📐</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">9. 1-कॉलम + ऊपर लैंडस्केप फोटो</span>
+                      <span class="text-[10.5px] text-slate-400 block">3-कॉलम ग्रिड: 1st कॉलम के ऊपर फोटो व नीचे टेक्स्ट, 2nd व 3rd में पूरा टेक्स्ट</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_col3_col1_photo">✓</span>
+                </button>
+
+                <!-- Layout 10: 3-Column with Column 2 Top Landscape Photo -->
+                <button type="button" onclick="setCuttingLayout('col3-col2-photo')" id="btnCutLayout_col3_col2_photo"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">🏛️</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">10. 2-कॉलम + ऊपर लैंडस्केप फोटो</span>
+                      <span class="text-[10.5px] text-slate-400 block">3-कॉलम ग्रिड: 2nd (बीच के) कॉलम के ऊपर फोटो व नीचे टेक्स्ट, 1st व 3rd में पूरा टेक्स्ट</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_col3_col2_photo">✓</span>
+                </button>
+
+                <!-- Layout 11: 3-Column with Column 3 Top Landscape Photo -->
+                <button type="button" onclick="setCuttingLayout('col3-col3-photo')" id="btnCutLayout_col3_col3_photo"
+                  class="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">📊</span>
+                    <div>
+                      <span class="font-bold text-white text-xs block">11. 3-कॉलम + ऊपर लैंडस्केप फोटो</span>
+                      <span class="text-[10.5px] text-slate-400 block">3-कॉलम ग्रिड: 1st व 2nd में पूरा टेक्स्ट, 3rd (दाएं) कॉलम के ऊपर फोटो व नीचे टेक्स्ट</span>
+                    </div>
+                  </div>
+                  <span class="text-xs text-amber-400 font-bold hidden" id="iconCutLayout_col3_col3_photo">✓</span>
+                </button>
+
               </div>
             </div>
 
@@ -2565,7 +2604,7 @@
     function setCuttingLayout(layoutId) {
       cuttingState.layout = layoutId;
 
-      const layouts = ['lead-hero', 'photo-left', 'photo-right', 'cutout-wrap', 'big-quote', 'text-only', 'breaking-alert', 'col2-top-photo'];
+      const layouts = ['lead-hero', 'photo-left', 'photo-right', 'cutout-wrap', 'big-quote', 'text-only', 'breaking-alert', 'col2-top-photo', 'col3-col1-photo', 'col3-col2-photo', 'col3-col3-photo'];
       layouts.forEach(l => {
         const btn = document.getElementById(`btnCutLayout_${l.replace(/-/g, '_')}`);
         const icon = document.getElementById(`iconCutLayout_${l.replace(/-/g, '_')}`);
@@ -2895,6 +2934,65 @@
       return { col1, col2 };
     }
 
+    // HELPER: Split News Content into 3 Columns with specific column Top Image Balance
+    function splitCuttingContentForThreeCols(content, location, photoCol = 1) {
+      const rawText = (content || '').trim();
+      if (!rawText) return { col1: '', col2: '', col3: '' };
+
+      // Split proportions: column with photo gets ~0.24, other two columns get ~0.38
+      let w1 = 0.38, w2 = 0.38, w3 = 0.38;
+      if (photoCol === 1) { w1 = 0.24; w2 = 0.38; w3 = 0.38; }
+      else if (photoCol === 2) { w1 = 0.38; w2 = 0.24; w3 = 0.38; }
+      else if (photoCol === 3) { w1 = 0.38; w2 = 0.38; w3 = 0.24; }
+
+      const sumW = w1 + w2 + w3;
+      const targetLen1 = Math.floor(rawText.length * (w1 / sumW));
+      const targetLen2 = Math.floor(rawText.length * ((w1 + w2) / sumW));
+
+      function findSplitPoint(text, target) {
+        if (target <= 0) return 0;
+        if (target >= text.length) return text.length;
+        const searchStart = Math.max(0, target - 60);
+        const searchEnd = Math.min(text.length, target + 60);
+        const win = text.substring(searchStart, searchEnd);
+        const puncts = ['।', '.', '!', '?', ';', '\n'];
+        for (const p of puncts) {
+          const idx = win.lastIndexOf(p);
+          if (idx !== -1) return searchStart + idx + 1;
+        }
+        const spaceIdx = win.lastIndexOf(' ');
+        if (spaceIdx !== -1) return searchStart + spaceIdx + 1;
+        return target;
+      }
+
+      let split1 = findSplitPoint(rawText, targetLen1);
+      let split2 = findSplitPoint(rawText, targetLen2);
+      if (split2 <= split1) {
+        split2 = Math.min(rawText.length, split1 + Math.floor((rawText.length - split1) / 2));
+      }
+
+      const text1 = rawText.substring(0, split1).trim();
+      const text2 = rawText.substring(split1, split2).trim();
+      const text3 = rawText.substring(split2).trim();
+
+      function formatColText(txt, isFirst) {
+        if (!txt) return '';
+        const lines = txt.split('\n').filter(p => p.trim().length > 0);
+        return lines.map((p, idx) => {
+          if (isFirst && idx === 0 && location) {
+            return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
+          }
+          return `<p class="mb-2 text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
+        }).join('');
+      }
+
+      return {
+        col1: formatColText(text1, true),
+        col2: formatColText(text2, false),
+        col3: formatColText(text3, false)
+      };
+    }
+
     // MAIN RENDERER FOR NEWSPAPER CUTTING CANVAS
     function renderCuttingCanvas() {
       const container = document.getElementById('cuttingCanvas');
@@ -3085,6 +3183,84 @@
                 </div>
               ` : ''}
               ${col2}
+            </div>
+          </div>
+        `;
+      } else if (cuttingState.layout === 'col3-col1-photo') {
+        const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 1);
+        layoutContentHtml = `
+          <div class="grid grid-cols-3 gap-3 items-start">
+            <!-- Left Column 1 (Top Landscape Photo + Continuation Text Below) -->
+            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${cuttingState.image ? `
+                <div class="mb-2.5">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
+                  ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
+                </div>
+              ` : ''}
+              ${col1}
+            </div>
+
+            <!-- Middle Column 2 (Full Text Flow) -->
+            <div class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col2}
+            </div>
+
+            <!-- Right Column 3 (Full Text Flow) -->
+            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col3}
+            </div>
+          </div>
+        `;
+      } else if (cuttingState.layout === 'col3-col2-photo') {
+        const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 2);
+        layoutContentHtml = `
+          <div class="grid grid-cols-3 gap-3 items-start">
+            <!-- Left Column 1 (Full Text Flow) -->
+            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col1}
+            </div>
+
+            <!-- Middle Column 2 (Top Landscape Photo + Continuation Text Below) -->
+            <div class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${cuttingState.image ? `
+                <div class="mb-2.5">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
+                  ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-center">${escapeHtml(cuttingState.caption)}</div>` : ''}
+                </div>
+              ` : ''}
+              ${col2}
+            </div>
+
+            <!-- Right Column 3 (Full Text Flow) -->
+            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col3}
+            </div>
+          </div>
+        `;
+      } else if (cuttingState.layout === 'col3-col3-photo') {
+        const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 3);
+        layoutContentHtml = `
+          <div class="grid grid-cols-3 gap-3 items-start">
+            <!-- Left Column 1 (Full Text Flow) -->
+            <div class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col1}
+            </div>
+
+            <!-- Middle Column 2 (Full Text Flow) -->
+            <div class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${col2}
+            </div>
+
+            <!-- Right Column 3 (Top Landscape Photo + Continuation Text Below) -->
+            <div class="text-justify leading-relaxed pl-1" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor};">
+              ${cuttingState.image ? `
+                <div class="mb-2.5">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
+                  ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
+                </div>
+              ` : ''}
+              ${col3}
             </div>
           </div>
         `;
