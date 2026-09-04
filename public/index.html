@@ -2976,12 +2976,17 @@
         return html;
       }
 
+      const measureCache = new Map();
       function measureWordsHeight(wordsSlice, isFirst) {
         if (!wordsSlice || wordsSlice.length === 0) return 0;
+        const key = `${isFirst ? 1 : 0}_${wordsSlice.length}_${wordsSlice[0].text}_${wordsSlice[wordsSlice.length - 1].text}`;
+        if (measureCache.has(key)) return measureCache.get(key);
         const innerHtml = formatColFromWords(wordsSlice, isFirst, location);
         sandbox.style.width = `${colW}px`;
         sandbox.innerHTML = `<div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont || "'Martel', serif"}; font-size: ${cuttingState.bodySize || 13}px; text-align: justify; text-justify: inter-word; width: ${colW}px;">${innerHtml}</div>`;
-        return sandbox.offsetHeight;
+        const h = sandbox.offsetHeight;
+        measureCache.set(key, h);
+        return h;
       }
 
       let photoH = 0;
@@ -3013,26 +3018,34 @@
         }
       }
 
-      // Sentence boundary snap within tolerance
-      for (let delta = 1; delta <= 5; delta++) {
-        for (const s of [bestSplit - delta, bestSplit + delta]) {
-          if (s > 0 && s < allWords.length) {
-            const wt = allWords[s - 1].text;
-            if (wt.endsWith('।') || wt.endsWith('.') || wt.endsWith('!') || wt.endsWith('?')) {
-              const hSnap = measureWordsHeight(allWords.slice(0, s), true);
-              if (Math.abs(hSnap - targetH1) <= 24) {
-                bestSplit = s;
-                delta = 999;
-                break;
-              }
-            }
-          }
+      // 1D NEIGHBORHOOD SEARCH OPTIMIZATION PASS
+      let bestI = bestSplit;
+      let initH1 = measureWordsHeight(allWords.slice(0, bestI), true);
+      let initH2 = measureWordsHeight(allWords.slice(bestI), false) + photoH;
+      let minOverallDiff = Math.abs(initH1 - initH2);
+
+      const searchRadius = 15;
+      for (let d = -searchRadius; d <= searchRadius; d++) {
+        const tryI = bestSplit + d;
+        if (tryI < 2 || tryI >= allWords.length) continue;
+
+        const curH1 = measureWordsHeight(allWords.slice(0, tryI), true);
+        const curH2 = measureWordsHeight(allWords.slice(tryI), false) + photoH;
+        const diff = Math.abs(curH1 - curH2);
+
+        const wText = allWords[tryI - 1].text;
+        const isPunct = wText.endsWith('।') || wText.endsWith('.') || wText.endsWith('!') || wText.endsWith('?');
+        const punctBonus = isPunct ? 8 : 0;
+
+        if (diff < minOverallDiff || (diff <= minOverallDiff + 6 && punctBonus > 0 && diff <= 14)) {
+          minOverallDiff = diff;
+          bestI = tryI;
         }
       }
 
       return {
-        col1: formatColFromWords(allWords.slice(0, bestSplit), true, location),
-        col2: formatColFromWords(allWords.slice(bestSplit), false)
+        col1: formatColFromWords(allWords.slice(0, bestI), true, location),
+        col2: formatColFromWords(allWords.slice(bestI), false)
       };
     }
 
@@ -3094,12 +3107,17 @@
         return html;
       }
 
+      const measureCache = new Map();
       function measureWordsHeight(wordsSlice, isFirst) {
         if (!wordsSlice || wordsSlice.length === 0) return 0;
+        const key = `${isFirst ? 1 : 0}_${wordsSlice.length}_${wordsSlice[0].text}_${wordsSlice[wordsSlice.length - 1].text}`;
+        if (measureCache.has(key)) return measureCache.get(key);
         const innerHtml = formatColFromWords(wordsSlice, isFirst, location);
         sandbox.style.width = `${colW}px`;
         sandbox.innerHTML = `<div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont || "'Martel', serif"}; font-size: ${cuttingState.bodySize || 13}px; text-align: justify; text-justify: inter-word; width: ${colW}px;">${innerHtml}</div>`;
-        return sandbox.offsetHeight;
+        const h = sandbox.offsetHeight;
+        measureCache.set(key, h);
+        return h;
       }
 
       let photoH = 0;
@@ -3134,23 +3152,6 @@
         }
       }
 
-      // Snap to sentence boundary if nearby
-      for (let delta = 1; delta <= 5; delta++) {
-        for (const s of [bestSplit1 - delta, bestSplit1 + delta]) {
-          if (s > 0 && s < allWords.length - 2) {
-            const wt = allWords[s - 1].text;
-            if (wt.endsWith('।') || wt.endsWith('.') || wt.endsWith('!') || wt.endsWith('?')) {
-              const hSnap = measureWordsHeight(allWords.slice(0, s), true);
-              if (Math.abs(hSnap - targetH1) <= 24) {
-                bestSplit1 = s;
-                delta = 999;
-                break;
-              }
-            }
-          }
-        }
-      }
-
       // Binary search for Split 2
       low = bestSplit1 + 1;
       high = allWords.length - 1;
@@ -3171,31 +3172,56 @@
         }
       }
 
-      // Snap to sentence boundary if nearby
-      for (let delta = 1; delta <= 5; delta++) {
-        for (const s of [bestSplit2 - delta, bestSplit2 + delta]) {
-          if (s > bestSplit1 + 1 && s < allWords.length) {
-            const wt = allWords[s - 1].text;
-            if (wt.endsWith('।') || wt.endsWith('.') || wt.endsWith('!') || wt.endsWith('?')) {
-              const hSnap = measureWordsHeight(allWords.slice(bestSplit1, s), false);
-              if (Math.abs(hSnap - targetH2) <= 24) {
-                bestSplit2 = s;
-                delta = 999;
-                break;
-              }
-            }
+      // 2D NEIGHBORHOOD SEARCH OPTIMIZATION PASS
+      // Finds exact (bestI1, bestI2) pair that minimizes max height difference across all 3 columns
+      let bestI1 = bestSplit1;
+      let bestI2 = bestSplit2;
+
+      let initH1 = measureWordsHeight(allWords.slice(0, bestI1), true) + (photoCol === 1 ? photoH : 0);
+      let initH2 = measureWordsHeight(allWords.slice(bestI1, bestI2), false) + (photoCol === 2 ? photoH : 0);
+      let initH3 = measureWordsHeight(allWords.slice(bestI2), false) + (photoCol === 3 ? photoH : 0);
+      let minOverallDiff = Math.max(initH1, initH2, initH3) - Math.min(initH1, initH2, initH3);
+
+      const searchRadius = 12;
+      for (let d1 = -searchRadius; d1 <= searchRadius; d1++) {
+        const tryI1 = bestSplit1 + d1;
+        if (tryI1 < 2 || tryI1 >= allWords.length - 2) continue;
+
+        const curH1 = measureWordsHeight(allWords.slice(0, tryI1), true) + (photoCol === 1 ? photoH : 0);
+
+        for (let d2 = -searchRadius; d2 <= searchRadius; d2++) {
+          const tryI2 = bestSplit2 + d2;
+          if (tryI2 <= tryI1 + 1 || tryI2 >= allWords.length) continue;
+
+          const curH2 = measureWordsHeight(allWords.slice(tryI1, tryI2), false) + (photoCol === 2 ? photoH : 0);
+          const curH3 = measureWordsHeight(allWords.slice(tryI2), false) + (photoCol === 3 ? photoH : 0);
+
+          const maxH = Math.max(curH1, curH2, curH3);
+          const minH = Math.min(curH1, curH2, curH3);
+          const diff = maxH - minH;
+
+          const w1Text = allWords[tryI1 - 1].text;
+          const w2Text = allWords[tryI2 - 1].text;
+          const isPunct1 = w1Text.endsWith('।') || w1Text.endsWith('.') || w1Text.endsWith('!') || w1Text.endsWith('?');
+          const isPunct2 = w2Text.endsWith('।') || w2Text.endsWith('.') || w2Text.endsWith('!') || w2Text.endsWith('?');
+          const punctBonus = (isPunct1 ? 8 : 0) + (isPunct2 ? 8 : 0);
+
+          if (diff < minOverallDiff || (diff <= minOverallDiff + 6 && punctBonus > 0 && diff <= 14)) {
+            minOverallDiff = diff;
+            bestI1 = tryI1;
+            bestI2 = tryI2;
           }
         }
       }
 
-      if (bestSplit2 <= bestSplit1) {
-        bestSplit2 = Math.min(allWords.length, bestSplit1 + Math.max(1, Math.floor((allWords.length - bestSplit1) / 2)));
+      if (bestI2 <= bestI1) {
+        bestI2 = Math.min(allWords.length, bestI1 + Math.max(1, Math.floor((allWords.length - bestI1) / 2)));
       }
 
       return {
-        col1: formatColFromWords(allWords.slice(0, bestSplit1), true, location),
-        col2: formatColFromWords(allWords.slice(bestSplit1, bestSplit2), false),
-        col3: formatColFromWords(allWords.slice(bestSplit2), false)
+        col1: formatColFromWords(allWords.slice(0, bestI1), true, location),
+        col2: formatColFromWords(allWords.slice(bestI1, bestI2), false),
+        col3: formatColFromWords(allWords.slice(bestI2), false)
       };
     }
 
