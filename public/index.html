@@ -1332,10 +1332,18 @@
                   </select>
                 </div>
                 <div>
-                  <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">साइज (<span id="cutHeadlineSizeVal">28</span>px)</label>
-                  <input type="range" id="cutHeadlineSize" min="16" max="60" value="28"
-                    oninput="updateCuttingField('headlineSize', parseInt(this.value)); document.getElementById('cutHeadlineSizeVal').innerText=this.value;"
-                    class="w-full accent-amber-500">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <label class="text-slate-400 text-[10px] font-semibold">साइज (Headline Size)</label>
+                    <div class="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded px-1.5 py-0.5 shadow-inner">
+                      <input type="number" id="cutHeadlineSizeInput" min="10" max="90" step="0.1" value="28"
+                        oninput="setCuttingHeadlineSize(this.value)"
+                        class="w-12 bg-transparent text-right text-amber-300 font-mono font-bold text-[11px] outline-none">
+                      <span class="text-[9.5px] text-slate-500 font-semibold">px</span>
+                    </div>
+                  </div>
+                  <input type="range" id="cutHeadlineSize" min="10" max="90" step="0.1" value="28"
+                    oninput="setCuttingHeadlineSize(this.value)"
+                    class="w-full accent-amber-500 cursor-pointer">
                 </div>
               </div>
 
@@ -1392,10 +1400,18 @@
                   </select>
                 </div>
                 <div>
-                  <label class="text-slate-400 text-[10px] block mb-0.5 font-semibold">साइज (<span id="cutSubHeadlineSizeVal">13</span>px)</label>
-                  <input type="range" id="cutSubHeadlineSize" min="10" max="28" value="13"
-                    oninput="updateCuttingField('subHeadlineSize', parseInt(this.value)); document.getElementById('cutSubHeadlineSizeVal').innerText=this.value;"
-                    class="w-full accent-amber-500">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <label class="text-slate-400 text-[10px] font-semibold">साइज (Sub-Headline Size)</label>
+                    <div class="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded px-1.5 py-0.5 shadow-inner">
+                      <input type="number" id="cutSubHeadlineSizeInput" min="8" max="45" step="0.1" value="13"
+                        oninput="setCuttingSubHeadlineSize(this.value)"
+                        class="w-12 bg-transparent text-right text-amber-300 font-mono font-bold text-[11px] outline-none">
+                      <span class="text-[9.5px] text-slate-500 font-semibold">px</span>
+                    </div>
+                  </div>
+                  <input type="range" id="cutSubHeadlineSize" min="8" max="45" step="0.1" value="13"
+                    oninput="setCuttingSubHeadlineSize(this.value)"
+                    class="w-full accent-amber-500 cursor-pointer">
                 </div>
               </div>
 
@@ -1472,10 +1488,18 @@
                   </select>
                 </div>
                 <div>
-                  <label class="text-slate-400 text-[10px] block mb-0.5">फॉन्ट साइज (<span id="cutBodySizeVal">13</span>px)</label>
-                  <input type="range" id="cutBodySize" min="9" max="22" value="13"
-                    oninput="updateCuttingField('bodySize', parseInt(this.value)); document.getElementById('cutBodySizeVal').innerText=this.value;"
-                    class="w-full accent-amber-500">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <label class="text-slate-400 text-[10px] font-semibold">बॉडी साइज</label>
+                    <div class="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded px-1 py-0.5 shadow-inner">
+                      <input type="number" id="cutBodySizeInput" min="7" max="35" step="0.1" value="13"
+                        oninput="setCuttingBodySize(this.value)"
+                        class="w-11 bg-transparent text-right text-amber-300 font-mono font-bold text-[11px] outline-none">
+                      <span class="text-[9px] text-slate-500 font-semibold">px</span>
+                    </div>
+                  </div>
+                  <input type="range" id="cutBodySize" min="7" max="35" step="0.1" value="13"
+                    oninput="setCuttingBodySize(this.value)"
+                    class="w-full accent-amber-500 cursor-pointer">
                 </div>
                 <div>
                   <label class="text-slate-400 text-[10px] block mb-0.5">बॉडी फॉन्ट</label>
@@ -2601,6 +2625,42 @@
       renderCuttingCanvas();
     }
 
+    function setCuttingHeadlineSize(val) {
+      const num = parseFloat(val);
+      if (isNaN(num) || num <= 0) return;
+      cuttingState.headlineSize = num;
+      const slider = document.getElementById('cutHeadlineSize');
+      const input = document.getElementById('cutHeadlineSizeInput');
+      if (slider && parseFloat(slider.value) !== num) slider.value = num;
+      if (input && parseFloat(input.value) !== num) input.value = num;
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function setCuttingSubHeadlineSize(val) {
+      const num = parseFloat(val);
+      if (isNaN(num) || num <= 0) return;
+      cuttingState.subHeadlineSize = num;
+      const slider = document.getElementById('cutSubHeadlineSize');
+      const input = document.getElementById('cutSubHeadlineSizeInput');
+      if (slider && parseFloat(slider.value) !== num) slider.value = num;
+      if (input && parseFloat(input.value) !== num) input.value = num;
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
+    function setCuttingBodySize(val) {
+      const num = parseFloat(val);
+      if (isNaN(num) || num <= 0) return;
+      cuttingState.bodySize = num;
+      const slider = document.getElementById('cutBodySize');
+      const input = document.getElementById('cutBodySizeInput');
+      if (slider && parseFloat(slider.value) !== num) slider.value = num;
+      if (input && parseFloat(input.value) !== num) input.value = num;
+      saveCuttingState();
+      renderCuttingCanvas();
+    }
+
     function updateCuttingField(key, val) {
       cuttingState[key] = val;
       if (key === 'headline') {
@@ -2661,15 +2721,18 @@
         ['cutInputHeadlineColor', cuttingState.headlineColor || '#111111'],
         ['cutHeadlineFont', cuttingState.headlineFont || "'Rozha One', serif"],
         ['cutHeadlineSize', cuttingState.headlineSize || 28],
+        ['cutHeadlineSizeInput', cuttingState.headlineSize || 28],
         ['cutInputSubHeadline', cuttingState.subHeadline],
         ['cutInputSubHeadlineColor', cuttingState.subHeadlineColor || '#475569'],
         ['cutSubHeadlineFont', cuttingState.subHeadlineFont || "'Martel', serif"],
         ['cutSubHeadlineSize', cuttingState.subHeadlineSize || 13],
+        ['cutSubHeadlineSizeInput', cuttingState.subHeadlineSize || 13],
         ['cutInputLocation', cuttingState.location],
         ['cutInputByline', cuttingState.byline],
         ['cutInputContent', cuttingState.content],
         ['cutBodyFont', cuttingState.bodyFont],
         ['cutBodySize', cuttingState.bodySize],
+        ['cutBodySizeInput', cuttingState.bodySize],
         ['cutBodyCols', cuttingState.bodyCols],
         ['cutInputImage', cuttingState.image],
         ['cutInputCaption', cuttingState.caption],
@@ -2693,15 +2756,6 @@
 
       const checkScissor = document.getElementById('cutCheckScissor');
       if (checkScissor) checkScissor.checked = !!cuttingState.scissorBorder;
-
-      const hSizeVal = document.getElementById('cutHeadlineSizeVal');
-      if (hSizeVal) hSizeVal.innerText = cuttingState.headlineSize || 28;
-
-      const subHSizeVal = document.getElementById('cutSubHeadlineSizeVal');
-      if (subHSizeVal) subHSizeVal.innerText = cuttingState.subHeadlineSize || 13;
-
-      const bSizeVal = document.getElementById('cutBodySizeVal');
-      if (bSizeVal) bSizeVal.innerText = cuttingState.bodySize;
 
       const imgHVal = document.getElementById('cutImageHeightVal');
       if (imgHVal) imgHVal.innerText = cuttingState.imageHeight;
@@ -2758,10 +2812,12 @@
         }
         if (!cuttingState.headlineColor) cuttingState.headlineColor = '#111111';
         if (!cuttingState.headlineAlign) cuttingState.headlineAlign = 'left';
+        if (cuttingState.headlineSize) cuttingState.headlineSize = parseFloat(cuttingState.headlineSize) || 28;
         if (!cuttingState.subHeadlineFont) cuttingState.subHeadlineFont = cuttingState.bodyFont || "'Martel', serif";
-        if (!cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = 13;
+        if (cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = parseFloat(cuttingState.subHeadlineSize) || 13;
         if (!cuttingState.subHeadlineColor) cuttingState.subHeadlineColor = '#475569';
         if (!cuttingState.subHeadlineAlign) cuttingState.subHeadlineAlign = 'left';
+        if (cuttingState.bodySize) cuttingState.bodySize = parseFloat(cuttingState.bodySize) || 13;
         if (!cuttingState.bodyCols) cuttingState.bodyCols = 2;
         cuttingState.bodyCols = parseInt(cuttingState.bodyCols) || 2;
       } catch (e) {
@@ -8116,10 +8172,12 @@
       }
       if (!cuttingState.headlineColor) cuttingState.headlineColor = '#111111';
       if (!cuttingState.headlineAlign) cuttingState.headlineAlign = 'left';
+      if (cuttingState.headlineSize) cuttingState.headlineSize = parseFloat(cuttingState.headlineSize) || 28;
       if (!cuttingState.subHeadlineFont) cuttingState.subHeadlineFont = cuttingState.bodyFont || "'Martel', serif";
-      if (!cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = 13;
+      if (cuttingState.subHeadlineSize) cuttingState.subHeadlineSize = parseFloat(cuttingState.subHeadlineSize) || 13;
       if (!cuttingState.subHeadlineColor) cuttingState.subHeadlineColor = '#475569';
       if (!cuttingState.subHeadlineAlign) cuttingState.subHeadlineAlign = 'left';
+      if (cuttingState.bodySize) cuttingState.bodySize = parseFloat(cuttingState.bodySize) || 13;
       if (!cuttingState.bodyCols) cuttingState.bodyCols = 2;
       cuttingState.bodyCols = parseInt(cuttingState.bodyCols) || 2;
 
