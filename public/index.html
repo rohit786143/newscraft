@@ -3075,6 +3075,120 @@
       };
     }
 
+    // DYNAMIC DOM COLUMN BALANCING ENGINE: Shifts words iteratively until bottom baselines align exactly
+    function balanceCuttingColumns() {
+      const c1 = document.getElementById('cutColBlock1');
+      const c2 = document.getElementById('cutColBlock2');
+      const c3 = document.getElementById('cutColBlock3');
+      if (!c1 || !c2) return;
+
+      const w1 = c1.querySelector('.cut-text-wrapper') || c1;
+      const w2 = c2.querySelector('.cut-text-wrapper') || c2;
+      const w3 = c3 ? (c3.querySelector('.cut-text-wrapper') || c3) : null;
+
+      function getBottom(el) {
+        return el.getBoundingClientRect().bottom;
+      }
+
+      function moveLastWord(srcWrap, destWrap) {
+        const srcPs = Array.from(srcWrap.querySelectorAll('p')).filter(p => p.innerText.trim().length > 0);
+        if (srcPs.length === 0) return false;
+        const lastP = srcPs[srcPs.length - 1];
+        const words = lastP.innerText.trim().split(/\s+/);
+        if (words.length <= 1 && srcPs.length === 1) return false;
+
+        const w = words.pop();
+        lastP.innerText = words.join(' ');
+
+        const destPs = Array.from(destWrap.querySelectorAll('p'));
+        if (destPs.length === 0) {
+          const p = document.createElement('p');
+          p.className = 'mb-2 text-justify leading-relaxed';
+          p.style.cssText = 'text-align: justify; text-justify: inter-word;';
+          p.innerText = w;
+          destWrap.appendChild(p);
+        } else {
+          const firstP = destPs[0];
+          firstP.innerText = w + ' ' + firstP.innerText.trim();
+        }
+        return true;
+      }
+
+      function moveFirstWord(destWrap, srcWrap) {
+        const destPs = Array.from(destWrap.querySelectorAll('p')).filter(p => p.innerText.trim().length > 0);
+        if (destPs.length === 0) return false;
+        const firstP = destPs[0];
+        const words = firstP.innerText.trim().split(/\s+/);
+        if (words.length <= 1 && destPs.length === 1) return false;
+
+        const w = words.shift();
+        firstP.innerText = words.join(' ');
+
+        const srcPs = Array.from(srcWrap.querySelectorAll('p'));
+        if (srcPs.length === 0) {
+          const p = document.createElement('p');
+          p.className = 'mb-2 text-justify leading-relaxed';
+          p.style.cssText = 'text-align: justify; text-justify: inter-word;';
+          p.innerText = w;
+          srcWrap.appendChild(p);
+        } else {
+          const lastP = srcPs[srcPs.length - 1];
+          lastP.innerText = lastP.innerText.trim() + ' ' + w;
+        }
+        return true;
+      }
+
+      if (w3) {
+        // 3-Column Balancing Pass
+        let iterations = 50;
+        while (iterations-- > 0) {
+          const b1 = getBottom(c1);
+          const b2 = getBottom(c2);
+          const b3 = getBottom(c3);
+
+          const maxB = Math.max(b1, b2, b3);
+          const minB = Math.min(b1, b2, b3);
+          if (maxB - minB <= 12) break;
+
+          let changed = false;
+
+          if (b1 >= b2 + 10 && b1 >= b3 + 10) {
+            if (moveLastWord(w1, w2)) changed = true;
+          } else if (b2 >= b1 + 10 && b2 >= b3 + 10) {
+            if (moveLastWord(w2, w3)) changed = true;
+          } else if (b3 >= b1 + 10 && b3 >= b2 + 10) {
+            if (moveFirstWord(w3, w2)) changed = true;
+          } else if (b1 > b2 + 10) {
+            if (moveLastWord(w1, w2)) changed = true;
+          } else if (b2 > b3 + 10) {
+            if (moveLastWord(w2, w3)) changed = true;
+          } else if (b3 > b2 + 10) {
+            if (moveFirstWord(w3, w2)) changed = true;
+          } else if (b2 > b1 + 10) {
+            if (moveFirstWord(w2, w1)) changed = true;
+          }
+
+          if (!changed) break;
+        }
+      } else {
+        // 2-Column Balancing Pass
+        let iterations = 30;
+        while (iterations-- > 0) {
+          const b1 = getBottom(c1);
+          const b2 = getBottom(c2);
+          if (Math.abs(b1 - b2) <= 12) break;
+
+          let changed = false;
+          if (b1 > b2 + 10) {
+            if (moveLastWord(w1, w2)) changed = true;
+          } else if (b2 > b1 + 10) {
+            if (moveFirstWord(w2, w1)) changed = true;
+          }
+          if (!changed) break;
+        }
+      }
+    }
+
     // MAIN RENDERER FOR NEWSPAPER CUTTING CANVAS
     function renderCuttingCanvas() {
       const container = document.getElementById('cuttingCanvas');
@@ -3253,18 +3367,18 @@
           <div class="grid grid-cols-2 gap-3.5 items-stretch w-full mb-1">
             <!-- Left Column 1 (Pure Text Flow) -->
             <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col1}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col1}</div>
             </div>
 
             <!-- Right Column 2 (Top Landscape Photo + Continuation Text Below) -->
             <div id="cutColBlock2" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 190, 130)}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(185, Math.max(parseFloat(cuttingState.imageHeight) || 165, 110))}px;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
-              ${col2}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col2}</div>
             </div>
           </div>
         `;
@@ -3276,21 +3390,21 @@
             <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90))}px;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
-              ${col1}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col1}</div>
             </div>
 
             <!-- Middle Column 2 (Full Text Flow) -->
             <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col2}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col2}</div>
             </div>
 
             <!-- Right Column 3 (Full Text Flow) -->
             <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col3}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col3}</div>
             </div>
           </div>
         `;
@@ -3300,23 +3414,23 @@
           <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Full Text Flow) -->
             <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col1}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col1}</div>
             </div>
 
             <!-- Middle Column 2 (Top Landscape Photo + Continuation Text Below) -->
             <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90))}px;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-center">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
-              ${col2}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col2}</div>
             </div>
 
             <!-- Right Column 3 (Full Text Flow) -->
             <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col3}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col3}</div>
             </div>
           </div>
         `;
@@ -3326,23 +3440,23 @@
           <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Full Text Flow) -->
             <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col1}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col1}</div>
             </div>
 
             <!-- Middle Column 2 (Full Text Flow) -->
             <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
-              ${col2}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col2}</div>
             </div>
 
             <!-- Right Column 3 (Top Landscape Photo + Continuation Text Below) -->
             <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.max(cuttingState.imageHeight || 170, 110)}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90))}px;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
-              ${col3}
+              <div class="cut-text-wrapper text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${col3}</div>
             </div>
           </div>
         `;
@@ -3424,6 +3538,9 @@
           </div>
         </div>
       `;
+
+      // Run live real-time DOM line height balancing pass
+      balanceCuttingColumns();
     }
 
     // EXPORT CUTTING AS HIGH-RES PNG
