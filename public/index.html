@@ -2919,274 +2919,284 @@
       }
     }
 
-    // HELPER: Split News Content into 2 Columns with Col 2 Top Image Dynamic Proportional Balance
+    // HELPER: Split News Content into 2 Columns with Col 2 Top Image (100% Real DOM Measured Balance)
     function splitCuttingContentForTwoCols(content, location) {
       const rawText = (content || '').trim();
       if (!rawText) return { col1: '', col2: '' };
 
-      const totalLen = rawText.length;
-      
-      // Proportional capacities: Full column has capacity 1.0, Column with image has capacity ~0.55
-      const photoCapacity = cuttingState.image ? 0.55 : 1.0;
-      const totalCapacity = 1.0 + photoCapacity;
-      const fullRatio = 1.0 / totalCapacity;
+      const ratioConfig = CUTTING_RATIO_CONFIGS[cuttingState.ratio] || CUTTING_RATIO_CONFIGS['1:1'];
+      const innerW = (ratioConfig.width || 580) - 40;
+      const colW = Math.floor((innerW - 14) / 2);
 
-      const target1 = Math.round(totalLen * fullRatio);
-
-      function findSplitPoint(text, target) {
-        if (target <= 0) return 0;
-        if (target >= text.length) return text.length;
-        const searchStart = Math.max(0, target - 40);
-        const searchEnd = Math.min(text.length, target + 40);
-        const win = text.substring(searchStart, searchEnd);
-        
-        const sentPuncts = ['। ', '. ', '! ', '? ', '।\n', '.\n'];
-        for (const p of sentPuncts) {
-          const idx = win.lastIndexOf(p);
-          if (idx !== -1) {
-            return searchStart + idx + p.length;
-          }
-        }
-
-        const clausePuncts = [', ', '; ', ' - '];
-        for (const p of clausePuncts) {
-          const idx = win.lastIndexOf(p);
-          if (idx !== -1) {
-            return searchStart + idx + p.length;
-          }
-        }
-
-        for (let i = win.length - 1; i >= 0; i--) {
-          if (win[i] === ' ' || win[i] === '\n') {
-            return searchStart + i + 1;
-          }
-        }
-        return target;
+      let sandbox = document.getElementById('cutMeasureSandbox');
+      if (!sandbox) {
+        sandbox = document.createElement('div');
+        sandbox.id = 'cutMeasureSandbox';
+        sandbox.style.cssText = 'position: fixed; left: -99999px; top: -99999px; visibility: hidden; pointer-events: none; z-index: -999;';
+        document.body.appendChild(sandbox);
       }
 
-      const splitIdx = findSplitPoint(rawText, target1);
-      const part1 = rawText.substring(0, splitIdx).trim();
-      const part2 = rawText.substring(splitIdx).trim();
+      const rawParas = rawText.split('\n').filter(p => p.trim().length > 0);
+      const allWords = [];
+      rawParas.forEach((para, pIdx) => {
+        const words = para.trim().split(/\s+/).filter(w => w.length > 0);
+        words.forEach((w, wIdx) => {
+          allWords.push({
+            text: w,
+            isParaEnd: (wIdx === words.length - 1 && pIdx < rawParas.length - 1)
+          });
+        });
+      });
 
-      function formatColText(txt, isFirst) {
-        if (!txt) return '';
-        const lines = txt.split('\n').filter(p => p.trim().length > 0);
-        return lines.map((p, idx) => {
-          const isLast = idx === lines.length - 1;
-          const mbClass = isLast ? 'mb-0' : 'mb-2';
-          if (isFirst && idx === 0 && location) {
-            return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
+      if (allWords.length <= 2) {
+        return {
+          col1: formatColFromWords(allWords.slice(0, 1), true, location),
+          col2: formatColFromWords(allWords.slice(1), false)
+        };
+      }
+
+      function formatColFromWords(wordsSlice, isFirst, loc) {
+        if (!wordsSlice || wordsSlice.length === 0) return '';
+        let html = '';
+        let curPara = [];
+        for (let i = 0; i < wordsSlice.length; i++) {
+          curPara.push(wordsSlice[i].text);
+          if (wordsSlice[i].isParaEnd || i === wordsSlice.length - 1) {
+            const pText = curPara.join(' ');
+            const isLastInCol = (i === wordsSlice.length - 1);
+            const mbClass = isLastInCol ? 'mb-0' : 'mb-2';
+            if (html === '' && isFirst && loc) {
+              html += `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(loc)}</strong> ${escapeHtml(pText)}</p>`;
+            } else {
+              html += `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(pText)}</p>`;
+            }
+            curPara = [];
           }
-          return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
-        }).join('');
+        }
+        return html;
+      }
+
+      function measureWordsHeight(wordsSlice, isFirst) {
+        if (!wordsSlice || wordsSlice.length === 0) return 0;
+        const innerHtml = formatColFromWords(wordsSlice, isFirst, location);
+        sandbox.style.width = `${colW}px`;
+        sandbox.innerHTML = `<div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont || "'Martel', serif"}; font-size: ${cuttingState.bodySize || 13}px; text-align: justify; text-justify: inter-word; width: ${colW}px;">${innerHtml}</div>`;
+        return sandbox.offsetHeight;
+      }
+
+      let photoH = 0;
+      if (cuttingState.image) {
+        const imgH = Math.min(185, Math.max(parseFloat(cuttingState.imageHeight) || 165, 110));
+        const captionH = cuttingState.caption ? 20 : 0;
+        const marginH = 10;
+        photoH = imgH + captionH + marginH;
+      }
+
+      const totalTextH = measureWordsHeight(allWords, true);
+      const targetColH = (totalTextH + photoH) / 2;
+      const targetH1 = targetColH;
+
+      let low = 1, high = allWords.length - 1, bestSplit = Math.floor(allWords.length / 2);
+      let minDiff = Infinity;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const h = measureWordsHeight(allWords.slice(0, mid), true);
+        const diff = Math.abs(h - targetH1);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestSplit = mid;
+        }
+        if (h < targetH1) {
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      // Sentence boundary snap within tolerance
+      for (let delta = 1; delta <= 5; delta++) {
+        for (const s of [bestSplit - delta, bestSplit + delta]) {
+          if (s > 0 && s < allWords.length) {
+            const wt = allWords[s - 1].text;
+            if (wt.endsWith('।') || wt.endsWith('.') || wt.endsWith('!') || wt.endsWith('?')) {
+              const hSnap = measureWordsHeight(allWords.slice(0, s), true);
+              if (Math.abs(hSnap - targetH1) <= 24) {
+                bestSplit = s;
+                delta = 999;
+                break;
+              }
+            }
+          }
+        }
       }
 
       return {
-        col1: formatColText(part1, true),
-        col2: formatColText(part2, false)
+        col1: formatColFromWords(allWords.slice(0, bestSplit), true, location),
+        col2: formatColFromWords(allWords.slice(bestSplit), false)
       };
     }
 
-    // HELPER: Split News Content into 3 Columns with specific column Top Image Dynamic Proportional Balance
+    // HELPER: Split News Content into 3 Columns with specific column Top Image (100% Real DOM Measured Balance)
     function splitCuttingContentForThreeCols(content, location, photoCol = 1) {
       const rawText = (content || '').trim();
       if (!rawText) return { col1: '', col2: '', col3: '' };
 
-      const totalLen = rawText.length;
+      const ratioConfig = CUTTING_RATIO_CONFIGS[cuttingState.ratio] || CUTTING_RATIO_CONFIGS['1:1'];
+      const innerW = (ratioConfig.width || 580) - 40;
+      const colW = Math.floor((innerW - 24) / 3);
 
-      // Proportional capacities: Full column has capacity 1.0, Column with image has capacity ~0.55
-      const photoCapacity = cuttingState.image ? 0.55 : 1.0;
-      const totalCapacity = 1.0 + 1.0 + photoCapacity;
-      const fullRatio = 1.0 / totalCapacity;
-
-      const fullColChars = Math.round(totalLen * fullRatio);
-      const photoColChars = totalLen - (fullColChars * 2);
-
-      let targetLen1, targetLen2;
-      if (photoCol === 1) {
-        targetLen1 = photoColChars;
-        targetLen2 = photoColChars + fullColChars;
-      } else if (photoCol === 2) {
-        targetLen1 = fullColChars;
-        targetLen2 = fullColChars + photoColChars;
-      } else { // photoCol === 3
-        targetLen1 = fullColChars;
-        targetLen2 = fullColChars * 2;
+      let sandbox = document.getElementById('cutMeasureSandbox');
+      if (!sandbox) {
+        sandbox = document.createElement('div');
+        sandbox.id = 'cutMeasureSandbox';
+        sandbox.style.cssText = 'position: fixed; left: -99999px; top: -99999px; visibility: hidden; pointer-events: none; z-index: -999;';
+        document.body.appendChild(sandbox);
       }
 
-      function findSplitPoint(text, target) {
-        if (target <= 0) return 0;
-        if (target >= text.length) return text.length;
-        const searchStart = Math.max(0, target - 40);
-        const searchEnd = Math.min(text.length, target + 40);
-        const win = text.substring(searchStart, searchEnd);
-        
-        const sentPuncts = ['। ', '. ', '! ', '? ', '।\n', '.\n'];
-        for (const p of sentPuncts) {
-          const idx = win.lastIndexOf(p);
-          if (idx !== -1) {
-            return searchStart + idx + p.length;
-          }
-        }
+      const rawParas = rawText.split('\n').filter(p => p.trim().length > 0);
+      const allWords = [];
+      rawParas.forEach((para, pIdx) => {
+        const words = para.trim().split(/\s+/).filter(w => w.length > 0);
+        words.forEach((w, wIdx) => {
+          allWords.push({
+            text: w,
+            isParaEnd: (wIdx === words.length - 1 && pIdx < rawParas.length - 1)
+          });
+        });
+      });
 
-        const clausePuncts = [', ', '; ', ' - '];
-        for (const p of clausePuncts) {
-          const idx = win.lastIndexOf(p);
-          if (idx !== -1) {
-            return searchStart + idx + p.length;
-          }
-        }
-
-        for (let i = win.length - 1; i >= 0; i--) {
-          if (win[i] === ' ' || win[i] === '\n') {
-            return searchStart + i + 1;
-          }
-        }
-        return target;
+      if (allWords.length <= 3) {
+        return {
+          col1: formatColFromWords(allWords.slice(0, 1), true, location),
+          col2: formatColFromWords(allWords.slice(1, 2), false),
+          col3: formatColFromWords(allWords.slice(2), false)
+        };
       }
 
-      let split1 = findSplitPoint(rawText, targetLen1);
-      let split2 = findSplitPoint(rawText, targetLen2);
-      if (split2 <= split1) {
-        split2 = Math.min(rawText.length, split1 + Math.floor((rawText.length - split1) / 2));
+      function formatColFromWords(wordsSlice, isFirst, loc) {
+        if (!wordsSlice || wordsSlice.length === 0) return '';
+        let html = '';
+        let curPara = [];
+        for (let i = 0; i < wordsSlice.length; i++) {
+          curPara.push(wordsSlice[i].text);
+          if (wordsSlice[i].isParaEnd || i === wordsSlice.length - 1) {
+            const pText = curPara.join(' ');
+            const isLastInCol = (i === wordsSlice.length - 1);
+            const mbClass = isLastInCol ? 'mb-0' : 'mb-2';
+            if (html === '' && isFirst && loc) {
+              html += `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(loc)}</strong> ${escapeHtml(pText)}</p>`;
+            } else {
+              html += `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(pText)}</p>`;
+            }
+            curPara = [];
+          }
+        }
+        return html;
       }
 
-      const text1 = rawText.substring(0, split1).trim();
-      const text2 = rawText.substring(split1, split2).trim();
-      const text3 = rawText.substring(split2).trim();
+      function measureWordsHeight(wordsSlice, isFirst) {
+        if (!wordsSlice || wordsSlice.length === 0) return 0;
+        const innerHtml = formatColFromWords(wordsSlice, isFirst, location);
+        sandbox.style.width = `${colW}px`;
+        sandbox.innerHTML = `<div class="text-justify leading-relaxed" style="font-family: ${cuttingState.bodyFont || "'Martel', serif"}; font-size: ${cuttingState.bodySize || 13}px; text-align: justify; text-justify: inter-word; width: ${colW}px;">${innerHtml}</div>`;
+        return sandbox.offsetHeight;
+      }
 
-      function formatColText(txt, isFirst) {
-        if (!txt) return '';
-        const lines = txt.split('\n').filter(p => p.trim().length > 0);
-        return lines.map((p, idx) => {
-          const isLast = idx === lines.length - 1;
-          const mbClass = isLast ? 'mb-0' : 'mb-2';
-          if (isFirst && idx === 0 && location) {
-            return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;"><strong class="font-bold text-slate-900 dark:text-white">${escapeHtml(location)}</strong> ${escapeHtml(p)}</p>`;
+      let photoH = 0;
+      if (cuttingState.image) {
+        const imgH = Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90));
+        const captionH = cuttingState.caption ? 20 : 0;
+        const marginH = 10;
+        photoH = imgH + captionH + marginH;
+      }
+
+      const totalTextH = measureWordsHeight(allWords, true);
+      const targetColH = (totalTextH + photoH) / 3;
+
+      const targetH1 = (photoCol === 1) ? Math.max(20, targetColH - photoH) : targetColH;
+      const targetH2 = (photoCol === 2) ? Math.max(20, targetColH - photoH) : targetColH;
+
+      // Binary search for Split 1
+      let low = 1, high = allWords.length - 2, bestSplit1 = Math.floor(allWords.length / 3);
+      let minDiff1 = Infinity;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const h = measureWordsHeight(allWords.slice(0, mid), true);
+        const diff = Math.abs(h - targetH1);
+        if (diff < minDiff1) {
+          minDiff1 = diff;
+          bestSplit1 = mid;
+        }
+        if (h < targetH1) {
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      // Snap to sentence boundary if nearby
+      for (let delta = 1; delta <= 5; delta++) {
+        for (const s of [bestSplit1 - delta, bestSplit1 + delta]) {
+          if (s > 0 && s < allWords.length - 2) {
+            const wt = allWords[s - 1].text;
+            if (wt.endsWith('।') || wt.endsWith('.') || wt.endsWith('!') || wt.endsWith('?')) {
+              const hSnap = measureWordsHeight(allWords.slice(0, s), true);
+              if (Math.abs(hSnap - targetH1) <= 24) {
+                bestSplit1 = s;
+                delta = 999;
+                break;
+              }
+            }
           }
-          return `<p class="${mbClass} text-justify leading-relaxed" style="text-align: justify; text-justify: inter-word;">${escapeHtml(p)}</p>`;
-        }).join('');
+        }
+      }
+
+      // Binary search for Split 2
+      low = bestSplit1 + 1;
+      high = allWords.length - 1;
+      let bestSplit2 = Math.floor((bestSplit1 + allWords.length) / 2);
+      let minDiff2 = Infinity;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const h = measureWordsHeight(allWords.slice(bestSplit1, mid), false);
+        const diff = Math.abs(h - targetH2);
+        if (diff < minDiff2) {
+          minDiff2 = diff;
+          bestSplit2 = mid;
+        }
+        if (h < targetH2) {
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      // Snap to sentence boundary if nearby
+      for (let delta = 1; delta <= 5; delta++) {
+        for (const s of [bestSplit2 - delta, bestSplit2 + delta]) {
+          if (s > bestSplit1 + 1 && s < allWords.length) {
+            const wt = allWords[s - 1].text;
+            if (wt.endsWith('।') || wt.endsWith('.') || wt.endsWith('!') || wt.endsWith('?')) {
+              const hSnap = measureWordsHeight(allWords.slice(bestSplit1, s), false);
+              if (Math.abs(hSnap - targetH2) <= 24) {
+                bestSplit2 = s;
+                delta = 999;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (bestSplit2 <= bestSplit1) {
+        bestSplit2 = Math.min(allWords.length, bestSplit1 + Math.max(1, Math.floor((allWords.length - bestSplit1) / 2)));
       }
 
       return {
-        col1: formatColText(text1, true),
-        col2: formatColText(text2, false),
-        col3: formatColText(text3, false)
+        col1: formatColFromWords(allWords.slice(0, bestSplit1), true, location),
+        col2: formatColFromWords(allWords.slice(bestSplit1, bestSplit2), false),
+        col3: formatColFromWords(allWords.slice(bestSplit2), false)
       };
-    }
-
-    // DYNAMIC DOM COLUMN BALANCING ENGINE: Shifts words iteratively until bottom baselines align exactly
-    function balanceCuttingColumns() {
-      const c1 = document.getElementById('cutColBlock1');
-      const c2 = document.getElementById('cutColBlock2');
-      const c3 = document.getElementById('cutColBlock3');
-      if (!c1 || !c2) return;
-
-      const w1 = c1.querySelector('.cut-text-wrapper') || c1;
-      const w2 = c2.querySelector('.cut-text-wrapper') || c2;
-      const w3 = c3 ? (c3.querySelector('.cut-text-wrapper') || c3) : null;
-
-      function getBottom(el) {
-        return el.getBoundingClientRect().bottom;
-      }
-
-      function moveLastWord(srcWrap, destWrap) {
-        const srcPs = Array.from(srcWrap.querySelectorAll('p')).filter(p => p.innerText.trim().length > 0);
-        if (srcPs.length === 0) return false;
-        const lastP = srcPs[srcPs.length - 1];
-        const words = lastP.innerText.trim().split(/\s+/);
-        if (words.length <= 1 && srcPs.length === 1) return false;
-
-        const w = words.pop();
-        lastP.innerText = words.join(' ');
-
-        const destPs = Array.from(destWrap.querySelectorAll('p'));
-        if (destPs.length === 0) {
-          const p = document.createElement('p');
-          p.className = 'mb-2 text-justify leading-relaxed';
-          p.style.cssText = 'text-align: justify; text-justify: inter-word;';
-          p.innerText = w;
-          destWrap.appendChild(p);
-        } else {
-          const firstP = destPs[0];
-          firstP.innerText = w + ' ' + firstP.innerText.trim();
-        }
-        return true;
-      }
-
-      function moveFirstWord(destWrap, srcWrap) {
-        const destPs = Array.from(destWrap.querySelectorAll('p')).filter(p => p.innerText.trim().length > 0);
-        if (destPs.length === 0) return false;
-        const firstP = destPs[0];
-        const words = firstP.innerText.trim().split(/\s+/);
-        if (words.length <= 1 && destPs.length === 1) return false;
-
-        const w = words.shift();
-        firstP.innerText = words.join(' ');
-
-        const srcPs = Array.from(srcWrap.querySelectorAll('p'));
-        if (srcPs.length === 0) {
-          const p = document.createElement('p');
-          p.className = 'mb-2 text-justify leading-relaxed';
-          p.style.cssText = 'text-align: justify; text-justify: inter-word;';
-          p.innerText = w;
-          srcWrap.appendChild(p);
-        } else {
-          const lastP = srcPs[srcPs.length - 1];
-          lastP.innerText = lastP.innerText.trim() + ' ' + w;
-        }
-        return true;
-      }
-
-      if (w3) {
-        // 3-Column Balancing Pass
-        let iterations = 50;
-        while (iterations-- > 0) {
-          const b1 = getBottom(c1);
-          const b2 = getBottom(c2);
-          const b3 = getBottom(c3);
-
-          const maxB = Math.max(b1, b2, b3);
-          const minB = Math.min(b1, b2, b3);
-          if (maxB - minB <= 12) break;
-
-          let changed = false;
-
-          if (b1 >= b2 + 10 && b1 >= b3 + 10) {
-            if (moveLastWord(w1, w2)) changed = true;
-          } else if (b2 >= b1 + 10 && b2 >= b3 + 10) {
-            if (moveLastWord(w2, w3)) changed = true;
-          } else if (b3 >= b1 + 10 && b3 >= b2 + 10) {
-            if (moveFirstWord(w3, w2)) changed = true;
-          } else if (b1 > b2 + 10) {
-            if (moveLastWord(w1, w2)) changed = true;
-          } else if (b2 > b3 + 10) {
-            if (moveLastWord(w2, w3)) changed = true;
-          } else if (b3 > b2 + 10) {
-            if (moveFirstWord(w3, w2)) changed = true;
-          } else if (b2 > b1 + 10) {
-            if (moveFirstWord(w2, w1)) changed = true;
-          }
-
-          if (!changed) break;
-        }
-      } else {
-        // 2-Column Balancing Pass
-        let iterations = 30;
-        while (iterations-- > 0) {
-          const b1 = getBottom(c1);
-          const b2 = getBottom(c2);
-          if (Math.abs(b1 - b2) <= 12) break;
-
-          let changed = false;
-          if (b1 > b2 + 10) {
-            if (moveLastWord(w1, w2)) changed = true;
-          } else if (b2 > b1 + 10) {
-            if (moveFirstWord(w2, w1)) changed = true;
-          }
-          if (!changed) break;
-        }
-      }
     }
 
     // MAIN RENDERER FOR NEWSPAPER CUTTING CANVAS
@@ -3363,6 +3373,7 @@
         `;
       } else if (cuttingState.layout === 'col2-top-photo') {
         const { col1, col2 } = splitCuttingContentForTwoCols(cuttingState.content, cuttingState.location);
+        const imgH = Math.min(185, Math.max(parseFloat(cuttingState.imageHeight) || 165, 110));
         layoutContentHtml = `
           <div class="grid grid-cols-2 gap-3.5 items-stretch w-full mb-1">
             <!-- Left Column 1 (Pure Text Flow) -->
@@ -3374,7 +3385,7 @@
             <div id="cutColBlock2" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(185, Math.max(parseFloat(cuttingState.imageHeight) || 165, 110))}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3384,13 +3395,14 @@
         `;
       } else if (cuttingState.layout === 'col3-col1-photo') {
         const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 1);
+        const imgH = Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90));
         layoutContentHtml = `
           <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Top Landscape Photo + Continuation Text Below) -->
             <div id="cutColBlock1" class="text-justify leading-relaxed pr-2 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90))}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3410,6 +3422,7 @@
         `;
       } else if (cuttingState.layout === 'col3-col2-photo') {
         const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 2);
+        const imgH = Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90));
         layoutContentHtml = `
           <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Full Text Flow) -->
@@ -3421,7 +3434,7 @@
             <div id="cutColBlock2" class="text-justify leading-relaxed px-1 border-r border-slate-300/80 dark:border-slate-700/80 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90))}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-center">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3436,6 +3449,7 @@
         `;
       } else if (cuttingState.layout === 'col3-col3-photo') {
         const { col1, col2, col3 } = splitCuttingContentForThreeCols(cuttingState.content, cuttingState.location, 3);
+        const imgH = Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90));
         layoutContentHtml = `
           <div class="grid grid-cols-3 gap-3 items-stretch w-full mb-1">
             <!-- Left Column 1 (Full Text Flow) -->
@@ -3452,7 +3466,7 @@
             <div id="cutColBlock3" class="text-justify leading-relaxed pl-1 flex flex-col justify-start" style="font-family: ${cuttingState.bodyFont}; font-size: ${cuttingState.bodySize}px; color: ${bodyTextColor}; text-align: justify; text-justify: inter-word;">
               ${cuttingState.image ? `
                 <div class="mb-2.5">
-                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="max-height: ${Math.min(145, Math.max(parseFloat(cuttingState.imageHeight) || 135, 90))}px;">
+                  <img src="${escapeHtml(cuttingState.image)}" alt="News Photo" class="w-full object-cover rounded shadow-sm" style="height: ${imgH}px; width: 100%; object-fit: cover;">
                   ${cuttingState.caption ? `<div class="text-[9.5px] mt-1 italic text-slate-500 leading-snug text-right">${escapeHtml(cuttingState.caption)}</div>` : ''}
                 </div>
               ` : ''}
@@ -3539,8 +3553,6 @@
         </div>
       `;
 
-      // Run live real-time DOM line height balancing pass
-      balanceCuttingColumns();
     }
 
     // EXPORT CUTTING AS HIGH-RES PNG
