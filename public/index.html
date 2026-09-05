@@ -170,38 +170,38 @@
       float: none !important;
       display: block;
       box-sizing: border-box;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .slot-width-8 {
-      width: calc(66.666% - 5px) !important;
+      width: calc(66.666% - 8px) !important;
       float: left !important;
-      margin-right: 5px;
+      margin-right: 8px;
       box-sizing: border-box;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .slot-width-4 {
-      width: calc(33.333% - 5px) !important;
+      width: calc(33.333% - 8px) !important;
       float: right !important;
       box-sizing: border-box;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .slot-width-6 {
-      width: calc(50% - 5px) !important;
+      width: calc(50% - 8px) !important;
       float: left !important;
-      margin-right: 5px;
+      margin-right: 8px;
       box-sizing: border-box;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .slot-width-3 {
-      width: calc(25% - 5px) !important;
+      width: calc(25% - 8px) !important;
       float: left !important;
-      margin-right: 5px;
+      margin-right: 8px;
       box-sizing: border-box;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     /* News Slot Card Visual Styling */
@@ -5659,8 +5659,8 @@
       if (!curPage || !curPage.sections || curPage.sections.length === 0) return;
 
       const colY = new Array(12).fill(0);
-      const colGap = 12; // 12px horizontal column gutter (50% increased equal left-right space)
-      const rowGap = 5;  // 5px tight uniform vertical bottom gap
+      const colGap = 18; // 18px horizontal column gutter (50% increased equal left-right space)
+      const rowGap = 7.5; // 7.5px vertical bottom gap (50% increased top-bottom space)
 
       curPage.sections.forEach((sec) => {
         const el = document.getElementById(`wrapper-${sec.id}`);
@@ -5861,7 +5861,7 @@
           ${page.sections.map(sec => {
         const span = Math.min(12, Math.max(1, sec.colSpan || 6));
         const widthPct = (span / 12) * 100;
-        const gapDec = span < 12 ? (12 * (12 - span) / 12) : 0;
+        const gapDec = span < 12 ? (18 * (12 - span) / 12) : 0;
         return `
               <div onclick="openSectionEditorFromCanvas('${sec.id}')" class="news-slot-wrapper absolute cursor-pointer hover:outline hover:outline-2 hover:outline-blue-500/70 hover:bg-blue-500/5 rounded" id="wrapper-${sec.id}" title="क्लिक करके इस खबर का एडिटर खोलें" style="width: calc(${widthPct}% - ${gapDec}px); top: 0; left: 0; visibility: hidden;">
                 ${renderSingleSlotInnerHTML(sec)}
