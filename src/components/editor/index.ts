@@ -1,3 +1,2 @@
-export { FocusedSectionEditorModal } from './FocusedSectionEditorModal';
-export { FloatingTypographyToolbar } from './FloatingTypographyToolbar';
-export { ImageSwapPopover } from './ImageSwapPopover';
+export { SectionModalEditor } from './SectionModalEditor';
+export type { SectionModalEditorProps } from './SectionModalEditor';
