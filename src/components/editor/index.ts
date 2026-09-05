@@ -1,2 +1,1 @@
-export { SectionModalEditor } from './SectionModalEditor';
-export type { SectionModalEditorProps } from './SectionModalEditor';
+export * from './SectionModalEditor';
