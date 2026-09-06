@@ -66,6 +66,11 @@ export interface NewsSection {
   captionSize?: string;
   captionColor?: string;
   captionAlign?: 'left' | 'center' | 'right';
+  // Dual photo support for grid span > 6 (2nd column top photo)
+  image2?: string;
+  caption2?: string;
+  image2Height?: number;
+  image2Fit?: 'cover' | 'contain' | 'fill' | string;
   bullets?: string;
   bulletColor?: string;
   bulletBgColor?: string;

@@ -171,6 +171,17 @@
       padding: 0 !important;
     }
 
+    /* Dual Photo (2nd Column Top Photo) Break & Balancing Rules */
+    .col2-top-photo-block {
+      break-before: column !important;
+      -webkit-column-break-before: always !important;
+      break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
     .slot-width-12 {
       width: 100% !important;
       clear: both !important;
@@ -5436,6 +5447,19 @@
       return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption}</span>`;
     }
 
+    // RENDER PHOTO 2 CAPTION HELPER (FOR GRID > 6 DUAL PHOTO)
+    function renderCaption2HTML(sec, defaultAlign = 'center') {
+      if (!sec || !sec.caption2) return '';
+      const font = sec.captionFont || "'Martel', serif";
+      const size = sec.captionSize || '8.5px';
+      const color = sec.captionColor || '#475569';
+      const align = sec.captionAlign || defaultAlign;
+      const isBold = sec.captionBold === true;
+      const isItalic = sec.captionItalic !== false;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
+      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption2}</span>`;
+    }
+
     // RENDER SINGLE SLOT INNER CONTENT (WITH FULL AD SUPPORT & LIVE SIZE BADGE)
     function renderSingleSlotInnerHTML(sec) {
       if (!sec) return '';
@@ -5557,71 +5581,142 @@
           
           ${sec.subtitle ? `<h3 class="font-semibold italic my-1 leading-snug" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'};">${sec.subtitle}</h3>` : ''}
 
-          <!-- CUTOUT TEXT WRAP ENGINE (WHEN CUTOUT WRAP IS TOGGLED ON) -->
-          ${(sec.cutoutWrap) ? `
-            <div class="font-martel leading-relaxed my-1 clearfix ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
-              ${sec.image ? `
-                <img src="${sec.image}" 
-                     id="cutout-img-${sec.id}"
-                     tabindex="0"
-                     title="क्लिक करके कीबोर्ड Arrow Keys (↑ ↓ ← →) से इमेज को मूव करें"
-                     onclick="selectCutoutImage('${sec.id}', event)"
-                     class="${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} cutout-shape-img cursor-move transition-shadow rounded-xs" 
-                     style="float: ${sec.cutoutFloat === 'right' ? 'right' : 'left'}; shape-outside: url('${sec.image}'); shape-image-threshold: 0.05; shape-margin: ${sec.cutoutMargin !== undefined ? sec.cutoutMargin : 2}px; width: ${sec.cutoutWidth || 240}px; max-width: 95%; margin-top: ${sec.cutoutOffsetY || 0}px; margin-${sec.cutoutFloat === 'right' ? 'right' : 'left'}: ${sec.cutoutOffsetX || 0}px; margin-bottom: 2px; background: transparent; border: none; object-fit: contain; display: block; outline: none; user-select: none;">
-              ` : ''}
-              ${renderBulletsHTML(sec)}
-              ${renderParagraphsHTML(sec, true)}
-              ${sec.caption ? `
-                <div class="clear-both pt-1">
-                  ${renderCaptionHTML(sec, 'left')}
-                </div>
-              ` : ''}
-            </div>
-          ` : `
-            <!-- 1. HERO FEATURE LAYOUT -->
-            ${(sec.layout === 'hero-split') ? `
-              ${sec.image ? `
-                <div class="my-1">
-                  <img src="${sec.image}" alt="Photo" class="w-full max-h-56 object-cover border border-black p-0.5">
-                  ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
-                </div>
-              ` : ''}
-              ${renderBulletsHTML(sec)}
-              <div class="font-martel leading-relaxed ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
-                ${renderParagraphsHTML(sec, true)}
-              </div>
-            ` : ''}
+          <!-- DUAL PHOTO ENGINE CONFIG FOR GRID > 6 -->
+          ${(() => {
+            const isDualPhoto = (sec.colSpan || 6) > 6 && !!sec.image2;
+            const effectiveCols = isDualPhoto ? Math.max(2, sec.bodyCols || 2) : (sec.bodyCols || 1);
+            const colsClass = effectiveCols == 2 ? 'broadsheet-cols-2' : (effectiveCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
 
-            <!-- 2. LEFT CORNER FLOAT LAYOUT -->
-            ${(sec.layout === 'left-img') ? `
-              <div class="font-martel leading-relaxed clearfix my-1 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+            const secondPhotoHTML = isDualPhoto ? `
+              <div class="col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs" style="break-before: column; -webkit-column-break-before: always; break-inside: avoid; display: block;">
+                <img src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
+                ${renderCaption2HTML(sec, 'center')}
+              </div>
+            ` : '';
+
+            if (sec.cutoutWrap) {
+              return `
+                <div class="font-martel leading-relaxed my-1 clearfix ${colsClass}">
+                  ${sec.image ? `
+                    <img src="${sec.image}" 
+                         id="cutout-img-${sec.id}"
+                         tabindex="0"
+                         title="क्लिक करके कीबोर्ड Arrow Keys (↑ ↓ ← →) से इमेज को मूव करें"
+                         onclick="selectCutoutImage('${sec.id}', event)"
+                         class="${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} cutout-shape-img cursor-move transition-shadow rounded-xs" 
+                         style="float: ${sec.cutoutFloat === 'right' ? 'right' : 'left'}; shape-outside: url('${sec.image}'); shape-image-threshold: 0.05; shape-margin: ${sec.cutoutMargin !== undefined ? sec.cutoutMargin : 2}px; width: ${sec.cutoutWidth || 240}px; max-width: 95%; margin-top: ${sec.cutoutOffsetY || 0}px; margin-${sec.cutoutFloat === 'right' ? 'right' : 'left'}: ${sec.cutoutOffsetX || 0}px; margin-bottom: 2px; background: transparent; border: none; object-fit: contain; display: block; outline: none; user-select: none;">
+                  ` : ''}
+                  ${renderBulletsHTML(sec)}
+                  ${secondPhotoHTML}
+                  ${renderParagraphsHTML(sec, true)}
+                  ${sec.caption ? `
+                    <div class="clear-both pt-1">
+                      ${renderCaptionHTML(sec, 'left')}
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }
+
+            if (sec.layout === 'hero-split') {
+              return isDualPhoto ? `
+                ${renderBulletsHTML(sec)}
+                <div class="font-martel leading-relaxed ${colsClass}">
+                  ${sec.image ? `
+                    <div class="my-1 border border-black p-0.5 bg-white" style="break-inside: avoid;">
+                      <img src="${sec.image}" alt="Photo 1" class="w-full max-h-56 object-cover">
+                      ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
+                    </div>
+                  ` : ''}
+                  ${secondPhotoHTML}
+                  ${renderParagraphsHTML(sec, true)}
+                </div>
+              ` : `
                 ${sec.image ? `
-                  <div class="float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white">
-                    <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover">
-                    ${renderCaptionHTML(sec, 'center')}
+                  <div class="my-1">
+                    <img src="${sec.image}" alt="Photo" class="w-full max-h-56 object-cover border border-black p-0.5">
+                    ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
                   </div>
                 ` : ''}
                 ${renderBulletsHTML(sec)}
-                ${renderParagraphsHTML(sec, true)}
-              </div>
-            ` : ''}
+                <div class="font-martel leading-relaxed ${colsClass}">
+                  ${renderParagraphsHTML(sec, true)}
+                </div>
+              `;
+            }
 
-            <!-- 3. RIGHT CORNER FLOAT LAYOUT -->
-            ${(sec.layout === 'right-img') ? `
-              <div class="font-martel leading-relaxed clearfix my-1 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+            if (sec.layout === 'left-img') {
+              return `
+                <div class="font-martel leading-relaxed clearfix my-1 ${colsClass}">
+                  ${sec.image ? `
+                    <div class="float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white">
+                      <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover">
+                      ${renderCaptionHTML(sec, 'center')}
+                    </div>
+                  ` : ''}
+                  ${renderBulletsHTML(sec)}
+                  ${secondPhotoHTML}
+                  ${renderParagraphsHTML(sec, true)}
+                </div>
+              `;
+            }
+
+            if (sec.layout === 'right-img') {
+              return `
+                <div class="font-martel leading-relaxed clearfix my-1 ${colsClass}">
+                  ${sec.image ? `
+                    <div class="float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white">
+                      <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover">
+                      ${renderCaptionHTML(sec, 'center')}
+                    </div>
+                  ` : ''}
+                  ${renderBulletsHTML(sec)}
+                  ${secondPhotoHTML}
+                  ${renderParagraphsHTML(sec, true)}
+                </div>
+              `;
+            }
+
+            if (sec.layout === 'bottom-img') {
+              return `
+                ${renderBulletsHTML(sec)}
+                <div class="font-martel leading-relaxed my-0.5 ${colsClass}">
+                  ${secondPhotoHTML}
+                  ${renderParagraphsHTML(sec, true)}
+                </div>
                 ${sec.image ? `
-                  <div class="float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white">
-                    <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover">
-                    ${renderCaptionHTML(sec, 'center')}
+                  <div class="my-1">
+                    <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover border border-black p-0.5">
+                    ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
                   </div>
                 ` : ''}
+              `;
+            }
+
+            if (sec.layout === 'text-only') {
+              return `
                 ${renderBulletsHTML(sec)}
+                <div class="font-martel leading-relaxed my-0.5 ${colsClass}">
+                  ${secondPhotoHTML}
+                  ${renderParagraphsHTML(sec, true)}
+                </div>
+              `;
+            }
+
+            // Standard 'top-img' or default
+            return isDualPhoto ? `
+              ${renderBulletsHTML(sec)}
+              <div class="font-martel leading-relaxed ${colsClass}">
+                ${sec.image ? `
+                  <div class="my-1 border border-black p-0.5 bg-white" style="break-inside: avoid;">
+                    <img src="${sec.image}" alt="Photo 1" class="w-full max-h-48 object-cover">
+                    ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
+                  </div>
+                ` : ''}
+                ${secondPhotoHTML}
                 ${renderParagraphsHTML(sec, true)}
               </div>
-            ` : ''}
-
-            <!-- 4. TOP BANNER IMAGE LAYOUT -->
-            ${(sec.layout === 'top-img' || !sec.layout) ? `
+            ` : `
               ${sec.image ? `
                 <div class="my-1">
                   <img src="${sec.image}" alt="Photo" class="w-full max-h-48 object-cover border border-black p-0.5">
@@ -5629,33 +5724,11 @@
                 </div>
               ` : ''}
               ${renderBulletsHTML(sec)}
-              <div class="font-martel leading-relaxed ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+              <div class="font-martel leading-relaxed ${colsClass}">
                 ${renderParagraphsHTML(sec, true)}
               </div>
-            ` : ''}
-
-            <!-- 5. BOTTOM IMAGE LAYOUT -->
-            ${(sec.layout === 'bottom-img') ? `
-              ${renderBulletsHTML(sec)}
-              <div class="font-martel leading-relaxed my-0.5 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
-                ${renderParagraphsHTML(sec, true)}
-              </div>
-              ${sec.image ? `
-                <div class="my-1">
-                  <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover border border-black p-0.5">
-                  ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
-                </div>
-              ` : ''}
-            ` : ''}
-
-            <!-- 6. TEXT ONLY LAYOUT -->
-            ${(sec.layout === 'text-only') ? `
-              ${renderBulletsHTML(sec)}
-              <div class="font-martel leading-relaxed my-0.5 ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
-                ${renderParagraphsHTML(sec, true)}
-              </div>
-            ` : ''}
-          `}
+            `;
+          })()}
 
         </div>
       `;
@@ -6235,6 +6308,9 @@
       } else if (field === 'captionColor' || field === 'captionFont' || field === 'captionSize' || field === 'captionAlign') {
         const el = document.getElementById('modal-preview-caption');
         if (el) el.innerHTML = renderCaptionHTML(sec, sec.captionAlign || 'left');
+      } else if (field === 'caption2') {
+        const el = document.getElementById('modal-preview-caption2');
+        if (el) el.innerHTML = renderCaption2HTML(sec, 'center');
       } else if (field === 'bullets' || field === 'bulletColor' || field === 'bulletBgColor' || field === 'bulletSize' || field === 'bulletFont') {
         const el = document.getElementById('modal-preview-bullets');
         if (el) el.innerHTML = renderBulletsHTML(sec);
@@ -6280,6 +6356,21 @@
         updateModalSectionField('image', objectUrl, true);
         showStudioToast('फ़ोटो लोड की गई!');
       }
+    }
+
+    function handleModalImage2Upload(input) {
+      const file = input.files && input.files[0];
+      if (file) {
+        const objectUrl = URL.createObjectURL(file);
+        updateModalSectionField('image2', objectUrl, true);
+        showStudioToast('फ़ोटो 2 लोड की गई (कॉलम 2 टॉप पर सेट)!');
+      }
+    }
+
+    function removeModalImage2() {
+      updateModalSectionField('image2', '', true);
+      updateModalSectionField('caption2', '', true);
+      showStudioToast('फ़ोटो 2 हटा दी गई');
     }
 
     // MAIN RENDERER FOR TWO-PANE MODAL CONTENT
@@ -6532,8 +6623,19 @@
         </div>
       ` : '';
 
-      // Body Columns Class (Matches exact canvas columns)
-      const bodyColsClass = sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
+      // Body Columns Class & Dual Photo Engine (Matches exact canvas columns)
+      const isDualPhoto = (sec.colSpan || 6) > 6 && !!sec.image2;
+      const effectiveModalCols = isDualPhoto ? Math.max(2, sec.bodyCols || 2) : (sec.bodyCols || 1);
+      const bodyColsClass = effectiveModalCols == 2 ? 'broadsheet-cols-2' : (effectiveModalCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
+
+      const secondPhotoModalHTML = isDualPhoto ? `
+        <div onclick="setModalActiveTarget('image', event)" class="col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="break-before: column; -webkit-column-break-before: always; break-inside: avoid; display: block;" title="क्लिक करके फोटो 2 एडिट करें">
+          <img src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
+          <div id="modal-preview-caption2" class="pt-0.5">
+            ${renderCaption2HTML(sec, 'center')}
+          </div>
+        </div>
+      ` : '';
 
       // Layout Specific Inner Content (100% PARITY WITH BROADSHEET CANVAS)
       let layoutInnerHTML = '';
@@ -6547,6 +6649,7 @@
               </div>
             ` : ''}
             ${bulletsHTML}
+            ${secondPhotoModalHTML}
             <div id="modal-preview-paragraphs" style="display: contents;">
               ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
             </div>
@@ -6558,7 +6661,16 @@
           </div>
         `;
       } else if (sec.layout === 'hero-split') {
-        layoutInnerHTML = `
+        layoutInnerHTML = isDualPhoto ? `
+          ${bulletsHTML}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            ${sec.image ? renderModalPhotoBlock("mb-1 border border-black p-0.5 bg-white", "w-full max-h-56 object-cover", sec.titleAlign || 'left') : ''}
+            ${secondPhotoModalHTML}
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
+          </div>
+        ` : `
           ${renderModalPhotoBlock("my-1", "w-full max-h-56 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
           ${bulletsHTML}
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
@@ -6572,6 +6684,7 @@
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed clearfix my-1 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
             ${renderModalPhotoBlock("float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white", "w-full max-h-44 object-cover", "center")}
             ${bulletsHTML}
+            ${secondPhotoModalHTML}
             <div id="modal-preview-paragraphs" style="display: contents;">
               ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
             </div>
@@ -6582,6 +6695,7 @@
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed clearfix my-1 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
             ${renderModalPhotoBlock("float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white", "w-full max-h-44 object-cover", "center")}
             ${bulletsHTML}
+            ${secondPhotoModalHTML}
             <div id="modal-preview-paragraphs" style="display: contents;">
               ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
             </div>
@@ -6591,6 +6705,7 @@
         layoutInnerHTML = `
           ${bulletsHTML}
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed my-0.5 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            ${secondPhotoModalHTML}
             <div id="modal-preview-paragraphs" style="display: contents;">
               ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
             </div>
@@ -6601,6 +6716,7 @@
         layoutInnerHTML = `
           ${bulletsHTML}
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed my-0.5 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            ${secondPhotoModalHTML}
             <div id="modal-preview-paragraphs" style="display: contents;">
               ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
             </div>
@@ -6608,7 +6724,16 @@
         `;
       } else {
         // Standard 'top-img' or default
-        layoutInnerHTML = `
+        layoutInnerHTML = isDualPhoto ? `
+          ${bulletsHTML}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            ${sec.image ? renderModalPhotoBlock("mb-1 border border-black p-0.5 bg-white", "w-full max-h-48 object-cover", sec.titleAlign || 'left') : ''}
+            ${secondPhotoModalHTML}
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
+          </div>
+        ` : `
           ${sec.image ? renderModalPhotoBlock("my-1", "w-full max-h-48 object-cover border border-black p-0.5", sec.titleAlign || 'left') : ''}
           ${bulletsHTML}
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
@@ -7110,6 +7235,56 @@
               </div>
             </div>
           </div>
+
+          <!-- DUAL PHOTO (2ND PHOTO) SECTION FOR GRID > 6 -->
+          ${(sec.colSpan || 6) > 6 ? `
+            <div class="mt-4 pt-3 border-t-2 border-indigo-500/40 bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                  <span class="font-bold text-indigo-400 text-xs">📸 दूसरी फ़ोटो (कॉलम 2 टॉप फ़ोटो)</span>
+                  <span class="text-[9px] bg-indigo-950 text-indigo-300 font-mono px-1.5 py-0.2 rounded border border-indigo-700">Grid ${sec.colSpan || 6} Col</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <input type="file" id="modalImg2UploadInput" accept="image/*" onchange="handleModalImage2Upload(this)" class="hidden">
+                  <button type="button" onclick="document.getElementById('modalImg2UploadInput').click()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[11px] shadow transition flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i> <span>📁 फ़ोटो 2 अपलोड</span>
+                  </button>
+                  ${sec.image2 ? `
+                    <button type="button" onclick="removeModalImage2()" class="px-2 py-1 bg-red-950/80 hover:bg-red-800 text-red-300 hover:text-white rounded text-[10.5px] border border-red-800 transition cursor-pointer" title="फ़ोटो 2 हटाएं">
+                      ✕ हटाएं
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+
+              <!-- Image 2 URL -->
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 2 वेब लिंक (Image 2 URL):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.image2 || '')}" oninput="updateModalSectionField('image2', this.value, true)" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:border-indigo-500 outline-none">
+              </div>
+
+              <!-- Caption 2 -->
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 2 कैप्शन (Caption 2):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.caption2 || '')}" oninput="updateModalSectionField('caption2', this.value)" placeholder="फोटो 2: विवरण व संदर्भ..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-medium text-xs focus:border-indigo-500 outline-none">
+              </div>
+
+              <!-- Height & Fit for Image 2 -->
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <label class="text-slate-400 text-[10px] font-semibold">फ़ोटो 2 ऊंचाई (Height):</label>
+                  <span class="text-indigo-400 font-mono font-bold text-[10px]">${sec.image2Height || 180}px</span>
+                </div>
+                <input type="range" min="60" max="400" step="10" value="${sec.image2Height || 180}" oninput="updateModalSectionField('image2Height', parseInt(this.value, 10), true)" class="w-full accent-indigo-500 h-1.5 rounded cursor-pointer">
+              </div>
+            </div>
+          ` : `
+            <div class="mt-3 p-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-[10px] text-slate-400 flex items-start gap-2">
+              <i class="fa-solid fa-circle-info text-amber-400 mt-0.5 shrink-0"></i>
+              <span><b>2 फ़ोटो अपलोड विकल्प:</b> 7 से 12 कॉलम (Grid > 6) वाले बड़े न्यूज़ सेक्शन्स में उपलब्ध है। दूसरी फ़ोटो कॉलम 2 के टॉप पर सेट होगी।</span>
+            </div>
+          `}
         </div>
       `;
     }
