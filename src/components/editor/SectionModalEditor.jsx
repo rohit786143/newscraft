@@ -20,6 +20,55 @@ const AVAILABLE_FONTS = [
   { value: "'Inter', sans-serif", label: "Inter (Modern Sans)" },
 ];
 
+function splitStoryContent(content, numCols) {
+  if (!content || !content.trim()) {
+    return Array.from({ length: numCols }, () => []);
+  }
+  const rawParas = content.split(/\n+/).map(p => p.trim()).filter(Boolean);
+  if (rawParas.length === 0) {
+    return Array.from({ length: numCols }, () => []);
+  }
+
+  const result = Array.from({ length: numCols }, () => []);
+
+  if (rawParas.length >= numCols) {
+    rawParas.forEach((p, idx) => {
+      const targetCol = Math.min(Math.floor((idx / rawParas.length) * numCols), numCols - 1);
+      result[targetCol].push(p);
+    });
+    return result;
+  }
+
+  const allSentences = [];
+  rawParas.forEach(p => {
+    const sents = p.match(/[^।.!?]+[।.!?]*/g) || [p];
+    sents.forEach(s => {
+      const trimmed = s.trim();
+      if (trimmed) allSentences.push(trimmed);
+    });
+  });
+
+  if (allSentences.length >= numCols) {
+    allSentences.forEach((s, idx) => {
+      const targetCol = Math.min(Math.floor((idx / allSentences.length) * numCols), numCols - 1);
+      if (result[targetCol].length === 0) {
+        result[targetCol].push(s);
+      } else {
+        result[targetCol][result[targetCol].length - 1] += ' ' + s;
+      }
+    });
+    return result;
+  }
+
+  const words = content.split(/\s+/).filter(Boolean);
+  const wordsPerCol = Math.ceil(words.length / numCols);
+  for (let c = 0; c < numCols; c++) {
+    const slice = words.slice(c * wordsPerCol, (c + 1) * wordsPerCol).join(' ');
+    if (slice) result[c].push(slice);
+  }
+  return result;
+}
+
 export const SectionModalEditor = ({
   isOpen,
   section,
@@ -485,42 +534,179 @@ export const SectionModalEditor = ({
                     {/* LAYOUT VARIANTS */}
                     {(() => {
                       const isDualPhoto = (localSection.colSpan || 6) > 6 && !!localSection.image2;
-                      const effectiveCols = isDualPhoto ? Math.max(2, localSection.bodyCols || 2) : (localSection.bodyCols || 1);
+                      const effectiveCols = isDualPhoto ? Math.max(2, localSection.bodyCols || 3) : (localSection.bodyCols || 1);
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols === 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
-                      const secondPhotoPreviewBlock = isDualPhoto ? (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveTarget('image');
-                          }}
-                          className={`col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
-                            activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                          }`}
-                          style={{
-                            breakBefore: 'column',
-                            WebkitColumnBreakBefore: 'always',
-                            breakInside: 'avoid',
-                            WebkitColumnBreakInside: 'avoid',
-                            display: 'block',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                          }}
-                          title="क्लिक करके फोटो 2 एडिट करें"
-                        >
-                          <img
-                            src={localSection.image2}
-                            alt="Photo 2"
-                            className="w-full object-cover block"
-                            style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
-                          />
-                          {localSection.caption2 && (
-                            <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
-                              {localSection.caption2}
+                      if (isDualPhoto) {
+                        const colParas = splitStoryContent(localSection.content || '', effectiveCols);
+
+                        let col1Photo = null;
+                        if (localSection.image) {
+                          if (localSection.layout === 'left-img') {
+                            col1Photo = (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTarget('image');
+                                }}
+                                className={`float-left w-[46%] max-w-[200px] mr-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
+                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                                }`}
+                              >
+                                <img src={localSection.image} alt="Photo 1" className="w-full max-h-44 object-cover" />
+                                {localSection.caption && (
+                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                    {localSection.caption}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          } else if (localSection.layout === 'right-img') {
+                            col1Photo = (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTarget('image');
+                                }}
+                                className={`float-right w-[46%] max-w-[200px] ml-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
+                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                                }`}
+                              >
+                                <img src={localSection.image} alt="Photo 1" className="w-full max-h-44 object-cover" />
+                                {localSection.caption && (
+                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                    {localSection.caption}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          } else if (localSection.layout === 'text-only') {
+                            col1Photo = null;
+                          } else {
+                            col1Photo = (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTarget('image');
+                                }}
+                                className={`mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
+                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                                }`}
+                              >
+                                <img src={localSection.image} alt="Photo 1" className="w-full max-h-48 object-cover" />
+                                {localSection.caption && (
+                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5" style={{ textAlign: localSection.captionAlign || 'left' }}>
+                                    {localSection.caption}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                        }
+
+                        const col2Photo = (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('image');
+                            }}
+                            className={`mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                            }`}
+                            style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
+                            title="क्लिक करके फोटो 2 एडिट करें"
+                          >
+                            <img
+                              src={localSection.image2}
+                              alt="Photo 2"
+                              className="w-full object-cover block"
+                              style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
+                            />
+                            {localSection.caption2 && (
+                              <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                {localSection.caption2}
+                              </div>
+                            )}
+                          </div>
+                        );
+
+                        return (
+                          <>
+                            {bulletsList.length > 0 && (
+                              <div
+                                onClick={() => setActiveTarget('bullets')}
+                                className={`my-1 cursor-pointer rounded transition ${
+                                  activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                                }`}
+                              >
+                                <div className="p-1.5 rounded border border-slate-300" style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}>
+                                  {bulletsList.map((b, idx) => (
+                                    <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                      <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                      <span className="font-semibold text-slate-900">{b}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div
+                              className="dual-photo-grid-container flex flex-row items-start my-1 w-full"
+                              style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '10px', width: '100%', boxSizing: 'border-box' }}
+                            >
+                              {Array.from({ length: effectiveCols }).map((_, colIdx) => {
+                                const isFirst = colIdx === 0;
+                                const isSecond = colIdx === 1;
+                                const isLast = colIdx === effectiveCols - 1;
+                                const borderStyle = !isLast ? { borderRight: '1px solid #d4cebe', paddingRight: '8px' } : {};
+                                const colPList = colParas[colIdx] || [];
+
+                                return (
+                                  <div
+                                    key={colIdx}
+                                    onClick={() => setActiveTarget('body')}
+                                    className={`dual-col dual-col-${colIdx + 1} flex-1 font-martel leading-relaxed cursor-pointer transition rounded ${
+                                      activeTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''
+                                    }`}
+                                    style={{
+                                      ...borderStyle,
+                                      minWidth: 0,
+                                      boxSizing: 'border-box',
+                                      fontFamily: localSection.bodyFont || "'Martel', serif",
+                                      fontSize: localSection.bodySize || '11px',
+                                      textAlign: localSection.bodyAlign || 'justify',
+                                      lineHeight: 1.38,
+                                      backgroundColor: '#fcfbfa',
+                                      color: '#111111',
+                                    }}
+                                    title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
+                                  >
+                                    {isFirst && col1Photo}
+                                    {isSecond && col2Photo}
+                                    {colPList.length > 0 ? (
+                                      colPList.map((p, pIdx) => (
+                                        <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                          {isFirst && pIdx === 0 && localSection.dropCap ? (
+                                            <>
+                                              <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                                {p.charAt(0)}
+                                              </span>
+                                              {p.slice(1)}
+                                            </>
+                                          ) : (
+                                            p
+                                          )}
+                                        </p>
+                                      ))
+                                    ) : (
+                                      <p className="text-slate-400 italic text-xs">[कॉलम {colIdx + 1}...]</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          )}
-                        </div>
-                      ) : null;
+                          </>
+                        );
+                      }
 
                       if (localSection.cutoutWrap) {
                         return (
@@ -584,7 +770,7 @@ export const SectionModalEditor = ({
                                 ))}
                               </div>
                             )}
-                            {secondPhotoPreviewBlock}
+
                             {paragraphs.length > 0 ? (
                               paragraphs.map((p, pIdx) => (
                                 <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -681,7 +867,7 @@ export const SectionModalEditor = ({
                                   )}
                                 </div>
                               )}
-                              {secondPhotoPreviewBlock}
+  
                               {paragraphs.length > 0 ? (
                                 paragraphs.map((p, pIdx) => (
                                   <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -839,7 +1025,7 @@ export const SectionModalEditor = ({
                                 ))}
                               </div>
                             )}
-                            {secondPhotoPreviewBlock}
+
                             {paragraphs.length > 0 ? (
                               paragraphs.map((p, pIdx) => (
                                 <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -918,7 +1104,7 @@ export const SectionModalEditor = ({
                                 ))}
                               </div>
                             )}
-                            {secondPhotoPreviewBlock}
+
                             {paragraphs.length > 0 ? (
                               paragraphs.map((p, pIdx) => (
                                 <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -978,7 +1164,7 @@ export const SectionModalEditor = ({
                                 color: '#111111',
                               }}
                             >
-                              {secondPhotoPreviewBlock}
+  
                               {paragraphs.length > 0 ? (
                                 paragraphs.map((p, pIdx) => (
                                   <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -1062,7 +1248,7 @@ export const SectionModalEditor = ({
                                 color: '#111111',
                               }}
                             >
-                              {secondPhotoPreviewBlock}
+  
                               {paragraphs.length > 0 ? (
                                 paragraphs.map((p, pIdx) => (
                                   <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -1149,7 +1335,7 @@ export const SectionModalEditor = ({
                                 )}
                               </div>
                             )}
-                            {secondPhotoPreviewBlock}
+
                             {paragraphs.length > 0 ? (
                               paragraphs.map((p, pIdx) => (
                                 <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
