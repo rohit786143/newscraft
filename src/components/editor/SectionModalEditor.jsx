@@ -615,109 +615,21 @@ export const SectionModalEditor = ({
                         const words = (localSection.content || '').trim().split(/\s+/).filter(Boolean);
                         const W = words.length;
 
-                        const size = localSection.bodySize || '11px';
-                        const lineH = (parseFloat(size) || 11) * 1.38;
-                        const fullWordsPerLine = 6.8;
-                        const wrappedWordsPerLine = 3.6;
+                        // Calculate Column 1 split point
+                        const lineH = 15.2;
+                        const wordsPerLine = 6.8;
+                        const L1 = localSection.image ? (localSection.layout === 'left-img' || localSection.layout === 'right-img' ? 0.46 * (Math.min(160, (localSection.imageHeight || 150) + 20) / lineH) : ((localSection.imageHeight || 150) + 24) / lineH) : 0;
+                        const L2 = ((localSection.image2Height || 180) + 24) / lineH;
+                        const totalTextLines = W / wordsPerLine;
+                        const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
+                        const C1 = Math.max(2, targetH - L1);
+                        const C2 = Math.max(1, targetH - L2);
+                        const C3 = Math.max(2, targetH);
+                        const p1 = C1 / (C1 + C2 + C3);
+                        const col1WordCount = Math.min(Math.max(15, Math.round(W * p1)), Math.max(15, W - 10));
 
-                        // 1. Column 1 Photo Height in Lines
-                        let F1 = 0;
-                        let K1 = 0;
-                        if (localSection.image) {
-                          const img1H = (localSection.imageHeight || 140) + (localSection.caption ? 20 : 6);
-                          if (localSection.layout === 'left-img' || localSection.layout === 'right-img') {
-                            F1 = Math.round(img1H / lineH);
-                          } else if (localSection.layout !== 'text-only') {
-                            K1 = Math.round(img1H / lineH);
-                          }
-                        }
-
-                        // 2. Column 2 Photo 2 Height in Lines
-                        let K2 = 0;
-                        if (localSection.image2) {
-                          const img2H = (localSection.image2Height || 180) + (localSection.caption2 ? 22 : 8);
-                          K2 = Math.round(img2H / lineH);
-                        }
-
-                        // 3. Find optimal total rows N so that all columns end at exact row N
-                        const getCaps = (nRows) => {
-                          const cap1 = F1 > 0 ? (Math.min(nRows, F1) * wrappedWordsPerLine + Math.max(0, nRows - F1) * fullWordsPerLine) : Math.max(0, nRows - K1) * fullWordsPerLine;
-                          const cap2 = Math.max(0, nRows - K2) * fullWordsPerLine;
-                          const cap3 = nRows * fullWordsPerLine;
-                          return { cap1, cap2, cap3, total: Math.max(1, cap1 + cap2 + cap3) };
-                        };
-
-                        let N = Math.max(K2 + 3, F1 + 3, K1 + 3, 8);
-                        while (getCaps(N).total < W && N < 60) {
-                          N++;
-                        }
-
-                        const { cap1, cap2, cap3, total } = getCaps(N);
-                        const w1Count = Math.round(W * (cap1 / total));
-                        const w2Count = Math.round(W * (cap2 / total));
-
-                        const col1Text = words.slice(0, w1Count).join(' ');
-                        const col2Text = words.slice(w1Count, w1Count + w2Count).join(' ');
-                        const col3Text = words.slice(w1Count + w2Count).join(' ');
-
-                        const col2Photo = (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTarget('image');
-                            }}
-                            className={`col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
-                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                            }`}
-                            style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
-                            title="क्लिक करके फोटो 2 एडिट करें"
-                          >
-                            <img
-                              src={localSection.image2}
-                              alt="Photo 2"
-                              className="w-full object-cover block"
-                              style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
-                            />
-                            {localSection.caption2 && (
-                              <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
-                                {localSection.caption2}
-                              </div>
-                            )}
-                          </div>
-                        );
-
-                        const style1 = {
-                          fontFamily: localSection.bodyFont || "'Martel', serif",
-                          fontSize: localSection.bodySize || '11px',
-                          color: localSection.bodyColor || '#111111',
-                          textAlign: 'justify',
-                          textJustify: 'inter-word',
-                          textAlignLast: 'justify',
-                          lineHeight: 1.38,
-                          marginBottom: '0px',
-                        };
-
-                        const style2 = {
-                          fontFamily: localSection.bodyFont || "'Martel', serif",
-                          fontSize: localSection.bodySize || '11px',
-                          color: localSection.bodyColor || '#111111',
-                          textAlign: 'justify',
-                          textJustify: 'inter-word',
-                          textAlignLast: 'justify',
-                          lineHeight: 1.38,
-                          marginBottom: '0px',
-                        };
-
-                        const style3 = {
-                          fontFamily: localSection.bodyFont || "'Martel', serif",
-                          fontSize: localSection.bodySize || '11px',
-                          color: localSection.bodyColor || '#111111',
-                          textAlign: 'justify',
-                          textJustify: 'inter-word',
-                          textAlignLast: 'left',
-                          lineHeight: 1.38,
-                          marginBottom: '0px',
-                        };
+                        const col1Text = words.slice(0, col1WordCount).join(' ');
+                        const remainingText = words.slice(col1WordCount).join(' ');
 
                         return (
                           <>
@@ -739,81 +651,78 @@ export const SectionModalEditor = ({
                               </div>
                             )}
                             <div
-                              className="dual-photo-grid-container flex flex-row items-stretch my-1 w-full"
-                              style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: '12px', width: '100%', boxSizing: 'border-box' }}
+                              onClick={() => setActiveTarget('body')}
+                              className={`font-martel leading-relaxed my-1 clearfix cursor-pointer ${colsClass} ${
+                                activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
+                              }`}
+                              style={{
+                                columnCount: effectiveCols,
+                                columnRule: '1px solid #d4cebe',
+                                columnGap: '14px',
+                                columnFill: 'balance',
+                                fontFamily: localSection.bodyFont || "'Martel', serif",
+                                fontSize: localSection.bodySize || '11px',
+                                textAlign: localSection.bodyAlign || 'justify',
+                                textJustify: 'inter-word',
+                                lineHeight: 1.38,
+                                backgroundColor: '#fcfbfa',
+                                color: '#111111',
+                              }}
                             >
-                              <div
-                                onClick={() => setActiveTarget('body')}
-                                className={`flex-1 font-martel leading-relaxed cursor-pointer transition rounded ${
-                                  activeTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''
-                                }`}
-                                style={{
-                                  borderRight: '1px solid #d4cebe',
-                                  paddingRight: '10px',
-                                  minWidth: 0,
-                                  boxSizing: 'border-box',
-                                  backgroundColor: '#fcfbfa',
-                                }}
-                                title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
-                              >
-                                {col1Photo}
-                                {col1Text && (
-                                  <p className="story-paragraph text-[#111111]" style={style1}>
-                                    {localSection.dropCap ? (
-                                      <>
-                                        <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                          {col1Text.charAt(0)}
-                                        </span>
-                                        {col1Text.slice(1)}
-                                      </>
-                                    ) : (
-                                      col1Text
-                                    )}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div
-                                onClick={() => setActiveTarget('body')}
-                                className={`flex-1 font-martel leading-relaxed cursor-pointer transition rounded ${
-                                  activeTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''
-                                }`}
-                                style={{
-                                  borderRight: effectiveCols === 2 ? 'none' : '1px solid #d4cebe',
-                                  paddingRight: effectiveCols === 2 ? '0px' : '10px',
-                                  minWidth: 0,
-                                  boxSizing: 'border-box',
-                                  backgroundColor: '#fcfbfa',
-                                }}
-                                title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
-                              >
-                                {col2Photo}
-                                {col2Text && (
-                                  <p className="story-paragraph text-[#111111]" style={effectiveCols === 2 ? style3 : style2}>
-                                    {col2Text}
-                                  </p>
-                                )}
-                              </div>
-
-                              {effectiveCols > 2 && (
-                                <div
-                                  onClick={() => setActiveTarget('body')}
-                                  className={`flex-1 font-martel leading-relaxed cursor-pointer transition rounded ${
-                                    activeTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''
-                                  }`}
-                                  style={{
-                                    minWidth: 0,
-                                    boxSizing: 'border-box',
-                                    backgroundColor: '#fcfbfa',
-                                  }}
-                                  title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
-                                >
-                                  {col3Text && (
-                                    <p className="story-paragraph text-[#111111]" style={style3}>
-                                      {col3Text}
-                                    </p>
+                              {col1Photo}
+                              {col1Text && (
+                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
+                                  {localSection.dropCap ? (
+                                    <>
+                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                        {col1Text.charAt(0)}
+                                      </span>
+                                      {col1Text.slice(1)}
+                                    </>
+                                  ) : (
+                                    col1Text
                                   )}
-                                </div>
+                                </p>
+                              )}
+
+                              {/* Photo 2 Break Before Column */}
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTarget('image');
+                                }}
+                                className={`col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
+                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                                }`}
+                                style={{
+                                  breakBefore: 'column',
+                                  WebkitColumnBreakBefore: 'always',
+                                  breakInside: 'avoid',
+                                  WebkitColumnBreakInside: 'avoid',
+                                  display: 'block',
+                                  width: '100%',
+                                  boxSizing: 'border-box'
+                                }}
+                                title="क्लिक करके फोटो 2 एडिट करें"
+                              >
+                                <img
+                                  src={localSection.image2}
+                                  alt="Photo 2"
+                                  className="w-full object-cover block"
+                                  style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
+                                />
+                                {localSection.caption2 && (
+                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                    {localSection.caption2}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Remaining Text flows under Photo 2 in Col 2 and into Col 3 */}
+                              {remainingText && (
+                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
+                                  {remainingText}
+                                </p>
                               )}
                             </div>
                           </>
