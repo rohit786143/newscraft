@@ -103,7 +103,7 @@
       word-break: normal !important;
     }
 
-    /* Standard Newspaper Paragraph Flow with Balanced Splitting & Full Justification */
+    /* Standard Newspaper Paragraph Flow with Balanced Splitting, Full Justification & Strict 20px Baseline Grid */
     .story-paragraph {
       text-align: justify !important;
       text-justify: inter-word !important;
@@ -111,9 +111,10 @@
       word-break: normal !important;
       hyphens: auto;
       -webkit-hyphens: auto;
-      line-height: 1.38 !important;
-      margin-top: 0;
-      margin-bottom: 4px;
+      line-height: 20px !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      padding: 0 !important;
       display: block;
       orphans: 2;
       widows: 2;
@@ -168,6 +169,17 @@
       display: block;
       width: 100%;
       margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    /* Strict 20px Baseline Grid Typography */
+    .story-paragraph,
+    .broadsheet-cols-1 p,
+    .broadsheet-cols-2 p,
+    .broadsheet-cols-3 p {
+      line-height: 20px !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
       padding: 0 !important;
     }
 
@@ -5392,7 +5404,7 @@
       }).join('');
     }
 
-    // HELPER TO RENDER MULTIPLE PARAGRAPHS FROM SINGLE CONTENT TEXT
+    // HELPER TO RENDER MULTIPLE PARAGRAPHS FROM SINGLE CONTENT TEXT WITH 20PX BASELINE GRID
     function renderParagraphsHTML(sec, isDropCap = true, extraClass = '') {
       if (!sec || !sec.content) return '';
       const paras = sec.content.split(/\n+/).map(p => p.trim()).filter(Boolean);
@@ -5403,7 +5415,7 @@
       const size = sec.bodySize || '11px';
       const color = sec.bodyColor || '#111111';
       const align = sec.bodyAlign || 'justify';
-      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: left; word-break: normal;`;
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: left; word-break: normal; line-height: 20px !important; margin-top: 0 !important; margin-bottom: 0px !important; padding: 0 !important;`;
 
       return paras.map((p, idx) => {
         if (idx === 0 && dropCapEnabled) {
@@ -5411,7 +5423,7 @@
           if (match) {
             const firstChar = match[0];
             const restText = p.slice(firstChar.length);
-            const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
+            const dropCapHTML = `<span style="float: left; font-size: 34px; line-height: 40px; height: 40px; font-weight: 800; margin-right: 6px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
             return `<p class="story-paragraph ${extraClass}" style="${styleStr}">${dropCapHTML}${restText}</p>`;
           }
         }
@@ -5453,7 +5465,7 @@
       `;
     }
 
-    // RENDER PHOTO CAPTION HELPER
+    // RENDER PHOTO CAPTION HELPER (SNAPS TO 20PX BASELINE LINE)
     function renderCaptionHTML(sec, defaultAlign = 'left') {
       if (!sec || !sec.caption) return '';
       const font = sec.captionFont || "'Martel', serif";
@@ -5462,11 +5474,11 @@
       const align = sec.captionAlign || defaultAlign;
       const isBold = sec.captionBold === true;
       const isItalic = sec.captionItalic !== false;
-      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
-      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption}</span>`;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'}; line-height: 20px; height: 20px; overflow: hidden; display: block; white-space: nowrap; text-overflow: ellipsis;`;
+      return `<span class="block leading-none" style="${style}">${sec.caption}</span>`;
     }
 
-    // RENDER PHOTO 2 CAPTION HELPER (FOR GRID > 6 DUAL PHOTO)
+    // RENDER PHOTO 2 CAPTION HELPER (SNAPS TO 20PX BASELINE LINE)
     function renderCaption2HTML(sec, defaultAlign = 'center') {
       if (!sec || !sec.caption2) return '';
       const font = sec.captionFont || "'Martel', serif";
@@ -5475,18 +5487,18 @@
       const align = sec.captionAlign || defaultAlign;
       const isBold = sec.captionBold === true;
       const isItalic = sec.captionItalic !== false;
-      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
-      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption2}</span>`;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'}; line-height: 20px; height: 20px; overflow: hidden; display: block; white-space: nowrap; text-overflow: ellipsis;`;
+      return `<span class="block leading-none" style="${style}">${sec.caption2}</span>`;
     }
 
-    // HELPER TO PROPORTIONALLY SPLIT STORY PARAGRAPHS ACROSS N COLUMNS WITH BOTTOM ALIGNMENT
+    // HELPER TO PROPORTIONALLY SPLIT STORY PARAGRAPHS ACROSS N COLUMNS WITH BOTTOM ALIGNMENT & 20PX BASELINE
     function splitStoryContent(content, numCols, sec = {}) {
       if (!content || !content.trim()) {
         return Array.from({ length: numCols }, () => []);
       }
 
-      // Line height in pixels (~15.2px for standard 11px broadsheet body text)
-      const lineH = 15.2;
+      // Line height in pixels is strictly 20px baseline unit
+      const lineH = 20.0;
       const words = content.trim().split(/\s+/).filter(Boolean);
       const W = words.length;
       if (W === 0) return Array.from({ length: numCols }, () => []);
@@ -5496,18 +5508,21 @@
 
       // Column 2 has Photo 2 at the top (full width of col 2)
       if (numCols >= 2 && (sec.image2 || true)) {
-        const img2H = (sec.image2Height || 180) + (sec.caption2 ? 24 : 10);
-        L[1] = img2H / lineH;
+        const caption2H = sec.caption2 ? 20 : 0;
+        const snapH2 = Math.ceil(((sec.image2Height || 180) + caption2H + 2) / 20) * 20;
+        L[1] = snapH2 / lineH;
       }
 
       // Column 1 has Photo 1
       if (sec.image) {
         if (sec.layout === 'left-img' || sec.layout === 'right-img') {
-          const img1H = Math.min(160, (sec.imageHeight || 150) + (sec.caption ? 20 : 6));
-          L[0] = 0.46 * (img1H / lineH);
+          const caption1H = sec.caption ? 20 : 0;
+          const snapH1 = Math.ceil(((sec.imageHeight || 150) + caption1H + 2) / 20) * 20;
+          L[0] = 0.46 * (snapH1 / lineH);
         } else if (sec.layout !== 'text-only') {
-          const img1H = (sec.imageHeight || 150) + (sec.caption ? 24 : 8);
-          L[0] = img1H / lineH;
+          const caption1H = sec.caption ? 20 : 0;
+          const snapH1 = Math.ceil(((sec.imageHeight || 150) + caption1H + 2) / 20) * 20;
+          L[0] = snapH1 / lineH;
         }
       }
 
@@ -5537,7 +5552,7 @@
       return result;
     }
 
-    // HELPER TO RENDER PARAGRAPHS FOR A SPECIFIC COLUMN
+    // HELPER TO RENDER PARAGRAPHS FOR A SPECIFIC COLUMN (STRICT 20PX BASELINE GRID)
     function renderColumnParagraphsHTML(sec, colParas, isFirstCol = false, extraClass = '', isLastCol = false) {
       if (!colParas || colParas.length === 0) return '';
       const dropCapEnabled = (sec.dropCap === true) && isFirstCol;
@@ -5546,12 +5561,8 @@
       const color = sec.bodyColor || '#111111';
       const align = sec.bodyAlign || 'justify';
       
-      // Broadsheet column justification:
-      // For continuing columns (isLastCol === false), the last line MUST stretch fully (text-align-last: justify)
-      // so that lines end squarely at the column margin with no gaps or early breaks.
-      // For the final column (isLastCol === true), the last line uses natural left alignment or specified align.
       const textAlignLast = isLastCol ? (align === 'justify' ? 'left' : align) : 'justify';
-      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; text-align-last: ${textAlignLast}; word-break: break-word; overflow-wrap: break-word; hyphens: auto; line-height: 1.38; margin-bottom: 0px;`;
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; text-align-last: ${textAlignLast}; word-break: break-word; overflow-wrap: break-word; hyphens: auto; line-height: 20px !important; margin-top: 0 !important; margin-bottom: 0px !important; padding: 0 !important;`;
 
       return colParas.map((p, idx) => {
         if (idx === 0 && dropCapEnabled) {
@@ -5559,7 +5570,7 @@
           if (match) {
             const firstChar = match[0];
             const restText = p.slice(firstChar.length);
-            const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
+            const dropCapHTML = `<span style="float: left; font-size: 34px; line-height: 40px; height: 40px; font-weight: 800; margin-right: 6px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
             return `<p class="story-paragraph ${extraClass}" style="${styleStr}">${dropCapHTML}${restText}</p>`;
           }
         }
@@ -5567,7 +5578,7 @@
       }).join('');
     }
 
-    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH COLUMN 2 TOP PHOTO & CONTINUOUS MULTI-COLUMN FLOW
+    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH STRICT 20PX BASELINE GRID SNAPPING
     function renderDualPhotoColumnsHTML(sec, isModal = false) {
       const effectiveCols = Math.max(2, sec.bodyCols || 3);
       const colsClass = effectiveCols === 2 ? 'broadsheet-cols-2' : (effectiveCols === 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
@@ -5576,11 +5587,24 @@
       const words = (sec.content || '').trim().split(/\s+/).filter(Boolean);
       const W = words.length;
 
-      // Calculate Column 1 split point with block positioning for both photos
-      const lineH = 15.2;
+      // Baseline grid unit is strictly 20px
+      const BASELINE = 20;
+
+      // Photo 1 Baseline Snapping
+      const rawImg1H = sec.imageHeight || 160;
+      const caption1H = sec.caption ? 20 : 0;
+      const snapH1 = Math.ceil((rawImg1H + caption1H + 2) / BASELINE) * BASELINE;
+      const img1CalculatedH = Math.max(20, snapH1 - caption1H - 2);
+      const L1 = (sec.image && sec.layout !== 'text-only') ? (snapH1 / BASELINE) : 0;
+
+      // Photo 2 Baseline Snapping
+      const rawImg2H = sec.image2Height || 180;
+      const caption2H = sec.caption2 ? 20 : 0;
+      const snapH2 = Math.ceil((rawImg2H + caption2H + 2) / BASELINE) * BASELINE;
+      const img2CalculatedH = Math.max(20, snapH2 - caption2H - 2);
+      const L2 = (snapH2 / BASELINE);
+
       const wordsPerLine = 6.8;
-      const L1 = (sec.image && sec.layout !== 'text-only') ? (((sec.imageHeight || 150) + (sec.caption ? 24 : 8)) / lineH) : 0;
-      const L2 = ((sec.image2Height || 180) + (sec.caption2 ? 24 : 8)) / lineH;
       const totalTextLines = W / wordsPerLine;
       const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
       const C1 = Math.max(1, targetH - L1);
@@ -5592,14 +5616,14 @@
       const col1Text = words.slice(0, col1WordCount).join(' ');
       const remainingText = words.slice(col1WordCount).join(' ');
 
-      // Col 1 Photo block (Block positioning at Top of Column 1, break-inside: avoid)
+      // Col 1 Photo block (Block positioning at Top of Column 1, break-inside: avoid, total height = snapH1, margin-bottom = 0)
       let col1PhotoHTML = '';
       if (sec.image && sec.layout !== 'text-only') {
         col1PhotoHTML = `
-          <div class="col1-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="display: block; width: 100%; box-sizing: border-box; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover block" style="max-height: ${sec.imageHeight || 160}px; object-fit: ${sec.imageFit || 'cover'};">
+          <div class="col1-top-photo-block embedded-media-container border border-black bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="display: block; width: 100%; height: ${snapH1}px; box-sizing: border-box; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important; margin-bottom: 0px !important; padding: 0 !important; overflow: hidden;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover block" style="height: ${img1CalculatedH}px; object-fit: ${sec.imageFit || 'cover'}; display: block;">
             ${sec.caption ? `
-              <div class="pt-0.5">
+              <div style="height: 20px; line-height: 20px; overflow: hidden; padding: 0 4px; box-sizing: border-box;">
                 ${renderCaptionHTML(sec, 'center')}
               </div>
             ` : ''}
@@ -5607,20 +5631,22 @@
         `;
       }
 
-      // Col 2 Photo block (Block positioning at Top of Column 2 via CSS break-before: column, break-inside: avoid)
+      // Col 2 Photo block (Block positioning at Top of Column 2 via CSS break-before: column, break-inside: avoid, total height = snapH2, margin-bottom = 0)
       const col2PhotoHTML = `
-        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important; display: block !important; width: 100% !important; box-sizing: border-box !important;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
-          <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
-          <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5">
-            ${renderCaption2HTML(sec, 'center')}
-          </div>
+        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block embedded-media-container border border-black bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important; display: block !important; width: 100% !important; height: ${snapH2}px; box-sizing: border-box !important; margin-bottom: 0px !important; padding: 0 !important; overflow: hidden;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+          <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="height: ${img2CalculatedH}px; object-fit: ${sec.image2Fit || 'cover'}; display: block;">
+          ${sec.caption2 ? `
+            <div id="${isModal ? 'modal-preview-caption2' : ''}" style="height: 20px; line-height: 20px; overflow: hidden; padding: 0 4px; box-sizing: border-box;">
+              ${renderCaption2HTML(sec, 'center')}
+            </div>
+          ` : ''}
         </div>
       `;
 
       const font = sec.bodyFont || studioState?.paperMeta?.defaultBodyFont || "'Martel', serif";
       const size = sec.bodySize || '11px';
       const color = sec.bodyColor || '#111111';
-      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; word-break: normal; line-height: 1.38; margin-bottom: 2px;`;
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; word-break: normal; line-height: 20px !important; margin-top: 0 !important; margin-bottom: 0px !important; padding: 0 !important;`;
 
       let col1TextFormatted = col1Text;
       if (sec.dropCap !== false && col1Text) {
@@ -5628,14 +5654,14 @@
         if (match) {
           const firstChar = match[0];
           const restText = col1Text.slice(firstChar.length);
-          const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
+          const dropCapHTML = `<span style="float: left; font-size: 34px; line-height: 40px; height: 40px; font-weight: 800; margin-right: 6px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
           col1TextFormatted = `${dropCapHTML}${restText}`;
         }
       }
 
       return `
         ${bulletsHTML}
-        <div class="font-martel leading-relaxed clearfix my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" style="column-count: ${effectiveCols}; column-rule: 1px solid #d4cebe; column-gap: 12px; column-fill: balance; -webkit-column-fill: balance; text-align: justify; text-justify: inter-word; font-family: ${font}; font-size: ${size}; color: ${color}; line-height: 1.38;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+        <div class="font-martel clearfix my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" style="column-count: ${effectiveCols}; column-rule: 1px solid #d4cebe; column-gap: 12px; column-fill: balance; -webkit-column-fill: balance; text-align: justify; text-justify: inter-word; font-family: ${font}; font-size: ${size}; color: ${color}; line-height: 20px;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
           ${col1PhotoHTML}
           ${col1Text ? `<p class="story-paragraph" style="${styleStr}">${col1TextFormatted}</p>` : ''}
           ${col2PhotoHTML}
