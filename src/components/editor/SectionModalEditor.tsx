@@ -562,18 +562,18 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         const words = (localSection.content || '').trim().split(/\s+/).filter(Boolean);
                         const W = words.length;
 
-                        // Fixed integer line-height (20px) for strict horizontal baseline row alignment
-                        const lineH = 20;
-                        const wordsPerLine = 6.6;
-                        const L1 = (localSection.image && localSection.layout !== 'text-only') ? (((localSection.imageHeight || 160) + (localSection.caption ? 24 : 8)) / lineH) : 0;
+                        // Calculate Column 1 split point with block positioning for both photos
+                        const lineH = 15.2;
+                        const wordsPerLine = 6.8;
+                        const L1 = (localSection.image && localSection.layout !== 'text-only') ? (((localSection.imageHeight || 150) + (localSection.caption ? 24 : 8)) / lineH) : 0;
                         const L2 = ((localSection.image2Height || 180) + (localSection.caption2 ? 24 : 8)) / lineH;
                         const totalTextLines = W / wordsPerLine;
-
-                        const minColLines = effectiveCols === 2 ? Math.max(L1 + 3, L2 + 3) : Math.max(L1 + 4, L2 + 3, 10);
-                        const targetColLines = Math.max(minColLines, (totalTextLines + L1 + L2) / effectiveCols);
-                        const N1 = Math.max(3, targetColLines - L1);
-
-                        const col1WordCount = Math.min(Math.max(10, W - 10), Math.max(12, Math.round(N1 * wordsPerLine)));
+                        const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
+                        const C1 = Math.max(1, targetH - L1);
+                        const C2 = Math.max(1, targetH - L2);
+                        const C3 = Math.max(2, targetH);
+                        const p1 = C1 / (C1 + C2 + C3);
+                        const col1WordCount = Math.min(Math.max(10, Math.round(W * p1)), Math.max(10, W - 10));
 
                         const col1Text = words.slice(0, col1WordCount).join(' ');
                         const remainingText = words.slice(col1WordCount).join(' ');
@@ -632,43 +632,29 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             )}
                             <div
                               onClick={() => setActiveTarget('body')}
-                              className={`font-martel my-1 clearfix cursor-pointer ${colsClass} ${
+                              className={`font-martel leading-relaxed my-1 clearfix cursor-pointer ${colsClass} ${
                                 activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
                               }`}
                               style={{
                                 columnCount: effectiveCols,
                                 columnRule: '1px solid #d4cebe',
-                                columnGap: '12px',
-                                columnFill: 'auto',
-                                WebkitColumnFill: 'auto',
+                                columnGap: '14px',
+                                columnFill: 'balance',
                                 fontFamily: localSection.bodyFont || "'Martel', serif",
                                 fontSize: localSection.bodySize || '11px',
-                                textAlign: 'justify',
+                                textAlign: (localSection.bodyAlign as any) || 'justify',
                                 textJustify: 'inter-word',
-                                lineHeight: '20px',
+                                lineHeight: 1.38,
                                 backgroundColor: '#fcfbfa',
                                 color: '#111111',
                               }}
                             >
                               {col1Photo}
                               {col1Text && (
-                                <p
-                                  className="story-paragraph col1-story-paragraph"
-                                  style={{
-                                    textAlign: 'justify',
-                                    textJustify: 'inter-word',
-                                    textAlignLast: 'justify',
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'break-word',
-                                    hyphens: 'auto',
-                                    lineHeight: '20px',
-                                    margin: 0,
-                                    padding: 0,
-                                  }}
-                                >
+                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
                                   {localSection.dropCap ? (
                                     <>
-                                      <span className="float-left text-2xl font-bold font-serif leading-none pr-1 text-slate-900">
+                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
                                         {col1Text.charAt(0)}
                                       </span>
                                       {col1Text.slice(1)}
@@ -679,7 +665,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                 </p>
                               )}
 
-                              {/* Photo 2 Break Before Column (Keep exact dimensions, position, and active state intact) */}
+                              {/* Photo 2 Break Before Column */}
                               <div
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -689,14 +675,12 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                   activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                 }`}
                                 style={{
-                                  breakBefore: 'column',
-                                  breakInside: 'avoid',
+                                  breakBefore: 'column' as any,
+                                  breakInside: 'avoid' as any,
                                   display: 'block',
                                   width: '100%',
-                                  boxSizing: 'border-box',
-                                  WebkitColumnBreakBefore: 'always',
-                                  WebkitColumnBreakInside: 'avoid',
-                                } as any}
+                                  boxSizing: 'border-box'
+                                }}
                                 title="क्लिक करके फोटो 2 एडिट करें"
                               >
                                 <img
@@ -714,20 +698,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                               {/* Remaining Text flows under Photo 2 in Col 2 and into Col 3 */}
                               {remainingText && (
-                                <p
-                                  className="story-paragraph rem-story-paragraph"
-                                  style={{
-                                    textAlign: 'justify',
-                                    textJustify: 'inter-word',
-                                    textAlignLast: 'left',
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'break-word',
-                                    hyphens: 'auto',
-                                    lineHeight: '20px',
-                                    margin: 0,
-                                    padding: 0,
-                                  }}
-                                >
+                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
                                   {remainingText}
                                 </p>
                               )}

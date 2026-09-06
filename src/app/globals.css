@@ -141,7 +141,6 @@ textarea::placeholder {
   column-count: 2;
   column-gap: 14px;
   column-rule: none;
-  column-fill: auto;
   text-align: justify;
   text-justify: inter-word;
   hyphens: auto;
@@ -151,7 +150,6 @@ textarea::placeholder {
   column-count: 3;
   column-gap: 12px;
   column-rule: none;
-  column-fill: auto;
   text-align: justify;
   text-justify: inter-word;
   hyphens: auto;
@@ -161,76 +159,9 @@ textarea::placeholder {
   column-count: 4;
   column-gap: 10px;
   column-rule: none;
-  column-fill: auto;
   text-align: justify;
   text-justify: inter-word;
   hyphens: auto;
-}
-
-/* Embedded Media Containers & Photo Blocks inside Multi-Column Flow */
-.embedded-media-container,
-.col1-top-photo-block,
-.col2-top-photo-block {
-  break-inside: avoid !important;
-  -webkit-column-break-inside: avoid !important;
-  page-break-inside: avoid !important;
-  display: block !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-.col2-top-photo-block {
-  break-before: column !important;
-  -webkit-column-break-before: always !important;
-}
-
-/* Strict Multi-Column Baseline Row Grid (Line-Height: 20px, Margin: 0) */
-.broadsheet-cols-1,
-.broadsheet-cols-2,
-.broadsheet-cols-3 {
-  column-fill: auto !important;
-  -webkit-column-fill: auto !important;
-  line-height: 20px !important;
-}
-
-.story-paragraph {
-  text-align: justify;
-  text-justify: inter-word;
-  word-break: normal;
-  hyphens: auto;
-  -webkit-hyphens: auto;
-  line-height: 20px;
-  margin-top: 0;
-  margin-bottom: 0;
-  padding: 0;
-  display: block;
-}
-
-.broadsheet-cols-1 .story-paragraph,
-.broadsheet-cols-2 .story-paragraph,
-.broadsheet-cols-3 .story-paragraph {
-  line-height: 20px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  text-align: justify !important;
-  text-justify: inter-word !important;
-  word-break: break-word !important;
-  overflow-wrap: break-word !important;
-  hyphens: auto;
-}
-
-.col1-story-paragraph,
-.broadsheet-cols-1 .col1-story-paragraph,
-.broadsheet-cols-2 .col1-story-paragraph,
-.broadsheet-cols-3 .col1-story-paragraph {
-  text-align-last: justify !important;
-}
-
-.rem-story-paragraph,
-.broadsheet-cols-1 .rem-story-paragraph,
-.broadsheet-cols-2 .rem-story-paragraph,
-.broadsheet-cols-3 .rem-story-paragraph {
-  text-align-last: left !important;
 }
 
 /* Print Rules & Page Geometry */
