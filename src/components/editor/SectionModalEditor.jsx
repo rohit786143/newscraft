@@ -25,41 +25,40 @@ function splitStoryContent(content, numCols, sec = {}) {
     return Array.from({ length: numCols }, () => []);
   }
 
-  // Line height in pixels (~16.5px for standard broadsheet body)
-  const lineH = 16.5;
-  const image2H = (sec.image2Height || 180) + 24;
+  // Line height in pixels (~15.2px for standard 11px broadsheet body text)
+  const lineH = 15.2;
+  const words = content.trim().split(/\s+/).filter(Boolean);
+  const W = words.length;
+  if (W === 0) return Array.from({ length: numCols }, () => []);
+
+  const wordsPerLine = 6.8;
   const L = new Array(numCols).fill(0);
 
-  // Column 2 has Photo 2 at the top
-  if (numCols >= 2) {
-    L[1] = image2H / lineH;
+  // Column 2 has Photo 2 at the top (full width of col 2)
+  if (numCols >= 2 && (sec.image2 || true)) {
+    const img2H = (sec.image2Height || 180) + (sec.caption2 ? 24 : 10);
+    L[1] = img2H / lineH;
   }
 
-  // Column 1 has Photo 1 (if present)
+  // Column 1 has Photo 1
   if (sec.image) {
     if (sec.layout === 'left-img' || sec.layout === 'right-img') {
-      L[0] = Math.min(100, (sec.imageHeight || 160) * 0.45) / lineH;
+      const img1H = Math.min(160, (sec.imageHeight || 150) + (sec.caption ? 20 : 6));
+      L[0] = 0.46 * (img1H / lineH);
     } else if (sec.layout !== 'text-only') {
-      L[0] = ((sec.imageHeight || 160) + 20) / lineH;
+      const img1H = (sec.imageHeight || 150) + (sec.caption ? 24 : 8);
+      L[0] = img1H / lineH;
     }
   }
 
-  const words = content.trim().split(/\s+/).filter(Boolean);
-  const wordsPerLine = 7;
-  const totalTextLines = Math.max(numCols * 2, words.length / wordsPerLine);
-
-  // Balanced height target across all columns
+  const totalTextLines = W / wordsPerLine;
   const sumL = L.reduce((a, b) => a + b, 0);
   const targetH = (sumL + totalTextLines) / numCols;
-
-  // Relative text capacity for each column
-  const weights = L.map(l => Math.max(0.12, targetH - l));
-  const sumW = weights.reduce((a, b) => a + b, 0);
-  const proportions = weights.map(w => w / sumW);
+  const caps = L.map(l => Math.max(0.2, targetH - l));
+  const sumCaps = caps.reduce((a, b) => a + b, 0);
+  const proportions = caps.map(c => c / sumCaps);
 
   const result = Array.from({ length: numCols }, () => []);
-  const W = words.length;
-
   let startIdx = 0;
   for (let c = 0; c < numCols; c++) {
     if (c === numCols - 1) {
@@ -68,36 +67,11 @@ function splitStoryContent(content, numCols, sec = {}) {
       break;
     }
 
-    const propTarget = Math.round(startIdx + W * proportions[c]);
-    let bestCut = Math.min(W, Math.max(startIdx + 1, propTarget));
-
-    // Look for sentence end within a window around target
-    const searchMin = Math.max(startIdx + 1, bestCut - 12);
-    const searchMax = Math.min(W - (numCols - c - 1), bestCut + 12);
-    let foundSentenceEnd = -1;
-
-    for (let i = bestCut; i <= searchMax; i++) {
-      if (words[i - 1] && /[।.!?]$/.test(words[i - 1])) {
-        foundSentenceEnd = i;
-        break;
-      }
-    }
-    if (foundSentenceEnd === -1) {
-      for (let i = bestCut; i >= searchMin; i--) {
-        if (words[i - 1] && /[।.!?]$/.test(words[i - 1])) {
-          foundSentenceEnd = i;
-          break;
-        }
-      }
-    }
-
-    if (foundSentenceEnd !== -1) {
-      bestCut = foundSentenceEnd;
-    }
-
-    const slice = words.slice(startIdx, bestCut).join(' ');
+    const wordsForCol = Math.round(W * proportions[c]);
+    const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
+    const slice = words.slice(startIdx, endIdx).join(' ');
     if (slice) result[c].push(slice);
-    startIdx = bestCut;
+    startIdx = endIdx;
   }
 
   return result;
@@ -684,8 +658,8 @@ export const SectionModalEditor = ({
                               </div>
                             )}
                             <div
-                              className="dual-photo-grid-container flex flex-row items-start my-1 w-full"
-                              style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '10px', width: '100%', boxSizing: 'border-box' }}
+                              className="dual-photo-grid-container flex flex-row items-stretch my-1 w-full"
+                              style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: '10px', width: '100%', boxSizing: 'border-box' }}
                             >
                               {Array.from({ length: effectiveCols }).map((_, colIdx) => {
                                 const isFirst = colIdx === 0;
@@ -693,6 +667,7 @@ export const SectionModalEditor = ({
                                 const isLast = colIdx === effectiveCols - 1;
                                 const borderStyle = !isLast ? { borderRight: '1px solid #d4cebe', paddingRight: '8px' } : {};
                                 const colPList = colParas[colIdx] || [];
+                                const textAlignLast = isLast ? ((localSection.bodyAlign === 'justify' || !localSection.bodyAlign) ? 'left' : localSection.bodyAlign) : 'justify';
 
                                 return (
                                   <div
@@ -705,12 +680,7 @@ export const SectionModalEditor = ({
                                       ...borderStyle,
                                       minWidth: 0,
                                       boxSizing: 'border-box',
-                                      fontFamily: localSection.bodyFont || "'Martel', serif",
-                                      fontSize: localSection.bodySize || '11px',
-                                      textAlign: localSection.bodyAlign || 'justify',
-                                      lineHeight: 1.38,
                                       backgroundColor: '#fcfbfa',
-                                      color: '#111111',
                                     }}
                                     title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                                   >
@@ -718,7 +688,23 @@ export const SectionModalEditor = ({
                                     {isSecond && col2Photo}
                                     {colPList.length > 0 ? (
                                       colPList.map((p, pIdx) => (
-                                        <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                        <p
+                                          key={pIdx}
+                                          className="story-paragraph text-[#111111]"
+                                          style={{
+                                            fontFamily: localSection.bodyFont || "'Martel', serif",
+                                            fontSize: localSection.bodySize || '11px',
+                                            color: localSection.bodyColor || '#111111',
+                                            textAlign: 'justify',
+                                            textJustify: 'inter-word',
+                                            textAlignLast: textAlignLast,
+                                            wordBreak: 'break-word',
+                                            overflowWrap: 'break-word',
+                                            hyphens: 'auto',
+                                            lineHeight: 1.38,
+                                            marginBottom: '0px',
+                                          }}
+                                        >
                                           {isFirst && pIdx === 0 && localSection.dropCap ? (
                                             <>
                                               <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
