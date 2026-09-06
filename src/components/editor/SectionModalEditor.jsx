@@ -546,27 +546,16 @@ export const SectionModalEditor = ({
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols === 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isDualPhoto) {
+                        const colParas = splitStoryContent(localSection.content || '', effectiveCols, localSection);
+
                         const words = (localSection.content || '').trim().split(/\s+/).filter(Boolean);
                         const W = words.length;
 
-                        // Baseline grid unit is strictly 20px
-                        const BASELINE = 20;
-
-                        // Photo 1 Baseline Snapping
-                        const rawImg1H = localSection.imageHeight || 160;
-                        const caption1H = localSection.caption ? 20 : 0;
-                        const snapH1 = Math.ceil((rawImg1H + caption1H + 2) / BASELINE) * BASELINE;
-                        const img1CalculatedH = Math.max(20, snapH1 - caption1H - 2);
-                        const L1 = (localSection.image && localSection.layout !== 'text-only') ? (snapH1 / BASELINE) : 0;
-
-                        // Photo 2 Baseline Snapping
-                        const rawImg2H = localSection.image2Height || 180;
-                        const caption2H = localSection.caption2 ? 20 : 0;
-                        const snapH2 = Math.ceil((rawImg2H + caption2H + 2) / BASELINE) * BASELINE;
-                        const img2CalculatedH = Math.max(20, snapH2 - caption2H - 2);
-                        const L2 = (snapH2 / BASELINE);
-
+                        // Calculate Column 1 split point with block positioning for both photos
+                        const lineH = 15.2;
                         const wordsPerLine = 6.8;
+                        const L1 = (localSection.image && localSection.layout !== 'text-only') ? (((localSection.imageHeight || 150) + (localSection.caption ? 24 : 8)) / lineH) : 0;
+                        const L2 = ((localSection.image2Height || 180) + (localSection.caption2 ? 24 : 8)) / lineH;
                         const totalTextLines = W / wordsPerLine;
                         const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
                         const C1 = Math.max(1, targetH - L1);
@@ -586,28 +575,24 @@ export const SectionModalEditor = ({
                                 e.stopPropagation();
                                 setActiveTarget('image');
                               }}
-                              className={`col1-top-photo-block embedded-media-container border border-black bg-white shadow-xs cursor-pointer transition rounded ${
+                              className={`col1-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
                                 activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                               }`}
                               style={{
                                 display: 'block',
                                 width: '100%',
-                                height: `${snapH1}px`,
                                 boxSizing: 'border-box',
                                 breakInside: 'avoid',
-                                marginBottom: 0,
-                                padding: 0,
-                                overflow: 'hidden',
                               }}
                             >
                               <img
                                 src={localSection.image}
                                 alt="Photo 1"
                                 className="w-full object-cover block"
-                                style={{ height: `${img1CalculatedH}px`, objectFit: localSection.imageFit || 'cover', display: 'block' }}
+                                style={{ maxHeight: `${localSection.imageHeight || 160}px`, objectFit: localSection.imageFit || 'cover' }}
                               />
                               {localSection.caption && (
-                                <div style={{ height: '20px', lineHeight: '20px', overflow: 'hidden', padding: '0 4px', boxSizing: 'border-box', textAlign: 'center' }} className="text-[9.5px] italic text-slate-700">
+                                <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
                                   {localSection.caption}
                                 </div>
                               )}
@@ -636,29 +621,29 @@ export const SectionModalEditor = ({
                             )}
                             <div
                               onClick={() => setActiveTarget('body')}
-                              className={`font-martel my-1 clearfix cursor-pointer ${colsClass} ${
+                              className={`font-martel leading-relaxed my-1 clearfix cursor-pointer ${colsClass} ${
                                 activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
                               }`}
                               style={{
                                 columnCount: effectiveCols,
                                 columnRule: '1px solid #d4cebe',
-                                columnGap: '12px',
+                                columnGap: '14px',
                                 columnFill: 'balance',
                                 fontFamily: localSection.bodyFont || "'Martel', serif",
                                 fontSize: localSection.bodySize || '11px',
                                 textAlign: localSection.bodyAlign || 'justify',
                                 textJustify: 'inter-word',
-                                lineHeight: '20px',
+                                lineHeight: 1.38,
                                 backgroundColor: '#fcfbfa',
                                 color: '#111111',
                               }}
                             >
                               {col1Photo}
                               {col1Text && (
-                                <p className="story-paragraph text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: '20px', marginTop: 0, marginBottom: 0, padding: 0 }}>
+                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
                                   {localSection.dropCap ? (
                                     <>
-                                      <span style={{ float: 'left', fontSize: '34px', lineHeight: '40px', height: '40px', fontWeight: 800, marginRight: '6px', display: 'inline-block' }} className="font-serif text-slate-900">
+                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
                                         {col1Text.charAt(0)}
                                       </span>
                                       {col1Text.slice(1)}
@@ -675,7 +660,7 @@ export const SectionModalEditor = ({
                                   e.stopPropagation();
                                   setActiveTarget('image');
                                 }}
-                                className={`col2-top-photo-block embedded-media-container border border-black bg-white shadow-xs cursor-pointer transition rounded ${
+                                className={`col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
                                   activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                 }`}
                                 style={{
@@ -685,11 +670,7 @@ export const SectionModalEditor = ({
                                   WebkitColumnBreakInside: 'avoid',
                                   display: 'block',
                                   width: '100%',
-                                  height: `${snapH2}px`,
-                                  boxSizing: 'border-box',
-                                  marginBottom: 0,
-                                  padding: 0,
-                                  overflow: 'hidden',
+                                  boxSizing: 'border-box'
                                 }}
                                 title="क्लिक करके फोटो 2 एडिट करें"
                               >
@@ -697,10 +678,10 @@ export const SectionModalEditor = ({
                                   src={localSection.image2}
                                   alt="Photo 2"
                                   className="w-full object-cover block"
-                                  style={{ height: `${img2CalculatedH}px`, objectFit: localSection.image2Fit || 'cover', display: 'block' }}
+                                  style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
                                 />
                                 {localSection.caption2 && (
-                                  <div style={{ height: '20px', lineHeight: '20px', overflow: 'hidden', padding: '0 4px', boxSizing: 'border-box', textAlign: 'center' }} className="text-[9.5px] italic text-slate-700">
+                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
                                     {localSection.caption2}
                                   </div>
                                 )}
@@ -708,7 +689,7 @@ export const SectionModalEditor = ({
 
                               {/* Remaining Text flows under Photo 2 in Col 2 and into Col 3 */}
                               {remainingText && (
-                                <p className="story-paragraph text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: '20px', marginTop: 0, marginBottom: 0, padding: 0 }}>
+                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
                                   {remainingText}
                                 </p>
                               )}
