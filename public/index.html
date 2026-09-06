@@ -4532,6 +4532,10 @@
                 <option value="12" ${sec.colSpan === 12 || !sec.colSpan ? 'selected' : ''}>12 Col (Full)</option>
               </select>
 
+              <button type="button" onclick="openSectionModalPopup('${sec.id}')" class="text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-800 text-[10px] font-bold flex items-center gap-1 transition" title="इंटरैक्टिव पॉपअप एडिटर खोलें (Open Modal Editor)">
+                <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                <span class="hidden sm:inline">एडिट</span>
+              </button>
               <button onclick="moveSection('${sec.id}', 'up')" class="text-slate-400 hover:text-white px-1"><i class="fa-solid fa-arrow-up text-[10px]"></i></button>
               <button onclick="moveSection('${sec.id}', 'down')" class="text-slate-400 hover:text-white px-1"><i class="fa-solid fa-arrow-down text-[10px]"></i></button>
               <button onclick="deleteSection('${sec.id}')" class="text-red-400 hover:text-red-300 px-1"><i class="fa-solid fa-trash text-[10px]"></i></button>
@@ -5976,30 +5980,941 @@
       autoSave();
     });
 
-    // OPEN NEWS SECTION EDITOR FROM CANVAS CLICK
-    function openSectionEditorFromCanvas(secId) {
+    // ============================================================================
+    // INTERACTIVE NEWS SECTION POP-UP MODAL ENGINE (WYSIWYG CONTEXTUAL TOOLBARS)
+    // ============================================================================
+    let modalActiveSecId = null;
+    let modalActiveTarget = 'heading'; // 'heading' | 'subheading' | 'body' | 'image' | 'bullets' | 'border'
+
+    const MODAL_COLOR_PRESETS = ['#111111', '#dc2626', '#991b1b', '#0369a1', '#1e3a8a', '#15803d', '#475569', '#d97706', '#ffffff'];
+
+    function escapeHtmlForAttr(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    // OPEN NEWS SECTION POPUP FROM CANVAS OR SIDEBAR
+    function openSectionEditorFromCanvas(secId, target = 'heading') {
       selectSection(secId);
-      if (!sidebarOpen) {
-        toggleSidebar();
-      }
+      openSectionModalPopup(secId, target);
 
-      switchTab('tab-news');
-
+      // Keep left sidebar in sync without disrupting anything
       const acc = document.getElementById(`acc-${secId}`);
       if (acc && acc.classList.contains('hidden')) {
         acc.classList.remove('hidden');
       }
-
       const card = document.getElementById(`card-${secId}`);
       if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
         card.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
         setTimeout(() => {
           card.classList.remove('ring-2', 'ring-blue-500');
         }, 1500);
       }
     }
+
+    function openSectionModalPopup(secId, target = 'heading') {
+      const curPage = getCurrentPage();
+      if (!curPage || !curPage.sections) return;
+      const sec = curPage.sections.find(s => s.id === secId);
+      if (!sec) return;
+
+      modalActiveSecId = secId;
+      modalActiveTarget = target;
+      selectSection(secId);
+
+      const modal = document.getElementById('newsSectionModalEditor');
+      if (!modal) return;
+
+      renderSectionModalContent();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSectionModalPopup() {
+      const modal = document.getElementById('newsSectionModalEditor');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+      modalActiveSecId = null;
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function handleModalBackdropClick(e) {
+      if (e.target && e.target.id === 'newsSectionModalEditor') {
+        closeSectionModalPopup();
+      }
+    }
+
+    function setModalActiveTarget(target) {
+      modalActiveTarget = target;
+      renderSectionModalContent();
+    }
+
+    function updateModalSectionField(field, val, forceFullRerender = false) {
+      const curPage = getCurrentPage();
+      if (!curPage || !curPage.sections) return;
+      const sec = curPage.sections.find(s => s.id === modalActiveSecId);
+      if (!sec) return;
+
+      sec[field] = val;
+
+      // 1. Update background broadsheet canvas
+      renderActiveCanvasPage();
+
+      // 2. Update modal preview live
+      if (forceFullRerender) {
+        renderSectionModalContent();
+      } else {
+        syncModalPreviewElement(sec, field, val);
+      }
+
+      autoSave();
+    }
+
+    function syncModalPreviewElement(sec, field, val) {
+      if (field === 'title') {
+        const el = document.getElementById('modal-preview-title');
+        if (el) el.textContent = val || 'मुख्य समाचार शीर्षक यहाँ लिखें';
+      } else if (field === 'titleFont') {
+        const el = document.getElementById('modal-preview-title');
+        if (el) el.style.fontFamily = val;
+      } else if (field === 'fontSize') {
+        const el = document.getElementById('modal-preview-title');
+        if (el) el.style.fontSize = val;
+      } else if (field === 'titleColor') {
+        const el = document.getElementById('modal-preview-title');
+        if (el) el.style.color = val;
+      } else if (field === 'titleAlign') {
+        const el = document.getElementById('modal-preview-title');
+        if (el) el.style.textAlign = val;
+      } else if (field === 'topLine') {
+        const el = document.getElementById('modal-preview-topline');
+        if (el) el.textContent = val;
+      } else if (field === 'topLineColor') {
+        const el = document.getElementById('modal-preview-topline-wrap');
+        if (el) el.style.color = val;
+      } else if (field === 'topLineSize') {
+        const el = document.getElementById('modal-preview-topline-wrap');
+        if (el) el.style.fontSize = val;
+      } else if (field === 'topLineFont') {
+        const el = document.getElementById('modal-preview-topline-wrap');
+        if (el) el.style.fontFamily = val;
+      } else if (field === 'topLineAlign') {
+        const el = document.getElementById('modal-preview-topline-wrap');
+        if (el) el.style.textAlign = val;
+      } else if (field === 'tag') {
+        const el = document.getElementById('modal-preview-tag');
+        if (el) el.textContent = val;
+      } else if (field === 'tagBgColor') {
+        const el = document.getElementById('modal-preview-tag');
+        if (el) el.style.backgroundColor = val;
+      } else if (field === 'tagTextColor') {
+        const el = document.getElementById('modal-preview-tag');
+        if (el) el.style.color = val;
+      } else if (field === 'subtitle') {
+        const el = document.getElementById('modal-preview-subtitle');
+        if (el) el.textContent = val;
+      } else if (field === 'subtitleColor') {
+        const el = document.getElementById('modal-preview-subtitle');
+        if (el) el.style.color = val;
+      } else if (field === 'subtitleSize') {
+        const el = document.getElementById('modal-preview-subtitle');
+        if (el) el.style.fontSize = val;
+      } else if (field === 'subtitleFont') {
+        const el = document.getElementById('modal-preview-subtitle');
+        if (el) el.style.fontFamily = val;
+      } else if (field === 'subtitleAlign') {
+        const el = document.getElementById('modal-preview-subtitle');
+        if (el) el.style.textAlign = val;
+      } else if (field === 'content') {
+        const el = document.getElementById('modal-preview-paragraphs');
+        if (el) el.innerHTML = renderParagraphsHTML(sec, sec.dropCap !== false);
+      } else if (field === 'bodyFont' || field === 'bodySize' || field === 'bodyColor' || field === 'bodyAlign' || field === 'dropCap') {
+        const el = document.getElementById('modal-preview-paragraphs');
+        if (el) el.innerHTML = renderParagraphsHTML(sec, sec.dropCap !== false);
+      } else if (field === 'caption') {
+        const el = document.getElementById('modal-preview-caption');
+        if (el) el.innerHTML = renderCaptionHTML(sec, sec.captionAlign || 'left');
+      } else if (field === 'captionColor' || field === 'captionFont' || field === 'captionSize' || field === 'captionAlign') {
+        const el = document.getElementById('modal-preview-caption');
+        if (el) el.innerHTML = renderCaptionHTML(sec, sec.captionAlign || 'left');
+      } else if (field === 'bullets' || field === 'bulletColor' || field === 'bulletBgColor') {
+        const el = document.getElementById('modal-preview-bullets');
+        if (el) el.innerHTML = renderBulletsHTML(sec);
+      } else {
+        renderSectionModalContent();
+      }
+    }
+
+    async function pasteToModalContent() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          const curPage = getCurrentPage();
+          if (!curPage) return;
+          const sec = curPage.sections.find(s => s.id === modalActiveSecId);
+          if (sec) {
+            const newContent = sec.content ? (sec.content + '\n\n' + text.trim()) : text.trim();
+            updateModalSectionField('content', newContent, true);
+            showStudioToast('क्लिपबोर्ड से टेक्स्ट पेस्ट किया गया!');
+          }
+        }
+      } catch (err) {
+        showStudioToast('सीधे नीचे दिए गए टेक्स्ट बॉक्स में Ctrl+V करके पेस्ट करें।');
+      }
+    }
+
+    async function pasteToModalHeading() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          updateModalSectionField('title', text.trim(), true);
+          showStudioToast('हेडिंग पेस्ट की गई!');
+        }
+      } catch (err) {
+        showStudioToast('सीधे हेडिंग इनपुट में Ctrl+V करें।');
+      }
+    }
+
+    function handleModalImageUpload(input) {
+      const file = input.files && input.files[0];
+      if (file) {
+        const objectUrl = URL.createObjectURL(file);
+        updateModalSectionField('image', objectUrl, true);
+        showStudioToast('फ़ोटो लोड की गई!');
+      }
+    }
+
+    // MAIN RENDERER FOR MODAL CONTENT
+    function renderSectionModalContent() {
+      const container = document.getElementById('newsSectionModalInner');
+      if (!container) return;
+
+      const curPage = getCurrentPage();
+      if (!curPage || !curPage.sections) return;
+      const secIndex = curPage.sections.findIndex(s => s.id === modalActiveSecId);
+      if (secIndex === -1) {
+        closeSectionModalPopup();
+        return;
+      }
+      const sec = curPage.sections[secIndex];
+      const isAd = sec.layout === 'full-ad' || sec.type === 'ad';
+
+      // Computed Box Styling
+      const hasBg = sec.bgColor && sec.bgColor !== 'transparent';
+      let borderStyleStr = '';
+      if (sec.showCardBorder) {
+        const bWidth = sec.cardBorderWidth !== undefined ? parseFloat(sec.cardBorderWidth) : 1;
+        const bColor = sec.cardBorderColor || '#000000';
+        const bStyle = sec.cardBorderStyle || 'solid';
+        const bRadius = sec.cardBorderRadius !== undefined ? `${sec.cardBorderRadius}px` : '0px';
+        const rawPad = sec.cardPadding !== undefined ? parseFloat(sec.cardPadding) : 8;
+        const padCSS = `padding: ${rawPad + 6}px ${rawPad + 8}px;`;
+        if (bStyle === 'newspaper-vintage') {
+          borderStyleStr = `border-top: ${Math.max(2, bWidth + 1)}px solid ${bColor}; border-bottom: ${Math.max(2, bWidth + 1)}px solid ${bColor}; border-left: 1px solid ${bColor}; border-right: 1px solid ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+        } else if (bStyle === 'thick-bottom') {
+          borderStyleStr = `border: 1px solid ${bColor}; border-bottom: ${Math.max(3, bWidth + 2)}px solid ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+        } else if (bStyle === 'double') {
+          borderStyleStr = `border: ${Math.max(3, bWidth * 2)}px double ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+        } else {
+          borderStyleStr = `border: ${bWidth}px ${bStyle} ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+        }
+      } else if (hasBg) {
+        borderStyleStr = `padding: 10px 12px; border-radius: 4px; border: 1px solid #cbd5e1;`;
+      }
+      const paperCardStyle = `${hasBg ? `background-color: ${sec.bgColor}; ` : 'background-color: #fcfbfa; '}${borderStyleStr}`.trim();
+
+      // Heading Style
+      const titleStyle = `
+        font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"};
+        font-size: ${sec.fontSize || '26px'};
+        color: ${sec.titleColor || '#111111'};
+        text-align: ${sec.titleAlign || 'left'};
+        font-weight: ${sec.titleBold !== false ? '800' : 'normal'};
+        font-style: ${sec.titleItalic ? 'italic' : 'normal'};
+        text-decoration: ${sec.titleUnderline ? 'underline' : 'none'};
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+      `;
+
+      // Topline & Tag
+      const tagBg = sec.tagBgColor || (sec.topLine ? '#0369a1' : '#dc2626');
+      const tagTextColor = sec.tagTextColor || '#ffffff';
+      const tagFont = sec.tagFont || "'Mukta', sans-serif";
+      const tagSize = sec.tagFontSize || '10px';
+      const tagBold = sec.tagBold !== false;
+
+      const toplineStyle = `
+        font-family: ${sec.topLineFont || "'Mukta', sans-serif"};
+        font-size: ${sec.topLineSize || '13px'};
+        color: ${sec.topLineColor || '#dc2626'};
+        text-align: ${sec.topLineAlign || 'left'};
+        font-weight: ${sec.topLineBold !== false ? '700' : '400'};
+        font-style: ${sec.topLineItalic ? 'italic' : 'normal'};
+      `;
+
+      // Subtitle
+      const subtitleStyle = `
+        font-family: ${sec.subtitleFont || "'Martel', serif"};
+        font-size: ${sec.subtitleSize || '13px'};
+        color: ${sec.subtitleColor || '#334155'};
+        text-align: ${sec.subtitleAlign || 'left'};
+        font-weight: 600;
+        font-style: italic;
+      `;
+
+      container.innerHTML = `
+        <!-- ================= MODAL TOP HEADER ================= -->
+        <div class="px-4 sm:px-6 py-3 bg-slate-950 border-b border-slate-800 flex flex-wrap gap-2 justify-between items-center shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-red-600 flex items-center justify-center text-white text-sm shadow-md font-bold">
+              ${secIndex + 1}
+            </div>
+            <div>
+              <h2 class="font-bold text-sm text-white flex items-center gap-2">
+                <span>न्यूज़ सेक्शन एडिटर (Interactive Direct Editor)</span>
+                <span class="text-[10px] bg-slate-800 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-slate-700">
+                  ${sec.colSpan || 6} Col • ${sec.layout || 'standard'}
+                </span>
+              </h2>
+              <p class="text-[11px] text-slate-400">
+                सीधे खबर के किसी भी हिस्से (हेडिंग, सबहेडिंग, फोटो, या मुख्य समाचार) पर क्लिक करके नीचे उसके टूलबार से एडिट करें।
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeSectionModalPopup()" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 transition cursor-pointer">
+              ✕ बंद करें
+            </button>
+            <button type="button" onclick="closeSectionModalPopup()" class="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-600/30 transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i>
+              <span>सेव और डन (Done)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= MODAL QUICK NAVIGATION TABS STRIP ================= -->
+        <div class="px-4 sm:px-6 py-2 bg-slate-900 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none custom-scrollbar">
+          <span class="text-[10.5px] text-slate-400 font-bold uppercase tracking-wider mr-1 hidden sm:inline">जंप टू:</span>
+          
+          <button type="button" onclick="setModalActiveTarget('heading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'heading' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🔤</span>
+            <span>हेडिंग (Heading)</span>
+          </button>
+
+          <button type="button" onclick="setModalActiveTarget('subheading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'subheading' ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🏷️</span>
+            <span>सबहेडिंग / किकर</span>
+          </button>
+
+          <button type="button" onclick="setModalActiveTarget('body')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'body' ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>📄</span>
+            <span>मुख्य समाचार (Body)</span>
+          </button>
+
+          <button type="button" onclick="setModalActiveTarget('image')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'image' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🖼️</span>
+            <span>फोटो / लेआउट</span>
+          </button>
+
+          <button type="button" onclick="setModalActiveTarget('bullets')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'bullets' ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>📋</span>
+            <span>बुलेट बिंदु</span>
+          </button>
+
+          <button type="button" onclick="setModalActiveTarget('border')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'border' ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🔲</span>
+            <span>बॉर्डर व बैकग्राउंड</span>
+          </button>
+        </div>
+
+        <!-- ================= MAIN SCROLLABLE LIVE NEWSPAPER WORKSPACE ================= -->
+        <div class="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-950 custom-scrollbar flex flex-col items-center justify-start">
+          
+          <div class="w-full max-w-3xl rounded-xl shadow-2xl p-4 sm:p-7 relative select-text transition-all duration-150" style="${paperCardStyle}">
+
+            <!-- ================= 1. SUB-HEADING & TAG ROW ================= -->
+            <div onclick="setModalActiveTarget('subheading')" class="cursor-pointer group relative p-1.5 -m-1 rounded-lg transition-all border-2 ${modalActiveTarget === 'subheading' ? 'border-amber-500 bg-amber-500/10 shadow-sm' : 'border-transparent hover:border-amber-300/60 hover:bg-amber-50/40'}" title="क्लिक करके सबहेडिंग / किकर / टैग एडिट करें">
+              <div class="flex items-center justify-between">
+                <div id="modal-preview-topline-wrap" class="leading-snug pt-0.5 tracking-tight flex-1" style="${toplineStyle}">
+                  ${sec.tag ? `
+                    <span id="modal-preview-tag" class="inline-block px-1.5 py-0.5 uppercase tracking-wide align-middle shadow-xs ${sec.topLine ? 'mr-1.5' : 'mb-1'}" style="background-color: ${tagBg}; color: ${tagTextColor}; font-family: ${tagFont}; font-size: ${tagSize}; font-weight: ${tagBold ? '800' : '600'}; border-radius: 2px; line-height: 1.25;">
+                      ${sec.tag}
+                    </span>
+                  ` : ''}
+                  <span id="modal-preview-topline" class="align-middle">${sec.topLine || (sec.tag ? '' : '<span class="text-slate-400 italic text-[11px] font-sans">[सुपर हेडलाइन / किकर जोड़ने के लिए यहाँ क्लिक करें]</span>')}</span>
+                </div>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 ml-2 shrink-0 transition">
+                  ✏️ सबहेडिंग एडिट
+                </span>
+              </div>
+            </div>
+
+            <!-- SUB-HEADING CONTEXTUAL TOOLBAR (EXPANDS DIRECTLY BELOW SUB-HEADING) -->
+            ${modalActiveTarget === 'subheading' ? renderSubheadingToolbarHTML(sec) : ''}
+
+            <!-- ================= 2. MAIN HEADING (HEADLINE) ================= -->
+            <div onclick="setModalActiveTarget('heading')" class="cursor-pointer group relative p-1.5 -m-1 my-1 rounded-lg transition-all border-2 ${modalActiveTarget === 'heading' ? 'border-red-500 bg-red-500/10 shadow-sm' : 'border-transparent hover:border-red-300/60 hover:bg-red-50/40'}" title="क्लिक करके मुख्य हेडिंग एडिट करें">
+              <div class="flex items-start justify-between gap-2">
+                <h2 id="modal-preview-title" class="m-0 select-text flex-1" style="${titleStyle}">
+                  ${sec.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
+                </h2>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-red-700 font-bold bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shrink-0 transition mt-1">
+                  ✏️ हेडिंग एडिट
+                </span>
+              </div>
+            </div>
+
+            <!-- HEADING CONTEXTUAL TOOLBAR (EXPANDS DIRECTLY BELOW HEADING) -->
+            ${modalActiveTarget === 'heading' ? renderHeadingToolbarHTML(sec) : ''}
+
+            <!-- ================= 3. SUBTITLE (उप-शीर्षक) ================= -->
+            ${sec.subtitle || modalActiveTarget === 'subheading' ? `
+              <div onclick="setModalActiveTarget('subheading')" class="cursor-pointer group relative p-1.5 -m-1 my-1 rounded-lg transition-all border-2 ${modalActiveTarget === 'subheading' ? 'border-amber-400 bg-amber-500/5' : 'border-transparent hover:border-amber-300/60'}" title="क्लिक करके उप-शीर्षक एडिट करें">
+                <div class="flex items-center justify-between">
+                  <h3 id="modal-preview-subtitle" class="m-0 leading-snug flex-1" style="${subtitleStyle}">
+                    ${sec.subtitle || '<span class="text-slate-400 font-normal">[उप-शीर्षक / Subtitle यहाँ लिखें]</span>'}
+                  </h3>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- ================= 4. PHOTO / IMAGE BLOCK ================= -->
+            ${(sec.layout !== 'text-only' || modalActiveTarget === 'image' || sec.image) ? `
+              <div onclick="setModalActiveTarget('image')" class="cursor-pointer group relative p-1.5 -m-1 my-1.5 rounded-lg transition-all border-2 ${modalActiveTarget === 'image' ? 'border-blue-500 bg-blue-500/10 shadow-sm' : 'border-transparent hover:border-blue-300/60 hover:bg-blue-50/40'}" title="क्लिक करके फोटो व कैप्शन एडिट करें">
+                ${sec.image ? `
+                  <div class="w-full relative overflow-hidden bg-slate-100 border border-slate-400 rounded-sm">
+                    <img src="${sec.image}" alt="Photo" class="w-full object-cover block" style="max-height: ${sec.imageHeight || 240}px; object-fit: ${sec.imageFit || 'cover'};">
+                  </div>
+                  <div id="modal-preview-caption" class="pt-0.5">
+                    ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
+                  </div>
+                ` : `
+                  <div class="w-full py-4 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition">
+                    <i class="fa-solid fa-image text-2xl mb-1 text-slate-400"></i>
+                    <span class="text-xs font-bold">➕ फोटो जोड़ने के लिए क्लिक करें</span>
+                  </div>
+                `}
+              </div>
+              ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+            ` : ''}
+
+            <!-- ================= 5. BULLETS / HIGHLIGHTS ================= -->
+            ${(sec.bullets || modalActiveTarget === 'bullets') ? `
+              <div onclick="setModalActiveTarget('bullets')" class="cursor-pointer group relative p-1.5 -m-1 my-1.5 rounded-lg transition-all border-2 ${modalActiveTarget === 'bullets' ? 'border-purple-500 bg-purple-500/10 shadow-sm' : 'border-transparent hover:border-purple-300/60'}" title="क्लिक करके मुख्य बिंदु एडिट करें">
+                <div id="modal-preview-bullets">
+                  ${renderBulletsHTML(sec) || '<div class="p-2 border border-dashed border-purple-300 text-purple-600 text-xs font-bold rounded bg-purple-50">➕ मुख्य बुलेट बिंदु जोड़ने के लिए क्लिक करें</div>'}
+                </div>
+              </div>
+              ${modalActiveTarget === 'bullets' ? renderBulletsToolbarHTML(sec) : ''}
+            ` : ''}
+
+            <!-- ================= 6. MAIN CONTENT (BODY PARAGRAPHS) ================= -->
+            <div onclick="setModalActiveTarget('body')" class="cursor-pointer group relative p-1.5 -m-1 my-1.5 rounded-lg transition-all border-2 ${modalActiveTarget === 'body' ? 'border-emerald-500 bg-emerald-500/10 shadow-sm' : 'border-transparent hover:border-emerald-300/60 hover:bg-emerald-50/40'}" title="क्लिक करके मुख्य समाचार टेक्स्ट व पैराग्राफ एडिट करें">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">मुख्य समाचार (Body Content):</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300 transition">
+                  ✏️ टेक्स्ट एडिटर खोलें
+                </span>
+              </div>
+              
+              <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
+                ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट लिखने या कहीं से भी कॉपी-पेस्ट करने के लिए यहाँ क्लिक करें]</p>'}
+              </div>
+            </div>
+
+            <!-- MAIN CONTENT CONTEXTUAL TOOLBAR (EXPANDS DIRECTLY BELOW CONTENT) -->
+            ${modalActiveTarget === 'body' ? renderContentToolbarHTML(sec) : ''}
+
+            <!-- ================= 7. BORDER & BACKGROUND SETTINGS ================= -->
+            ${modalActiveTarget === 'border' ? renderBorderToolbarHTML(sec) : ''}
+
+          </div>
+
+        </div>
+      `;
+    }
+
+    // ----------------------------------------------------------------------------
+    // CONTEXTUAL TOOLBAR BUILDERS (RENDERED DIRECTLY UNDERNEATH EACH ELEMENT)
+    // ----------------------------------------------------------------------------
+
+    // 1. SUB-HEADING & KICKER TOOLBAR
+    function renderSubheadingToolbarHTML(sec) {
+      return `
+        <div class="bg-slate-900 border-2 border-amber-500/80 rounded-xl p-3 sm:p-4 my-2 shadow-2xl text-slate-100 text-xs animate-in slide-in-from-top-2 duration-150 relative z-30 select-none" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+            <span class="font-bold text-amber-400 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-tag text-amber-400"></i> सबहेडिंग, किकर व श्रेणी टैग एडिटर (Subheading & Kicker Controls)
+            </span>
+            <button type="button" onclick="setModalActiveTarget('heading')" class="text-slate-400 hover:text-white text-[11px] font-semibold flex items-center gap-1">
+              <span>आगे हेडिंग पर जाएँ</span> <i class="fa-solid fa-arrow-down text-[10px]"></i>
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Text Inputs Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">सुपर हेडलाइन / किकर टेक्स्ट (Kicker):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.topLine || '')}" oninput="updateModalSectionField('topLine', this.value)" placeholder="e.g. मौसम विभाग की चेतावनी..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium text-xs focus:border-amber-500 outline-none">
+              </div>
+
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">श्रेणी टैग (Category Badge):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.tag || '')}" oninput="updateModalSectionField('tag', this.value)" placeholder="e.g. ब्रेकिंग न्यूज़, खास खबर..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium text-xs focus:border-amber-500 outline-none">
+              </div>
+
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">उप-शीर्षक (Subtitle / Sub-headline):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.subtitle || '')}" oninput="updateModalSectionField('subtitle', this.value)" placeholder="e.g. अधिसूचना जारी; कार्य शुरू होगा..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium text-xs focus:border-amber-500 outline-none">
+              </div>
+            </div>
+
+            <!-- Styling Controls Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 border-t border-slate-800 items-end">
+              <!-- Font Family -->
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">किकर फ़ॉन्ट (Font Family):</label>
+                <select onchange="updateModalSectionField('topLineFont', this.value)" class="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 outline-none">
+                  ${renderFontOptions(sec.topLineFont || "'Mukta', sans-serif")}
+                </select>
+              </div>
+
+              <!-- Font Size -->
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <label class="text-slate-400 text-[10px]">साइज़ (Size):</label>
+                  <span class="text-amber-300 font-mono font-bold text-[10px]">${sec.topLineSize || '13px'}</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <input type="range" min="10" max="24" step="1" value="${parseInt(sec.topLineSize || '13', 10)}" oninput="updateModalSectionField('topLineSize', this.value + 'px')" class="flex-1 accent-amber-500 h-1.5 rounded cursor-pointer">
+                  <div class="flex gap-0.5">
+                    ${['11px', '13px', '15px'].map(s => `
+                      <button type="button" onclick="updateModalSectionField('topLineSize', '${s}', true)" class="px-1.5 py-0.5 rounded text-[9px] font-mono ${sec.topLineSize === s ? 'bg-amber-600 text-white font-bold' : 'bg-slate-950 text-slate-400 border border-slate-800'}">${s}</button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Color Palette -->
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">किकर रंग (Color):</label>
+                <div class="flex items-center gap-1">
+                  ${['#dc2626', '#0369a1', '#15803d', '#111111', '#d97706'].map(c => `
+                    <button type="button" onclick="updateModalSectionField('topLineColor', '${c}')" class="w-4 h-4 rounded-full border ${sec.topLineColor === c ? 'border-white scale-110 shadow' : 'border-slate-700'}" style="background-color: ${c};" title="${c}"></button>
+                  `).join('')}
+                  <input type="color" value="${sec.topLineColor || '#dc2626'}" onchange="updateModalSectionField('topLineColor', this.value)" class="w-5 h-5 rounded cursor-pointer bg-transparent border-0 p-0 ml-0.5">
+                </div>
+              </div>
+
+              <!-- Alignment & Formatting -->
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                  ${['left', 'center', 'right'].map(a => `
+                    <button type="button" onclick="updateModalSectionField('topLineAlign', '${a}', true)" class="px-2 py-0.5 rounded text-[10px] font-bold ${ (sec.topLineAlign || 'left') === a ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white' }">
+                      ${a === 'left' ? '⬅️' : a === 'center' ? '↔️' : '➡️'}
+                    </button>
+                  `).join('')}
+                </div>
+
+                <button type="button" onclick="updateModalSectionField('topLineBold', sec.topLineBold === false, true)" class="px-2 py-1 rounded text-[10.5px] font-bold border ${sec.topLineBold !== false ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
+                  B
+                </button>
+
+                <button type="button" onclick="updateModalSectionField('topLineItalic', !sec.topLineItalic, true)" class="px-2 py-1 rounded text-[10.5px] font-serif italic border ${sec.topLineItalic ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
+                  I
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. HEADING (HEADLINE) TOOLBAR
+    function renderHeadingToolbarHTML(sec) {
+      return `
+        <div class="bg-slate-900 border-2 border-red-500/90 rounded-xl p-3 sm:p-4 my-2.5 shadow-2xl text-slate-100 text-xs animate-in slide-in-from-top-2 duration-150 relative z-30 select-none" onclick="event.stopPropagation()">
+          
+          <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+            <span class="font-bold text-red-400 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-heading text-red-400"></i> मुख्य शीर्षक एडिटर (Headline Formatting & Typography)
+            </span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="pasteToModalHeading()" class="px-2.5 py-0.5 bg-slate-950 hover:bg-slate-800 text-red-300 hover:text-white rounded border border-red-900/60 text-[10.5px] font-semibold transition flex items-center gap-1">
+                <i class="fa-solid fa-paste text-[10px]"></i> <span>हेडिंग पेस्ट करें</span>
+              </button>
+              <button type="button" onclick="setModalActiveTarget('body')" class="text-slate-400 hover:text-white text-[11px] font-semibold flex items-center gap-1">
+                <span>आगे मुख्य समाचार पर जाएँ</span> <i class="fa-solid fa-arrow-down text-[10px]"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Direct Headline Typing / Paste Area -->
+            <div>
+              <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">मुख्य शीर्षक (यहाँ टाइप करें या ऊपर 'पेस्ट' पर क्लिक करें):</label>
+              <textarea oninput="updateModalSectionField('title', this.value)" placeholder="मुख्य समाचार का शीर्षक लिखें..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition custom-scrollbar" rows="2">${escapeHtmlForAttr(sec.title || '')}</textarea>
+            </div>
+
+            <!-- Typography Controls Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 border-t border-slate-800 items-end">
+              <!-- Font Family Dropdown -->
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">फ़ॉन्ट स्टाइल (Font Family):</label>
+                <select onchange="updateModalSectionField('titleFont', this.value)" class="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 outline-none">
+                  ${renderFontOptions(sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif")}
+                </select>
+              </div>
+
+              <!-- Font Size Slider & Chips -->
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <label class="text-slate-400 text-[10px]">फ़ॉन्ट साइज़ (Size):</label>
+                  <span class="text-red-400 font-mono font-bold text-[10px]">${sec.fontSize || '26px'}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <input type="range" min="16" max="72" step="1" value="${parseInt(sec.fontSize || '26', 10)}" oninput="updateModalSectionField('fontSize', this.value + 'px')" class="flex-1 accent-red-500 h-1.5 rounded cursor-pointer">
+                  <div class="flex gap-0.5">
+                    ${['22px', '28px', '36px', '48px'].map(s => `
+                      <button type="button" onclick="updateModalSectionField('fontSize', '${s}', true)" class="px-1.5 py-0.5 rounded text-[8.5px] font-mono ${sec.fontSize === s ? 'bg-red-600 text-white font-bold' : 'bg-slate-950 text-slate-400 border border-slate-800'}">${s}</button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Headline Color Presets & Picker -->
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">हेडिंग रंग (Color):</label>
+                <div class="flex items-center gap-1">
+                  ${MODAL_COLOR_PRESETS.slice(0, 5).map(c => `
+                    <button type="button" onclick="updateModalSectionField('titleColor', '${c}')" class="w-4 h-4 rounded-full border ${sec.titleColor === c ? 'border-white scale-110 shadow' : 'border-slate-700'}" style="background-color: ${c};" title="${c}"></button>
+                  `).join('')}
+                  <input type="color" value="${sec.titleColor || '#111111'}" onchange="updateModalSectionField('titleColor', this.value)" class="w-5 h-5 rounded cursor-pointer bg-transparent border-0 p-0 ml-0.5">
+                </div>
+              </div>
+
+              <!-- Alignment & Bold/Italic/Underline -->
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                  ${['left', 'center', 'right', 'justify'].map(a => `
+                    <button type="button" onclick="updateModalSectionField('titleAlign', '${a}', true)" class="px-1.5 py-0.5 rounded text-[10px] font-bold ${ (sec.titleAlign || 'left') === a ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white' }">
+                      ${a === 'left' ? '⬅️' : a === 'center' ? '↔️' : '➡️'}
+                    </button>
+                  `).join('')}
+                </div>
+
+                <button type="button" onclick="updateModalSectionField('titleBold', sec.titleBold !== false, true)" class="px-2 py-1 rounded text-[10.5px] font-bold border ${sec.titleBold !== false ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Bold">
+                  B
+                </button>
+
+                <button type="button" onclick="updateModalSectionField('titleItalic', !sec.titleItalic, true)" class="px-2 py-1 rounded text-[10.5px] font-serif italic border ${sec.titleItalic ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Italic">
+                  I
+                </button>
+
+                <button type="button" onclick="updateModalSectionField('titleUnderline', !sec.titleUnderline, true)" class="px-2 py-1 rounded text-[10.5px] underline border ${sec.titleUnderline ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Underline">
+                  U
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 3. MAIN CONTENT (BODY TEXT) TOOLBAR
+    function renderContentToolbarHTML(sec) {
+      return `
+        <div class="bg-slate-900 border-2 border-emerald-500/90 rounded-xl p-3 sm:p-4 my-2.5 shadow-2xl text-slate-100 text-xs animate-in slide-in-from-top-2 duration-150 relative z-30 select-none" onclick="event.stopPropagation()">
+          
+          <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+            <span class="font-bold text-emerald-400 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-newspaper text-emerald-400"></i> मुख्य समाचार एडिटर (Body Text, Multi-Paragraphs & Formatting)
+            </span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="pasteToModalContent()" class="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-paste text-xs"></i> <span>📋 क्लिपबोर्ड से पेस्ट करें (Paste News)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Multi-paragraph Textarea -->
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-slate-300 text-[10.5px] font-semibold">यहाँ खबर टाइप करें या कहीं से भी (WhatsApp, Word, Web) कॉपी करके पेस्ट करें:</label>
+                <span class="text-[9.5px] text-slate-400 font-mono">नया पैराग्राफ बनाने के लिए Enter दबाएं</span>
+              </div>
+              <textarea oninput="updateModalSectionField('content', this.value)" placeholder="यहाँ मुख्य समाचार लिखें या पेस्ट करें...\n\nनया पैराग्राफ बनाने के लिए Enter दबाएं।" class="w-full h-44 bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-sans text-xs focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none leading-relaxed custom-scrollbar">${escapeHtmlForAttr(sec.content || '')}</textarea>
+            </div>
+
+            <!-- Formatting Controls Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 border-t border-slate-800 items-end">
+              <!-- Body Font Family -->
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">बॉडी फ़ॉन्ट (Body Font):</label>
+                <select onchange="updateModalSectionField('bodyFont', this.value)" class="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 outline-none">
+                  ${renderFontOptions(sec.bodyFont || studioState.paperMeta.defaultBodyFont || "'Martel', serif")}
+                </select>
+              </div>
+
+              <!-- Body Font Size -->
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <label class="text-slate-400 text-[10px]">फ़ॉन्ट साइज़ (Size):</label>
+                  <span class="text-emerald-400 font-mono font-bold text-[10px]">${sec.bodySize || '11px'}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <input type="range" min="9" max="22" step="0.5" value="${parseFloat(sec.bodySize || '11')}" oninput="updateModalSectionField('bodySize', this.value + 'px')" class="flex-1 accent-emerald-500 h-1.5 rounded cursor-pointer">
+                  <div class="flex gap-0.5">
+                    ${['10px', '11px', '12px', '14px'].map(s => `
+                      <button type="button" onclick="updateModalSectionField('bodySize', '${s}', true)" class="px-1.5 py-0.5 rounded text-[8.5px] font-mono ${sec.bodySize === s ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-950 text-slate-400 border border-slate-800'}">${s}</button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Multi-Columns Selector -->
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">कॉलम विभाजन (Columns):</label>
+                <div class="grid grid-cols-3 gap-1">
+                  ${[1, 2, 3].map(c => `
+                    <button type="button" onclick="updateModalSectionField('bodyCols', ${c}, true)" class="py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${ (sec.bodyCols || 1) === c ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' }">
+                      <i class="fa-solid fa-columns"></i> ${c} Col
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Alignment & Drop-Cap -->
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                  ${['justify', 'left', 'center', 'right'].map(a => `
+                    <button type="button" onclick="updateModalSectionField('bodyAlign', '${a}', true)" class="px-1.5 py-0.5 rounded text-[10px] font-bold ${ (sec.bodyAlign || 'justify') === a ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white' }" title="${a}">
+                      ${a === 'justify' ? '☰ अखबार' : a === 'left' ? '⬅️' : a === 'center' ? '↔️' : '➡️'}
+                    </button>
+                  `).join('')}
+                </div>
+
+                <button type="button" onclick="updateModalSectionField('dropCap', sec.dropCap !== true, true)" class="px-2 py-1 rounded text-[10px] font-bold border ${sec.dropCap ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Toggle Big First Letter">
+                  Drop Cap: ${sec.dropCap ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 4. PHOTO & CAPTION TOOLBAR
+    function renderImageToolbarHTML(sec) {
+      return `
+        <div class="bg-slate-900 border-2 border-blue-500/90 rounded-xl p-3 sm:p-4 my-2.5 shadow-2xl text-slate-100 text-xs animate-in slide-in-from-top-2 duration-150 relative z-30 select-none" onclick="event.stopPropagation()">
+          
+          <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+            <span class="font-bold text-blue-400 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-image text-blue-400"></i> फ़ोटो, लेआउट व कैप्शन सेटिंग्स (Photo & Caption Controls)
+            </span>
+            <div class="flex items-center gap-2">
+              <input type="file" id="modalImgUploadInput" accept="image/*" onchange="handleModalImageUpload(this)" class="hidden">
+              <button type="button" onclick="document.getElementById('modalImgUploadInput').click()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs shadow transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-cloud-arrow-up text-xs"></i> <span>📁 नई फ़ोटो अपलोड करें</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Layout Mode Selector -->
+            <div>
+              <label class="text-slate-400 text-[10px] block mb-1 font-semibold">फोटो लेआउट पोजीशन (Photo Placement):</label>
+              <div class="grid grid-cols-3 sm:grid-cols-6 gap-1">
+                ${[
+                  { id: 'top-img', label: 'Top Image', icon: 'fa-image' },
+                  { id: 'left-img', label: 'Left Image', icon: 'fa-table-columns' },
+                  { id: 'right-img', label: 'Right Image', icon: 'fa-table-columns fa-flip-horizontal' },
+                  { id: 'hero-split', label: 'Hero Feature', icon: 'fa-newspaper' },
+                  { id: 'bottom-img', label: 'Bottom Image', icon: 'fa-image' },
+                  { id: 'text-only', label: 'Text Only', icon: 'fa-font' }
+                ].map(l => `
+                  <button type="button" onclick="updateModalSectionField('layout', '${l.id}', true)" class="py-1 px-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 transition ${ (sec.layout === l.id || (!sec.layout && l.id === 'top-img')) ? 'bg-blue-600 text-white shadow' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' }">
+                    <i class="fa-solid ${l.icon} text-[9px]"></i> ${l.label}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Image URL & Caption Inputs -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">फोटो वेब लिंक (Image URL):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.image || '')}" oninput="updateModalSectionField('image', this.value)" placeholder="https://..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-blue-500 outline-none">
+              </div>
+
+              <div>
+                <label class="text-slate-300 text-[10.5px] font-semibold block mb-1">फोटो कैप्शन (Caption Text):</label>
+                <input type="text" value="${escapeHtmlForAttr(sec.caption || '')}" oninput="updateModalSectionField('caption', this.value)" placeholder="फोटो: घटना का विवरण व साभार..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-medium text-xs focus:border-blue-500 outline-none">
+              </div>
+            </div>
+
+            <!-- Height & Fit Controls -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 border-t border-slate-800 items-center">
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <label class="text-slate-400 text-[10px]">फोटो ऊंचाई (Height):</label>
+                  <span class="text-blue-400 font-mono font-bold text-[10px]">${sec.imageHeight || 240}px</span>
+                </div>
+                <input type="range" min="60" max="450" step="10" value="${sec.imageHeight || 240}" oninput="updateModalSectionField('imageHeight', parseInt(this.value, 10))" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
+              </div>
+
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">इमेज फ़िट मोड (Fit):</label>
+                <div class="grid grid-cols-2 gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                  <button type="button" onclick="updateModalSectionField('imageFit', 'cover', true)" class="py-0.5 rounded text-[10px] font-bold ${ (sec.imageFit || 'cover') === 'cover' ? 'bg-blue-600 text-white' : 'text-slate-400' }">COVER</button>
+                  <button type="button" onclick="updateModalSectionField('imageFit', 'contain', true)" class="py-0.5 rounded text-[10px] font-bold ${ sec.imageFit === 'contain' ? 'bg-blue-600 text-white' : 'text-slate-400' }">CONTAIN</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">कैप्शन अलाइनमेंट:</label>
+                <div class="grid grid-cols-3 gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                  <button type="button" onclick="updateModalSectionField('captionAlign', 'left', true)" class="py-0.5 rounded text-[10px] font-bold ${ (sec.captionAlign || 'left') === 'left' ? 'bg-blue-600 text-white' : 'text-slate-400' }">Left</button>
+                  <button type="button" onclick="updateModalSectionField('captionAlign', 'center', true)" class="py-0.5 rounded text-[10px] font-bold ${ sec.captionAlign === 'center' ? 'bg-blue-600 text-white' : 'text-slate-400' }">Center</button>
+                  <button type="button" onclick="updateModalSectionField('captionAlign', 'right', true)" class="py-0.5 rounded text-[10px] font-bold ${ sec.captionAlign === 'right' ? 'bg-blue-600 text-white' : 'text-slate-400' }">Right</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 5. BULLETS TOOLBAR
+    function renderBulletsToolbarHTML(sec) {
+      return `
+        <div class="bg-slate-900 border-2 border-purple-500/90 rounded-xl p-3 sm:p-4 my-2.5 shadow-2xl text-slate-100 text-xs animate-in slide-in-from-top-2 duration-150 relative z-30 select-none" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+            <span class="font-bold text-purple-400 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-list text-purple-400"></i> मुख्य बिंदु एडिटर (Bullet Points & Highlights Box)
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-slate-300 text-[10.5px] font-semibold">मुख्य बिंदु (हर नया बिंदु नई लाइन में लिखें):</label>
+                <span class="text-[9.5px] text-slate-400 font-mono">1 लाइन = 1 बुलेट</span>
+              </div>
+              <textarea oninput="updateModalSectionField('bullets', this.value)" placeholder="■ पहला मुख्य बिंदु यहाँ लिखें\n■ दूसरा मुख्य बिंदु यहाँ लिखें\n■ तीसरा मुख्य बिंदु..." class="w-full h-24 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-medium text-xs focus:border-purple-500 outline-none leading-relaxed">${escapeHtmlForAttr(sec.bullets || '')}</textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800 items-center">
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">बुलेट मार्कर रंग (Bullet Color):</label>
+                <div class="flex items-center gap-1.5">
+                  <input type="color" value="${sec.bulletColor || '#dc2626'}" onchange="updateModalSectionField('bulletColor', this.value)" class="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0">
+                  <button type="button" onclick="updateModalSectionField('bulletColor', '#dc2626')" class="w-4 h-4 rounded-full bg-red-600"></button>
+                  <button type="button" onclick="updateModalSectionField('bulletColor', '#0369a1')" class="w-4 h-4 rounded-full bg-sky-600"></button>
+                  <button type="button" onclick="updateModalSectionField('bulletColor', '#15803d')" class="w-4 h-4 rounded-full bg-emerald-600"></button>
+                  <button type="button" onclick="updateModalSectionField('bulletColor', '#111111')" class="w-4 h-4 rounded-full bg-black"></button>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-slate-400 text-[10px] block mb-1">बुलेट बॉक्स बैकग्राउंड:</label>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="updateModalSectionField('bulletBgColor', '#f0fdf4', true)" class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800">Light Green</button>
+                  <button type="button" onclick="updateModalSectionField('bulletBgColor', '#fef2f2', true)" class="px-2 py-0.5 rounded text-[10px] bg-red-950 text-red-300 border border-red-800">Light Red</button>
+                  <button type="button" onclick="updateModalSectionField('bulletBgColor', 'transparent', true)" class="px-2 py-0.5 rounded text-[10px] bg-slate-950 text-slate-400 border border-slate-800">Plain</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 6. BORDER & BACKGROUND TOOLBAR
+    function renderBorderToolbarHTML(sec) {
+      return `
+        <div class="bg-slate-900 border-2 border-cyan-500/90 rounded-xl p-3 sm:p-4 my-2.5 shadow-2xl text-slate-100 text-xs animate-in slide-in-from-top-2 duration-150 relative z-30 select-none" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+            <span class="font-bold text-cyan-400 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-border-all text-cyan-400"></i> सेक्शन फ्रेम, बॉर्डर व बैकग्राउंड सेटिंग्स (Card Border & Background)
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Background Color Row -->
+            <div class="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-950 rounded-lg border border-slate-800">
+              <span class="text-slate-300 text-[11px] font-semibold flex items-center gap-1.5">
+                <i class="fa-solid fa-fill-drip text-amber-400"></i> बैकग्राउंड रंग (Background Color):
+              </span>
+              <div class="flex items-center gap-1.5">
+                <input type="color" onchange="updateModalSectionField('bgColor', this.value, true)" value="${sec.bgColor && sec.bgColor !== 'transparent' ? sec.bgColor : '#ffffff'}" class="w-6 h-6 bg-slate-950 border border-slate-700 rounded cursor-pointer p-0.5">
+                <button type="button" onclick="updateModalSectionField('bgColor', 'transparent', true)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]">Transparent</button>
+                <button type="button" onclick="updateModalSectionField('bgColor', '#fef2f2', true)" class="w-4 h-4 rounded-full bg-red-100 border border-red-300"></button>
+                <button type="button" onclick="updateModalSectionField('bgColor', '#fffbeb', true)" class="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-300"></button>
+                <button type="button" onclick="updateModalSectionField('bgColor', '#f1f5f9', true)" class="w-4 h-4 rounded-full bg-slate-100 border border-slate-300"></button>
+              </div>
+            </div>
+
+            <!-- Border Settings -->
+            <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 space-y-2.5">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <label class="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer">
+                  <input type="checkbox" onchange="updateModalSectionField('showCardBorder', this.checked, true)" ${sec.showCardBorder ? 'checked' : ''} class="w-4 h-4 rounded bg-slate-900 border-slate-700 accent-cyan-500 cursor-pointer">
+                  <span>सेक्शन में बॉर्डर जोड़ें (Add Card Border)</span>
+                </label>
+                <span class="text-[10px] font-mono font-bold ${sec.showCardBorder ? 'text-emerald-400' : 'text-slate-500'}">${sec.showCardBorder ? 'ENABLED' : 'OFF'}</span>
+              </div>
+
+              ${sec.showCardBorder ? `
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label class="text-slate-400 text-[10px] block mb-1">बॉर्डर स्टाइल:</label>
+                    <select onchange="updateModalSectionField('cardBorderStyle', this.value, true)" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 outline-none">
+                      <option value="solid" ${(sec.cardBorderStyle || 'solid') === 'solid' ? 'selected' : ''}>सॉलिड (Solid Line)</option>
+                      <option value="double" ${sec.cardBorderStyle === 'double' ? 'selected' : ''}>डबल फ्रेम (Double Frame)</option>
+                      <option value="dashed" ${sec.cardBorderStyle === 'dashed' ? 'selected' : ''}>डैश्ड (Dashed Line)</option>
+                      <option value="newspaper-vintage" ${sec.cardBorderStyle === 'newspaper-vintage' ? 'selected' : ''}>विंटेज न्यूज़पेपर (Thick Top/Bottom)</option>
+                      <option value="thick-bottom" ${sec.cardBorderStyle === 'thick-bottom' ? 'selected' : ''}>बॉटम एक्सेंट (Thick Bottom)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="text-slate-400 text-[10px] block mb-1">बॉर्डर रंग:</label>
+                    <div class="flex items-center gap-1.5">
+                      <input type="color" onchange="updateModalSectionField('cardBorderColor', this.value, true)" value="${sec.cardBorderColor || '#000000'}" class="w-6 h-6 bg-slate-900 border border-slate-700 rounded cursor-pointer p-0.5">
+                      <button type="button" onclick="updateModalSectionField('cardBorderColor', '#000000', true)" class="w-4 h-4 rounded-full bg-black border border-slate-600"></button>
+                      <button type="button" onclick="updateModalSectionField('cardBorderColor', '#dc2626', true)" class="w-4 h-4 rounded-full bg-red-600"></button>
+                      <button type="button" onclick="updateModalSectionField('cardBorderColor', '#0284c7', true)" class="w-4 h-4 rounded-full bg-sky-600"></button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <label class="text-slate-400 text-[10px]">मोटाई (Width):</label>
+                      <span class="text-cyan-400 font-mono font-bold text-[10px]">${sec.cardBorderWidth !== undefined ? sec.cardBorderWidth : 1}px</span>
+                    </div>
+                    <input type="range" min="0.5" max="6" step="0.5" value="${sec.cardBorderWidth !== undefined ? sec.cardBorderWidth : 1}" oninput="updateModalSectionField('cardBorderWidth', parseFloat(this.value), true)" class="w-full accent-cyan-500 h-1.5 rounded cursor-pointer">
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
 
     // SWITCH SIDEBAR TABS
     function switchTab(tabId) {
@@ -9414,6 +10329,16 @@
           Close
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============================================================================ -->
+  <!-- MODAL: INTERACTIVE NEWS SECTION POPUP EDITOR (WYSIWYG BELOW-ELEMENT TOOLBARS)-->
+  <!-- ============================================================================ -->
+  <div id="newsSectionModalEditor" class="hidden fixed inset-0 z-50 items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200" onclick="handleModalBackdropClick(event)">
+    <div class="w-full max-w-5xl max-h-[96vh] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-100 font-sans" onclick="event.stopPropagation()">
+      <!-- Dynamically filled by renderSectionModalContent() -->
+      <div id="newsSectionModalInner" class="flex-1 flex flex-col overflow-hidden"></div>
     </div>
   </div>
 
