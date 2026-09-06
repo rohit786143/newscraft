@@ -31,52 +31,86 @@ const AVAILABLE_FONTS = [
   { value: "'Inter', sans-serif", label: "Inter (Modern Sans)" },
 ];
 
-function splitStoryContent(content: string, numCols: number): string[][] {
+function splitStoryContent(content: string, numCols: number, sec: Partial<NewsSection> = {}): string[][] {
   if (!content || !content.trim()) {
     return Array.from({ length: numCols }, () => []);
   }
-  const rawParas = content.split(/\n+/).map(p => p.trim()).filter(Boolean);
-  if (rawParas.length === 0) {
-    return Array.from({ length: numCols }, () => []);
+
+  // Line height in pixels (~16.5px for standard broadsheet body)
+  const lineH = 16.5;
+  const image2H = (sec.image2Height || 180) + 24;
+  const L = new Array(numCols).fill(0);
+
+  // Column 2 has Photo 2 at the top
+  if (numCols >= 2) {
+    L[1] = image2H / lineH;
   }
+
+  // Column 1 has Photo 1 (if present)
+  if (sec.image) {
+    if (sec.layout === 'left-img' || sec.layout === 'right-img') {
+      L[0] = Math.min(100, (sec.imageHeight || 160) * 0.45) / lineH;
+    } else if (sec.layout !== 'text-only') {
+      L[0] = ((sec.imageHeight || 160) + 20) / lineH;
+    }
+  }
+
+  const words = content.trim().split(/\s+/).filter(Boolean);
+  const wordsPerLine = 7;
+  const totalTextLines = Math.max(numCols * 2, words.length / wordsPerLine);
+
+  // Balanced height target across all columns
+  const sumL = L.reduce((a, b) => a + b, 0);
+  const targetH = (sumL + totalTextLines) / numCols;
+
+  // Relative text capacity for each column
+  const weights = L.map(l => Math.max(0.12, targetH - l));
+  const sumW = weights.reduce((a, b) => a + b, 0);
+  const proportions = weights.map(w => w / sumW);
 
   const result: string[][] = Array.from({ length: numCols }, () => []);
+  const W = words.length;
 
-  if (rawParas.length >= numCols) {
-    rawParas.forEach((p, idx) => {
-      const targetCol = Math.min(Math.floor((idx / rawParas.length) * numCols), numCols - 1);
-      result[targetCol].push(p);
-    });
-    return result;
-  }
-
-  const allSentences: string[] = [];
-  rawParas.forEach(p => {
-    const sents = p.match(/[^।.!?]+[।.!?]*/g) || [p];
-    sents.forEach(s => {
-      const trimmed = s.trim();
-      if (trimmed) allSentences.push(trimmed);
-    });
-  });
-
-  if (allSentences.length >= numCols) {
-    allSentences.forEach((s, idx) => {
-      const targetCol = Math.min(Math.floor((idx / allSentences.length) * numCols), numCols - 1);
-      if (result[targetCol].length === 0) {
-        result[targetCol].push(s);
-      } else {
-        result[targetCol][result[targetCol].length - 1] += ' ' + s;
-      }
-    });
-    return result;
-  }
-
-  const words = content.split(/\s+/).filter(Boolean);
-  const wordsPerCol = Math.ceil(words.length / numCols);
+  let startIdx = 0;
   for (let c = 0; c < numCols; c++) {
-    const slice = words.slice(c * wordsPerCol, (c + 1) * wordsPerCol).join(' ');
+    if (c === numCols - 1) {
+      const slice = words.slice(startIdx).join(' ');
+      if (slice) result[c].push(slice);
+      break;
+    }
+
+    const propTarget = Math.round(startIdx + W * proportions[c]);
+    let bestCut = Math.min(W, Math.max(startIdx + 1, propTarget));
+
+    // Look for sentence end within a window around target
+    const searchMin = Math.max(startIdx + 1, bestCut - 12);
+    const searchMax = Math.min(W - (numCols - c - 1), bestCut + 12);
+    let foundSentenceEnd = -1;
+
+    for (let i = bestCut; i <= searchMax; i++) {
+      if (words[i - 1] && /[।.!?]$/.test(words[i - 1])) {
+        foundSentenceEnd = i;
+        break;
+      }
+    }
+    if (foundSentenceEnd === -1) {
+      for (let i = bestCut; i >= searchMin; i--) {
+        if (words[i - 1] && /[।.!?]$/.test(words[i - 1])) {
+          foundSentenceEnd = i;
+          break;
+        }
+      }
+    }
+
+    if (foundSentenceEnd !== -1) {
+      bestCut = foundSentenceEnd;
+    }
+
+    const slice = words.slice(startIdx, bestCut).join(' ');
     if (slice) result[c].push(slice);
+    startIdx = bestCut;
   }
+
   return result;
 }
 
@@ -551,7 +585,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols === 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isDualPhoto) {
-                        const colParas = splitStoryContent(localSection.content || '', effectiveCols);
+                        const colParas = splitStoryContent(localSection.content || '', effectiveCols, localSection);
 
                         let col1Photo = null;
                         if (localSection.image) {
