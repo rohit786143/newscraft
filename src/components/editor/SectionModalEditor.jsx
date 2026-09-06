@@ -29,15 +29,23 @@ export const SectionModalEditor = ({
 }) => {
   const [localSection, setLocalSection] = useState(null);
   const [activeTarget, setActiveTarget] = useState('heading');
+  const [zoomScale, setZoomScale] = useState(1.0);
   const fileInputRef = useRef(null);
+  const previewContainerRef = useRef(null);
+  const paperWrapRef = useRef(null);
 
   useEffect(() => {
     if (section && isOpen) {
       setLocalSection({ ...section });
       setActiveTarget('heading');
+      const timer = setTimeout(() => {
+        handleZoomFit();
+      }, 60);
+      return () => clearTimeout(timer);
     } else {
       setLocalSection(null);
       setActiveTarget('heading');
+      setZoomScale(1.0);
     }
   }, [section, isOpen]);
 
@@ -49,6 +57,27 @@ export const SectionModalEditor = ({
     if (onChange) {
       onChange(updated);
     }
+  };
+
+  const handleZoomIn = () => {
+    setZoomScale((prev) => Math.min(2.5, Math.round((prev + 0.1) * 10) / 10));
+  };
+
+  const handleZoomOut = () => {
+    setZoomScale((prev) => Math.max(0.25, Math.round((prev - 0.1) * 10) / 10));
+  };
+
+  const handleZoomReset = () => {
+    setZoomScale(1.0);
+  };
+
+  const handleZoomFit = () => {
+    if (!previewContainerRef.current) return;
+    const containerW = previewContainerRef.current.clientWidth || 700;
+    const availableW = Math.max(260, containerW - 48);
+    const slotW = previewSlotWidthPx || 850;
+    const targetScale = Math.min(1.0, Math.max(0.3, availableW / slotW));
+    setZoomScale(Math.round(targetScale * 100) / 100);
   };
 
   const handleImageFileChange = (e) => {
@@ -108,6 +137,7 @@ export const SectionModalEditor = ({
     };
   }
 
+  // Calculate preview slot width based on colSpan (exact broadsheet parity)
   const span = Math.min(12, Math.max(1, localSection.colSpan || 6));
   let previewSlotWidthPx = 850;
   if (typeof window !== 'undefined' && localSection.id) {
@@ -120,11 +150,19 @@ export const SectionModalEditor = ({
     }
   }
   if (previewSlotWidthPx === 850) {
-    const innerGridWidth = 1283.52; // standard 14x22 broadsheet grid
+    const innerGridWidth = 1283.52; // standard broadsheet grid
     const gapDec = span < 12 ? (18 * (12 - span) / 12) : 0;
     previewSlotWidthPx = Math.round((span / 12) * innerGridWidth - gapDec);
   }
 
+  // Parse decimal helper
+  const parseDecimalSize = (val, defaultVal = 14) => {
+    if (val === undefined || val === null || val === '') return defaultVal;
+    const parsed = parseFloat(String(val).replace(/px|pt|rem|em/gi, ''));
+    return isNaN(parsed) ? defaultVal : parsed;
+  };
+
+  // Helper render paragraphs
   const paragraphs = (localSection.content || '')
     .split(/\n\s*\n|\n/)
     .map(p => p.trim())
@@ -189,296 +227,365 @@ export const SectionModalEditor = ({
         {/* ================= MAIN TWO-PANE SPLIT WORKSPACE ================= */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
-          {/* LEFT PANE: AUTHENTIC BROADSHEET CANVAS SLOT PREVIEW */}
-          <div className="flex-1 bg-[#090d16] p-4 sm:p-6 overflow-y-auto overflow-x-auto flex flex-col items-center justify-start custom-scrollbar border-b md:border-b-0 md:border-r border-slate-800/80">
-            <div className="mb-3 text-[11px] text-slate-400 flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-800 shadow-sm shrink-0">
-              <span className="text-amber-400">💡</span> 
-              <span>अखबार में जैसा दिख रहा है, बिल्कुल वैसा ही यहाँ दिखेगा। किसी भी हिस्से पर क्लिक करके एडिट करें।</span>
+          {/* LEFT PANE: AUTHENTIC BROADSHEET CANVAS SLOT PREVIEW (100% UNTOUCHED LAYOUT) */}
+          <div 
+            ref={previewContainerRef}
+            className="flex-1 bg-[#090d16] p-4 sm:p-6 overflow-y-auto overflow-x-auto flex flex-col items-center justify-start custom-scrollbar border-b md:border-b-0 md:border-r border-slate-800/80"
+          >
+            {/* Top Toolbar Strip with Zoom & Helper */}
+            <div className="w-full flex flex-wrap items-center justify-between gap-2 mb-3 shrink-0">
+              <div className="text-[11px] text-slate-400 flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-800 shadow-sm">
+                <span className="text-amber-400">💡</span> 
+                <span>अखबार में जैसा दिख रहा है, बिल्कुल वैसा ही यहाँ दिखेगा। किसी भी हिस्से पर क्लिक करके एडिट करें।</span>
+              </div>
+
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1 bg-slate-900/95 border border-slate-700/80 rounded-lg p-1 shadow-sm">
+                <span className="text-[10px] text-slate-400 font-semibold px-1.5">🔍 ज़ूम:</span>
+                <button
+                  type="button"
+                  onClick={handleZoomOut}
+                  title="Zoom Out"
+                  className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center border border-slate-700 transition cursor-pointer"
+                >
+                  −
+                </button>
+                <span className="text-[10.5px] font-mono font-bold text-cyan-300 min-w-[42px] text-center px-1">
+                  {Math.round(zoomScale * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={handleZoomIn}
+                  title="Zoom In"
+                  className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center border border-slate-700 transition cursor-pointer"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={handleZoomFit}
+                  title="Fit to Screen"
+                  className="px-2 py-0.5 rounded bg-blue-900/80 hover:bg-blue-800 text-blue-200 border border-blue-700 text-[10px] font-semibold transition cursor-pointer"
+                >
+                  Fit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleZoomReset}
+                  title="Reset to 100%"
+                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-semibold transition cursor-pointer"
+                >
+                  100%
+                </button>
+              </div>
             </div>
 
-            {/* Authentic Paper Container */}
-            <div
-              className="newspaper-modal-slot-view bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text"
+            {/* Scalable Outer Wrapper */}
+            <div 
               style={{
-                width: `${previewSlotWidthPx}px`,
-                minWidth: `${previewSlotWidthPx}px`,
-                maxWidth: `${previewSlotWidthPx}px`,
-                minHeight: '180px',
-                padding: '0px',
-                margin: '0px',
-                boxSizing: 'border-box',
-                lineHeight: 1.38,
-                backgroundColor: '#fcfbfa',
-                color: '#111111',
-                display: 'flow-root',
-                ...borderStyleStr,
+                transform: `scale(${zoomScale})`,
+                transformOrigin: 'top center',
+                transition: 'transform 0.15s ease-out',
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%',
               }}
             >
-              {isAd ? (
-                <div
-                  onClick={() => setActiveTarget('border')}
-                  className={`relative full-ad-block cursor-pointer transition ${
-                    activeTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''
-                  }`}
-                >
-                  {localSection.showAdTag !== false && (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTarget('subheading');
-                      }}
-                      className={`text-center mb-0.5 cursor-pointer ${
-                        activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 rounded' : 'hover:outline hover:outline-1 hover:outline-amber-400'
-                      }`}
-                    >
-                      <span className="inline-block text-[8px] uppercase tracking-widest text-slate-700 font-serif font-bold px-2 py-0.2 bg-slate-100 border border-slate-300 rounded-[2px] leading-tight shadow-xs">
-                        {localSection.adTagText || 'विज्ञापन'}
-                      </span>
-                    </div>
-                  )}
-
+              {/* Authentic Paper Container - Guaranteed White Paper with Overflow Proofing */}
+              <div
+                ref={paperWrapRef}
+                className="newspaper-modal-slot-view shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text"
+                style={{
+                  width: `${previewSlotWidthPx}px`,
+                  minWidth: `${previewSlotWidthPx}px`,
+                  maxWidth: `${previewSlotWidthPx}px`,
+                  minHeight: '180px',
+                  padding: '8px 10px',
+                  margin: '0px auto',
+                  boxSizing: 'border-box',
+                  lineHeight: 1.38,
+                  backgroundColor: '#fcfbfa',
+                  color: '#111111',
+                  display: 'block',
+                  overflow: 'visible',
+                  ...borderStyleStr,
+                }}
+              >
+                {isAd ? (
+                  // FULL AD SLOT PREVIEW
                   <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveTarget('image');
-                    }}
-                    className={`w-full relative overflow-hidden bg-slate-100 border border-black shadow-xs cursor-pointer ${
-                      activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                    onClick={() => setActiveTarget('border')}
+                    className={`relative full-ad-block cursor-pointer transition ${
+                      activeTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''
                     }`}
-                    style={{ height: `${localSection.imageHeight || 220}px` }}
                   >
-                    {localSection.image ? (
-                      <img
-                        src={localSection.image}
-                        alt="Ad"
-                        className="w-full h-full block"
-                        style={{ objectFit: localSection.imageFit || 'cover', objectPosition: 'center' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-300 text-slate-400 p-4 text-center bg-slate-50">
-                        <span className="font-bold text-xs text-slate-700">विज्ञापन इमेज अपलोड करें</span>
+                    {localSection.showAdTag !== false && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveTarget('kicker');
+                        }}
+                        className={`text-center mb-0.5 cursor-pointer ${
+                          activeTarget === 'kicker' ? 'outline outline-2 outline-amber-500 rounded' : 'hover:outline hover:outline-1 hover:outline-amber-400'
+                        }`}
+                      >
+                        <span className="inline-block text-[8px] uppercase tracking-widest text-slate-700 font-serif font-bold px-2 py-0.2 bg-slate-100 border border-slate-300 rounded-[2px] leading-tight shadow-xs">
+                          {localSection.adTagText || 'विज्ञापन'}
+                        </span>
                       </div>
                     )}
-                  </div>
 
-                  {localSection.title && (
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveTarget('heading');
+                        setActiveTarget('image');
                       }}
-                      className={`mt-1 text-center font-bold text-[11px] text-slate-900 cursor-pointer ${
-                        activeTarget === 'heading' ? 'outline outline-2 outline-red-500 rounded' : 'hover:outline hover:outline-1 hover:outline-red-400'
+                      className={`w-full relative overflow-hidden bg-slate-100 border border-black shadow-xs cursor-pointer ${
+                        activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                       }`}
-                      style={{ fontFamily: localSection.titleFont || "'Martel', serif" }}
+                      style={{ height: `${localSection.imageHeight || 220}px` }}
                     >
-                      {localSection.title}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className={`relative ${
-                    localSection.showBorderLine ? 'border-b border-slate-400 pb-1' : ''
-                  } ${activeTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''}`}
-                >
-                  {/* TOPLINE / KICKER */}
-                  {(localSection.topLine || localSection.tag) && (
-                    <div
-                      onClick={() => setActiveTarget('subheading')}
-                      className={`cursor-pointer rounded transition ${
-                        activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'
-                      }`}
-                    >
-                      <div
-                        className="leading-snug pt-0.5 tracking-tight"
-                        style={{
-                          fontFamily: localSection.topLineFont || "'Mukta', sans-serif",
-                          fontSize: localSection.topLineSize || '13px',
-                          color: localSection.topLineColor || '#dc2626',
-                          textAlign: localSection.topLineAlign || 'left',
-                          fontWeight: localSection.topLineBold !== false ? '700' : '400',
-                          fontStyle: localSection.topLineItalic ? 'italic' : 'normal',
-                        }}
-                      >
-                        {localSection.tag && (
-                          <span
-                            className="inline-block px-1.5 py-0.5 uppercase tracking-wide align-middle mr-1.5 shadow-xs"
-                            style={{
-                              backgroundColor: localSection.tagBgColor || '#dc2626',
-                              color: localSection.tagTextColor || '#ffffff',
-                              fontSize: localSection.tagFontSize || '10px',
-                              fontWeight: localSection.tagBold !== false ? '800' : '600',
-                              borderRadius: '2px',
-                            }}
-                          >
-                            {localSection.tag}
-                          </span>
-                        )}
-                        {localSection.topLine && <span className="align-middle">{localSection.topLine}</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* MAIN HEADLINE */}
-                  <div
-                    onClick={() => setActiveTarget('heading')}
-                    className={`cursor-pointer my-0.5 rounded transition ${
-                      activeTarget === 'heading' ? 'outline outline-2 outline-red-500 bg-red-500/10' : 'hover:outline hover:outline-1 hover:outline-red-400'
-                    }`}
-                  >
-                    <h2
-                      className="m-0 select-text"
-                      style={{
-                        fontFamily: localSection.titleFont || "'Rozha One', serif",
-                        fontSize: localSection.fontSize || '22px',
-                        color: localSection.titleColor || '#111111',
-                        textAlign: localSection.titleAlign || 'left',
-                        fontWeight: localSection.titleBold !== false ? '800' : 'normal',
-                        fontStyle: localSection.titleItalic ? 'italic' : 'normal',
-                        textDecoration: localSection.titleUnderline ? 'underline' : 'none',
-                        lineHeight: 1.18,
-                        letterSpacing: '-0.01em',
-                        paddingBottom: '2px',
-                      }}
-                    >
-                      {localSection.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
-                    </h2>
-                  </div>
-
-                  {/* SUBTITLE */}
-                  {localSection.subtitle && (
-                    <div
-                      onClick={() => setActiveTarget('subheading')}
-                      className={`cursor-pointer my-0.5 rounded transition ${
-                        activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'
-                      }`}
-                    >
-                      <h3
-                        className="font-semibold italic my-0.5 leading-snug"
-                        style={{
-                          fontFamily: localSection.subtitleFont || "'Martel', serif",
-                          fontSize: localSection.subtitleSize || '12.5px',
-                          color: localSection.subtitleColor || '#334155',
-                          textAlign: localSection.subtitleAlign || 'left',
-                        }}
-                      >
-                        {localSection.subtitle}
-                      </h3>
-                    </div>
-                  )}
-
-                  {/* IMAGE */}
-                  {localSection.image && localSection.layout !== 'bottom-img' && localSection.layout !== 'text-only' && (
-                    <div
-                      onClick={() => setActiveTarget('image')}
-                      className={`my-1 cursor-pointer transition rounded ${
-                        activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                      }`}
-                    >
-                      <img
-                        src={localSection.image}
-                        alt="Photo"
-                        className="w-full object-cover border border-black p-0.5"
-                        style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
-                      />
-                      {localSection.caption && (
-                        <div
-                          className="text-[9.5px] italic text-slate-700 pt-0.5"
-                          style={{ textAlign: localSection.captionAlign || 'left' }}
-                        >
-                          {localSection.caption}
+                      {localSection.image ? (
+                        <img
+                          src={localSection.image}
+                          alt="Ad"
+                          className="w-full h-full block"
+                          style={{ objectFit: localSection.imageFit || 'cover', objectPosition: 'center' }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-300 text-slate-400 p-4 text-center bg-slate-50">
+                          <span className="font-bold text-xs text-slate-700">विज्ञापन इमेज अपलोड करें</span>
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* BULLET POINTS */}
-                  {bulletsList.length > 0 && (
+                    {localSection.title && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveTarget('heading');
+                        }}
+                        className={`mt-1 text-center font-bold text-[11px] text-slate-900 cursor-pointer ${
+                          activeTarget === 'heading' ? 'outline outline-2 outline-red-500 rounded' : 'hover:outline hover:outline-1 hover:outline-red-400'
+                        }`}
+                        style={{ fontFamily: localSection.titleFont || "'Martel', serif" }}
+                      >
+                        {localSection.title}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // STANDARD ARTICLE PREVIEW
+                  <div
+                    className={`relative bg-[#fcfbfa] text-[#111111] ${
+                      localSection.showBorderLine ? 'border-b border-slate-400 pb-1' : ''
+                    } ${activeTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''}`}
+                    style={{ backgroundColor: '#fcfbfa', color: '#111111' }}
+                  >
+                    {/* TOPLINE / KICKER */}
+                    {(localSection.topLine || localSection.tag) && (
+                      <div
+                        onClick={() => setActiveTarget('kicker')}
+                        className={`cursor-pointer rounded transition ${
+                          activeTarget === 'kicker' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'
+                        }`}
+                      >
+                        <div
+                          className="leading-snug pt-0.5 tracking-tight"
+                          style={{
+                            fontFamily: localSection.topLineFont || "'Mukta', sans-serif",
+                            fontSize: localSection.topLineSize || '13px',
+                            color: localSection.topLineColor || '#dc2626',
+                            textAlign: localSection.topLineAlign || 'left',
+                            fontWeight: localSection.topLineBold !== false ? '700' : '400',
+                            fontStyle: localSection.topLineItalic ? 'italic' : 'normal',
+                          }}
+                        >
+                          {localSection.tag && (
+                            <span
+                              className="inline-block px-1.5 py-0.5 uppercase tracking-wide align-middle mr-1.5 shadow-xs"
+                              style={{
+                                backgroundColor: localSection.tagBgColor || '#dc2626',
+                                color: localSection.tagTextColor || '#ffffff',
+                                fontSize: localSection.tagFontSize || '10px',
+                                fontWeight: localSection.tagBold !== false ? '800' : '600',
+                                borderRadius: '2px',
+                              }}
+                            >
+                              {localSection.tag}
+                            </span>
+                          )}
+                          {localSection.topLine && <span className="align-middle">{localSection.topLine}</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MAIN HEADLINE */}
                     <div
-                      onClick={() => setActiveTarget('bullets')}
-                      className={`my-1 cursor-pointer rounded transition ${
-                        activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                      onClick={() => setActiveTarget('heading')}
+                      className={`cursor-pointer my-0.5 rounded transition ${
+                        activeTarget === 'heading' ? 'outline outline-2 outline-red-500 bg-red-500/10' : 'hover:outline hover:outline-1 hover:outline-red-400'
                       }`}
+                    >
+                      <h2
+                        className="m-0 select-text"
+                        style={{
+                          fontFamily: localSection.titleFont || "'Rozha One', serif",
+                          fontSize: localSection.fontSize || '22px',
+                          color: localSection.titleColor || '#111111',
+                          textAlign: localSection.titleAlign || 'left',
+                          fontWeight: localSection.titleBold !== false ? '800' : 'normal',
+                          fontStyle: localSection.titleItalic ? 'italic' : 'normal',
+                          textDecoration: localSection.titleUnderline ? 'underline' : 'none',
+                          lineHeight: 1.18,
+                          letterSpacing: '-0.01em',
+                          paddingBottom: '2px',
+                        }}
+                      >
+                        {localSection.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
+                      </h2>
+                    </div>
+
+                    {/* SUBTITLE */}
+                    {localSection.subtitle && (
+                      <div
+                        onClick={() => setActiveTarget('subheading')}
+                        className={`cursor-pointer my-0.5 rounded transition ${
+                          activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'
+                        }`}
+                      >
+                        <h3
+                          className="font-semibold italic my-0.5 leading-snug"
+                          style={{
+                            fontFamily: localSection.subtitleFont || "'Martel', serif",
+                            fontSize: localSection.subtitleSize || '12.5px',
+                            color: localSection.subtitleColor || '#334155',
+                            textAlign: localSection.subtitleAlign || 'left',
+                          }}
+                        >
+                          {localSection.subtitle}
+                        </h3>
+                      </div>
+                    )}
+
+                    {/* IMAGE (TOP OR STANDARD) */}
+                    {localSection.image && localSection.layout !== 'bottom-img' && localSection.layout !== 'text-only' && (
+                      <div
+                        onClick={() => setActiveTarget('image')}
+                        className={`my-1 cursor-pointer transition rounded ${
+                          activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                        }`}
+                      >
+                        <img
+                          src={localSection.image}
+                          alt="Photo"
+                          className="w-full object-cover border border-black p-0.5"
+                          style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
+                        />
+                        {localSection.caption && (
+                          <div
+                            className="text-[9.5px] italic text-slate-700 pt-0.5"
+                            style={{ textAlign: localSection.captionAlign || 'left' }}
+                          >
+                            {localSection.caption}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* BULLET POINTS */}
+                    {bulletsList.length > 0 && (
+                      <div
+                        onClick={() => setActiveTarget('bullets')}
+                        className={`my-1 cursor-pointer rounded transition ${
+                          activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                        }`}
+                      >
+                        <div
+                          className="p-1.5 rounded border border-slate-300"
+                          style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                        >
+                          {bulletsList.map((b, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                              <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                              <span className="font-semibold text-slate-900">{b}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MAIN BODY PARAGRAPHS */}
+                    <div
+                      onClick={() => setActiveTarget('body')}
+                      className={`cursor-pointer rounded transition ${
+                        activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
+                      }`}
+                      style={{ backgroundColor: '#fcfbfa', color: '#111111' }}
                     >
                       <div
-                        className="p-1.5 rounded border border-slate-300"
-                        style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                        className="font-martel leading-relaxed text-justify"
+                        style={{
+                          fontFamily: localSection.bodyFont || "'Martel', serif",
+                          fontSize: localSection.bodySize || '11px',
+                          columnCount: localSection.bodyCols || 1,
+                          columnGap: '14px',
+                          textAlign: localSection.bodyAlign || 'justify',
+                          lineHeight: 1.38,
+                          backgroundColor: '#fcfbfa',
+                          color: '#111111',
+                        }}
                       >
-                        {bulletsList.map((b, idx) => (
-                          <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
-                            <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
-                            <span className="font-semibold text-slate-900">{b}</span>
-                          </div>
-                        ))}
+                        {paragraphs.length > 0 ? (
+                          paragraphs.map((p, pIdx) => (
+                            <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                              {pIdx === 0 && localSection.dropCap ? (
+                                <>
+                                  <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                    {p.charAt(0)}
+                                  </span>
+                                  {p.slice(1)}
+                                </>
+                              ) : (
+                                p
+                              )}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                        )}
                       </div>
                     </div>
-                  )}
 
-                  {/* MAIN BODY PARAGRAPHS */}
-                  <div
-                    onClick={() => setActiveTarget('body')}
-                    className={`cursor-pointer rounded transition ${
-                      activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
-                    }`}
-                  >
-                    <div
-                      className="font-martel leading-relaxed text-justify"
-                      style={{
-                        fontFamily: localSection.bodyFont || "'Martel', serif",
-                        fontSize: localSection.bodySize || '11px',
-                        columnCount: localSection.bodyCols || 1,
-                        columnGap: '14px',
-                        textAlign: localSection.bodyAlign || 'justify',
-                        lineHeight: 1.38,
-                      }}
-                    >
-                      {paragraphs.length > 0 ? (
-                        paragraphs.map((p, pIdx) => (
-                          <p key={pIdx} className="story-paragraph mb-1">
-                            {pIdx === 0 && localSection.dropCap ? (
-                              <>
-                                <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                  {p.charAt(0)}
-                                </span>
-                                {p.slice(1)}
-                              </>
-                            ) : (
-                              p
-                            )}
-                          </p>
-                        ))
-                      ) : (
-                        <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
-                      )}
-                    </div>
+                    {/* IMAGE (BOTTOM LAYOUT) */}
+                    {localSection.image && localSection.layout === 'bottom-img' && (
+                      <div
+                        onClick={() => setActiveTarget('image')}
+                        className={`my-1 cursor-pointer group relative transition rounded ${
+                          activeTarget === 'image' ? 'ring-2 ring-blue-500 bg-blue-500/10' : 'hover:ring-1 hover:ring-blue-400'
+                        }`}
+                      >
+                        <img
+                          src={localSection.image}
+                          alt="Photo"
+                          className="w-full object-cover border border-black p-0.5"
+                          style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Bottom Clearfix to Guarantee White Paper Fully Covers Multi-Columns */}
+                    <div style={{ clear: 'both', display: 'block', height: '1px', width: '100%' }}></div>
                   </div>
-
-                  {/* IMAGE (BOTTOM LAYOUT) */}
-                  {localSection.image && localSection.layout === 'bottom-img' && (
-                    <div
-                      onClick={() => setActiveTarget('image')}
-                      className={`my-1 cursor-pointer group relative transition rounded ${
-                        activeTarget === 'image' ? 'ring-2 ring-blue-500 bg-blue-500/10' : 'hover:ring-1 hover:ring-blue-400'
-                      }`}
-                    >
-                      <img
-                        src={localSection.image}
-                        alt="Photo"
-                        className="w-full object-cover border border-black p-0.5"
-                        style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
           {/* RIGHT PANE: DEDICATED EXTERNAL EDITOR TOOLBARS */}
           <div className="w-full md:w-[440px] lg:w-[480px] shrink-0 bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col h-full overflow-hidden shadow-2xl">
             
-            {/* Navigation Tabs Strip */}
+            {/* Navigation Tabs Strip (Separated Kicker & Subheading) */}
             <div className="px-3.5 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none custom-scrollbar">
               <button
                 type="button"
@@ -495,15 +602,28 @@ export const SectionModalEditor = ({
 
               <button
                 type="button"
-                onClick={() => setActiveTarget('subheading')}
+                onClick={() => setActiveTarget('kicker')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
-                  activeTarget === 'subheading'
+                  activeTarget === 'kicker'
                     ? 'bg-amber-600 text-white shadow-md ring-1 ring-amber-400'
                     : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'
                 }`}
               >
                 <span>🏷️</span>
-                <span>सबहेडिंग / किकर</span>
+                <span>किकर / टैग</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTarget('subheading')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+                  activeTarget === 'subheading'
+                    ? 'bg-orange-600 text-white shadow-md ring-1 ring-orange-400'
+                    : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <span>🔖</span>
+                <span>सबहेडिंग</span>
               </button>
 
               <button
@@ -609,16 +729,27 @@ export const SectionModalEditor = ({
 
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="text-slate-400 text-[10px] font-semibold">फ़ॉन्ट साइज़:</label>
-                        <span className="text-red-400 font-mono font-bold text-[10px]">{localSection.fontSize || '22px'}</span>
+                        <label className="text-slate-400 text-[10px] font-semibold">फ़ॉन्ट साइज़ (Points / Decimals):</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="8"
+                            max="120"
+                            value={parseDecimalSize(localSection.fontSize, 22)}
+                            onChange={(e) => updateField('fontSize', `${parseFloat(e.target.value) || 22}px`)}
+                            className="w-16 bg-slate-950 border border-slate-700 rounded text-red-400 font-mono font-bold text-xs px-1.5 py-0.5 text-right outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 font-mono">px</span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <input
                           type="range"
-                          min="16"
-                          max="72"
-                          step="1"
-                          value={parseInt(localSection.fontSize || '22', 10)}
+                          min="10"
+                          max="90"
+                          step="0.1"
+                          value={parseDecimalSize(localSection.fontSize, 22)}
                           onChange={(e) => updateField('fontSize', `${e.target.value}px`)}
                           className="flex-1 accent-red-500 h-1.5 rounded cursor-pointer"
                         />
@@ -640,7 +771,7 @@ export const SectionModalEditor = ({
                     </div>
 
                     <div>
-                      <label className="text-slate-400 text-[10px] block mb-1 font-semibold">हेडिंग रंग (Color):</label>
+                      <label className="text-slate-400 text-[10px] block mb-1 font-semibold">हेडिंग रंग (Headline Color):</label>
                       <div className="flex items-center gap-1.5">
                         {COLOR_PRESETS.slice(0, 6).map((c) => (
                           <button
@@ -710,23 +841,23 @@ export const SectionModalEditor = ({
                 </div>
               )}
 
-              {/* 2. SUBHEADING & KICKER TOOLBAR */}
-              {activeTarget === 'subheading' && (
+              {/* 2. DEDICATED KICKER & CATEGORY TAG TOOLBAR */}
+              {activeTarget === 'kicker' && (
                 <div className="space-y-4 text-slate-100 text-xs select-none">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                     <span className="font-bold text-amber-400 text-xs flex items-center gap-1.5">
-                      <i className="fa-solid fa-tag text-amber-400"></i> सबहेडिंग, किकर व श्रेणी टैग एडिटर
+                      <i className="fa-solid fa-tag text-amber-400"></i> किकर व श्रेणी टैग एडिटर (Kicker & Tag)
                     </span>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">सुपर हेडलाइन / किकर टेक्स्ट:</label>
+                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">सुपर हेडलाइन / किकर टेक्स्ट (Kicker):</label>
                       <input
                         type="text"
                         value={localSection.topLine || ''}
                         onChange={(e) => updateField('topLine', e.target.value)}
-                        placeholder="e.g. मौसम विभाग की चेतावनी..."
+                        placeholder="e.g. मौसम विभाग की चेतावनी / विशेष रिपोर्ट..."
                         className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium text-xs focus:border-amber-500 outline-none"
                       />
                     </div>
@@ -737,18 +868,7 @@ export const SectionModalEditor = ({
                         type="text"
                         value={localSection.tag || ''}
                         onChange={(e) => updateField('tag', e.target.value)}
-                        placeholder="e.g. ब्रेकिंग न्यूज़, खास खबर..."
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium text-xs focus:border-amber-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">उप-शीर्षक (Subtitle / Sub-headline):</label>
-                      <input
-                        type="text"
-                        value={localSection.subtitle || ''}
-                        onChange={(e) => updateField('subtitle', e.target.value)}
-                        placeholder="e.g. अधिसूचना जारी; कार्य शुरू होगा..."
+                        placeholder="e.g. ब्रेकिंग न्यूज़, खास खबर, हिमाचल..."
                         className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-medium text-xs focus:border-amber-500 outline-none"
                       />
                     </div>
@@ -772,15 +892,26 @@ export const SectionModalEditor = ({
 
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="text-slate-400 text-[10px] font-semibold">साइज़:</label>
-                        <span className="text-amber-300 font-mono font-bold text-[10px]">{localSection.topLineSize || '13px'}</span>
+                        <label className="text-slate-400 text-[10px] font-semibold">किकर साइज़ (Decimal Points):</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="8"
+                            max="40"
+                            value={parseDecimalSize(localSection.topLineSize, 13)}
+                            onChange={(e) => updateField('topLineSize', `${parseFloat(e.target.value) || 13}px`)}
+                            className="w-16 bg-slate-950 border border-slate-700 rounded text-amber-300 font-mono font-bold text-xs px-1.5 py-0.5 text-right outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 font-mono">px</span>
+                        </div>
                       </div>
                       <input
                         type="range"
-                        min="10"
-                        max="24"
-                        step="1"
-                        value={parseInt(localSection.topLineSize || '13', 10)}
+                        min="8"
+                        max="36"
+                        step="0.1"
+                        value={parseDecimalSize(localSection.topLineSize, 13)}
                         onChange={(e) => updateField('topLineSize', `${e.target.value}px`)}
                         className="w-full accent-amber-500 h-1.5 rounded cursor-pointer"
                       />
@@ -831,7 +962,114 @@ export const SectionModalEditor = ({
                 </div>
               )}
 
-              {/* 3. MAIN NEWS (BODY) TOOLBAR */}
+              {/* 3. DEDICATED SUBHEADING TOOLBAR */}
+              {activeTarget === 'subheading' && (
+                <div className="space-y-4 text-slate-100 text-xs select-none">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="font-bold text-orange-400 text-xs flex items-center gap-1.5">
+                      <i className="fa-solid fa-align-left text-orange-400"></i> सबहेडिंग एडिटर (Subtitle / Sub-headline)
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">
+                      सबहेडिंग टेक्स्ट (Subtitle / Sub-headline):
+                    </label>
+                    <textarea
+                      value={localSection.subtitle || ''}
+                      onChange={(e) => updateField('subtitle', e.target.value)}
+                      placeholder="e.g. अधिसूचना जारी; अगले महीने से सभी टनल पर कार्य शुरू होगा..."
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium text-xs focus:border-orange-500 outline-none leading-relaxed custom-scrollbar"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-3 pt-2 border-t border-slate-800">
+                    <div>
+                      <label className="text-slate-400 text-[10px] block mb-1 font-semibold">सबहेडिंग फ़ॉन्ट:</label>
+                      <select
+                        value={localSection.subtitleFont || "'Martel', serif"}
+                        onChange={(e) => updateField('subtitleFont', e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1.5 outline-none"
+                      >
+                        {AVAILABLE_FONTS.map((f) => (
+                          <option key={f.value} value={f.value}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-slate-400 text-[10px] font-semibold">सबहेडिंग साइज़ (Points / Decimals):</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="8"
+                            max="50"
+                            value={parseDecimalSize(localSection.subtitleSize, 12.5)}
+                            onChange={(e) => updateField('subtitleSize', `${parseFloat(e.target.value) || 12.5}px`)}
+                            className="w-16 bg-slate-950 border border-slate-700 rounded text-orange-400 font-mono font-bold text-xs px-1.5 py-0.5 text-right outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 font-mono">px</span>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="8"
+                        max="40"
+                        step="0.1"
+                        value={parseDecimalSize(localSection.subtitleSize, 12.5)}
+                        onChange={(e) => updateField('subtitleSize', `${e.target.value}px`)}
+                        className="w-full accent-orange-500 h-1.5 rounded cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-400 text-[10px] block mb-1 font-semibold">सबहेडिंग रंग (Color):</label>
+                      <div className="flex items-center gap-1.5">
+                        {['#334155', '#111111', '#dc2626', '#0369a1', '#15803d'].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => updateField('subtitleColor', c)}
+                            className={`w-5 h-5 rounded-full border ${localSection.subtitleColor === c ? 'border-white scale-110 shadow' : 'border-slate-700'}`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                        <input
+                          type="color"
+                          value={localSection.subtitleColor || '#334155'}
+                          onChange={(e) => updateField('subtitleColor', e.target.value)}
+                          className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0 ml-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 pt-1">
+                      <label className="text-slate-400 text-[10px] block mb-1 font-semibold mr-2">अलाइनमेंट:</label>
+                      <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                        {['left', 'center', 'right'].map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() => updateField('subtitleAlign', a)}
+                            className={`px-2 py-1 rounded text-[10.5px] font-bold ${
+                              (localSection.subtitleAlign || 'left') === a ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {a === 'left' ? '⬅️ Left' : a === 'center' ? '↔️ Center' : '➡️ Right'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. MAIN NEWS (BODY) TOOLBAR */}
               {activeTarget === 'body' && (
                 <div className="space-y-4 text-slate-100 text-xs select-none">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -878,15 +1116,26 @@ export const SectionModalEditor = ({
 
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="text-slate-400 text-[10px] font-semibold">फ़ॉन्ट साइज़:</label>
-                        <span className="text-emerald-400 font-mono font-bold text-[10px]">{localSection.bodySize || '11px'}</span>
+                        <label className="text-slate-400 text-[10px] font-semibold">फ़ॉन्ट साइज़ (Points / Decimals):</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="6"
+                            max="36"
+                            value={parseDecimalSize(localSection.bodySize, 11)}
+                            onChange={(e) => updateField('bodySize', `${parseFloat(e.target.value) || 11}px`)}
+                            className="w-16 bg-slate-950 border border-slate-700 rounded text-emerald-400 font-mono font-bold text-xs px-1.5 py-0.5 text-right outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 font-mono">px</span>
+                        </div>
                       </div>
                       <input
                         type="range"
-                        min="9"
-                        max="20"
-                        step="0.5"
-                        value={parseFloat(localSection.bodySize || '11')}
+                        min="7"
+                        max="26"
+                        step="0.1"
+                        value={parseDecimalSize(localSection.bodySize, 11)}
                         onChange={(e) => updateField('bodySize', `${e.target.value}px`)}
                         className="w-full accent-emerald-500 h-1.5 rounded cursor-pointer"
                       />
@@ -942,7 +1191,7 @@ export const SectionModalEditor = ({
                 </div>
               )}
 
-              {/* 4. PHOTO & CAPTION TOOLBAR */}
+              {/* 5. PHOTO & CAPTION TOOLBAR */}
               {activeTarget === 'image' && (
                 <div className="space-y-4 text-slate-100 text-xs select-none">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -1082,7 +1331,7 @@ export const SectionModalEditor = ({
                 </div>
               )}
 
-              {/* 5. BULLETS TOOLBAR */}
+              {/* 6. BULLETS TOOLBAR */}
               {activeTarget === 'bullets' && (
                 <div className="space-y-4 text-slate-100 text-xs select-none">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -1155,7 +1404,7 @@ export const SectionModalEditor = ({
                 </div>
               )}
 
-              {/* 6. BORDER & BACKGROUND TOOLBAR */}
+              {/* 7. BORDER & BACKGROUND TOOLBAR */}
               {activeTarget === 'border' && (
                 <div className="space-y-4 text-slate-100 text-xs select-none">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
