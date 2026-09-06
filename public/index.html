@@ -5548,30 +5548,60 @@
       }).join('');
     }
 
-    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH COLUMN 2 TOP PHOTO & CONTINUOUS MULTI-COLUMN FLOW
+    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH EXACT ROW BASELINE ALIGNMENT
     function renderDualPhotoColumnsHTML(sec, isModal = false) {
       const effectiveCols = Math.max(2, sec.bodyCols || 3);
-      const colsClass = effectiveCols === 2 ? 'broadsheet-cols-2' : (effectiveCols === 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
       const bulletsHTML = renderBulletsHTML(sec);
 
       const words = (sec.content || '').trim().split(/\s+/).filter(Boolean);
       const W = words.length;
 
-      // Calculate Column 1 split point so Col 1 fills completely from top to bottom
-      const lineH = 15.2;
-      const wordsPerLine = 6.8;
-      const L1 = sec.image ? (sec.layout === 'left-img' || sec.layout === 'right-img' ? 0.46 * (Math.min(160, (sec.imageHeight || 150) + 20) / lineH) : ((sec.imageHeight || 150) + 24) / lineH) : 0;
-      const L2 = ((sec.image2Height || 180) + 24) / lineH;
-      const totalTextLines = W / wordsPerLine;
-      const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
-      const C1 = Math.max(2, targetH - L1);
-      const C2 = Math.max(1, targetH - L2);
-      const C3 = Math.max(2, targetH);
-      const p1 = C1 / (C1 + C2 + C3);
-      const col1WordCount = Math.min(Math.max(15, Math.round(W * p1)), Math.max(15, W - 10));
+      const size = sec.bodySize || '11px';
+      const font = sec.bodyFont || studioState?.paperMeta?.defaultBodyFont || "'Martel', serif";
+      const color = sec.bodyColor || '#111111';
+      const lineH = (parseFloat(size) || 11) * 1.38;
+      const fullWordsPerLine = 6.8;
+      const wrappedWordsPerLine = 3.6;
 
-      const col1Text = words.slice(0, col1WordCount).join(' ');
-      const remainingText = words.slice(col1WordCount).join(' ');
+      // 1. Column 1 Photo Height in Lines
+      let F1 = 0; // lines taken by float photo
+      let K1 = 0; // lines taken by block photo
+      if (sec.image) {
+        const img1H = (sec.imageHeight || 140) + (sec.caption ? 20 : 6);
+        if (sec.layout === 'left-img' || sec.layout === 'right-img') {
+          F1 = Math.round(img1H / lineH);
+        } else if (sec.layout !== 'text-only') {
+          K1 = Math.round(img1H / lineH);
+        }
+      }
+
+      // 2. Column 2 Photo 2 Height in Lines
+      let K2 = 0;
+      if (sec.image2) {
+        const img2H = (sec.image2Height || 180) + (sec.caption2 ? 22 : 8);
+        K2 = Math.round(img2H / lineH);
+      }
+
+      // 3. Find optimal total rows N so that Column 1, Column 2, and Column 3 all end at exact row N
+      function getCaps(N) {
+        const cap1 = F1 > 0 ? (Math.min(N, F1) * wrappedWordsPerLine + Math.max(0, N - F1) * fullWordsPerLine) : Math.max(0, N - K1) * fullWordsPerLine;
+        const cap2 = Math.max(0, N - K2) * fullWordsPerLine;
+        const cap3 = N * fullWordsPerLine;
+        return { cap1, cap2, cap3, total: Math.max(1, cap1 + cap2 + cap3) };
+      }
+
+      let N = Math.max(K2 + 3, F1 + 3, K1 + 3, 8);
+      while (getCaps(N).total < W && N < 60) {
+        N++;
+      }
+
+      const { cap1, cap2, cap3, total } = getCaps(N);
+      const w1Count = Math.round(W * (cap1 / total));
+      const w2Count = Math.round(W * (cap2 / total));
+
+      const col1Text = words.slice(0, w1Count).join(' ');
+      const col2Text = words.slice(w1Count, w1Count + w2Count).join(' ');
+      const col3Text = words.slice(w1Count + w2Count).join(' ');
 
       // Col 1 Photo block
       let col1PhotoHTML = '';
@@ -5602,9 +5632,9 @@
         }
       }
 
-      // Col 2 Photo block (Starts at Top of Column 2 via CSS break-before: column)
+      // Col 2 Photo block (Top of Column 2)
       const col2PhotoHTML = `
-        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column; -webkit-column-break-before: always; break-inside: avoid; -webkit-column-break-inside: avoid; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
           <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
           <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5">
             ${renderCaption2HTML(sec, 'center')}
@@ -5612,29 +5642,53 @@
         </div>
       `;
 
-      const font = sec.bodyFont || studioState?.paperMeta?.defaultBodyFont || "'Martel', serif";
-      const size = sec.bodySize || '11px';
-      const color = sec.bodyColor || '#111111';
-      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; word-break: normal; line-height: 1.38; margin-bottom: 2px;`;
+      const style1 = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; text-align-last: justify; word-break: normal; line-height: 1.38; margin-bottom: 0px;`;
+      const style2 = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; text-align-last: justify; word-break: normal; line-height: 1.38; margin-bottom: 0px;`;
+      const style3 = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; text-align-last: left; word-break: normal; line-height: 1.38; margin-bottom: 0px;`;
 
-      let col1TextFormatted = col1Text;
+      let col1Formatted = col1Text;
       if (sec.dropCap !== false && col1Text) {
         const match = col1Text.match(/^(\p{L}\p{M}*|\S)/u);
         if (match) {
           const firstChar = match[0];
           const restText = col1Text.slice(firstChar.length);
           const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
-          col1TextFormatted = `${dropCapHTML}${restText}`;
+          col1Formatted = `${dropCapHTML}${restText}`;
         }
+      }
+
+      if (effectiveCols === 2) {
+        return `
+          ${bulletsHTML}
+          <div class="dual-photo-grid-container flex flex-row items-stretch my-1 w-full" style="display: flex; flex-direction: row; align-items: stretch; gap: 12px; width: 100%; box-sizing: border-box;">
+            <div class="flex-1 font-martel leading-relaxed" style="border-right: 1px solid #d4cebe; padding-right: 10px; min-width: 0; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+              ${col1PhotoHTML}
+              ${col1Text ? `<p class="story-paragraph" style="${style1}">${col1Formatted}</p>` : ''}
+            </div>
+            <div class="flex-1 font-martel leading-relaxed" style="min-width: 0; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+              ${col2PhotoHTML}
+              ${col2Text ? `<p class="story-paragraph" style="${style3}">${col2Text}</p>` : ''}
+            </div>
+          </div>
+        `;
       }
 
       return `
         ${bulletsHTML}
-        <div class="font-martel leading-relaxed clearfix my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" style="column-count: ${effectiveCols}; column-rule: 1px solid #d4cebe; column-gap: 12px; column-fill: balance; -webkit-column-fill: balance; text-align: justify; text-justify: inter-word; font-family: ${font}; font-size: ${size}; color: ${color}; line-height: 1.38;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
-          ${col1PhotoHTML}
-          ${col1Text ? `<p class="story-paragraph" style="${styleStr}">${col1TextFormatted}</p>` : ''}
-          ${col2PhotoHTML}
-          ${remainingText ? `<p class="story-paragraph" style="${styleStr}">${remainingText}</p>` : ''}
+        <div class="dual-photo-grid-container flex flex-row items-stretch my-1 w-full" style="display: flex; flex-direction: row; align-items: stretch; gap: 12px; width: 100%; box-sizing: border-box;">
+          <div class="flex-1 font-martel leading-relaxed ${isModal && modalActiveTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''}" style="border-right: 1px solid #d4cebe; padding-right: 10px; min-width: 0; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+            ${col1PhotoHTML}
+            ${col1Text ? `<p class="story-paragraph" style="${style1}">${col1Formatted}</p>` : ''}
+          </div>
+
+          <div class="flex-1 font-martel leading-relaxed ${isModal && modalActiveTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''}" style="border-right: 1px solid #d4cebe; padding-right: 10px; min-width: 0; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+            ${col2PhotoHTML}
+            ${col2Text ? `<p class="story-paragraph" style="${style2}">${col2Text}</p>` : ''}
+          </div>
+
+          <div class="flex-1 font-martel leading-relaxed ${isModal && modalActiveTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''}" style="min-width: 0; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+            ${col3Text ? `<p class="story-paragraph" style="${style3}">${col3Text}</p>` : ''}
+          </div>
         </div>
       `;
     }
