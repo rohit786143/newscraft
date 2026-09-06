@@ -481,74 +481,153 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                       </div>
                     )}
 
-                    {/* IMAGE (TOP OR STANDARD) */}
-                    {localSection.image && localSection.layout !== 'bottom-img' && localSection.layout !== 'text-only' && (
+                    {/* LAYOUT VARIANTS */}
+                    {localSection.cutoutWrap ? (
                       <div
-                        onClick={() => setActiveTarget('image')}
-                        className={`my-1 cursor-pointer transition rounded ${
-                          activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                        }`}
-                      >
-                        <img
-                          src={localSection.image}
-                          alt="Photo"
-                          className="w-full object-cover border border-black p-0.5"
-                          style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
-                        />
-                        {localSection.caption && (
-                          <div
-                            className="text-[9.5px] italic text-slate-700 pt-0.5"
-                            style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
-                          >
-                            {localSection.caption}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* BULLET POINTS */}
-                    {bulletsList.length > 0 && (
-                      <div
-                        onClick={() => setActiveTarget('bullets')}
-                        className={`my-1 cursor-pointer rounded transition ${
-                          activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
-                        }`}
-                      >
-                        <div
-                          className="p-1.5 rounded border border-slate-300"
-                          style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
-                        >
-                          {bulletsList.map((b, idx) => (
-                            <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
-                              <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
-                              <span className="font-semibold text-slate-900">{b}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* MAIN BODY PARAGRAPHS */}
-                    <div
-                      onClick={() => setActiveTarget('body')}
-                      className={`cursor-pointer rounded transition ${
-                        activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
-                      }`}
-                      style={{ backgroundColor: '#fcfbfa', color: '#111111' }}
-                    >
-                      <div
-                        className="font-martel leading-relaxed text-justify"
+                        onClick={() => setActiveTarget('body')}
+                        className={`font-martel leading-relaxed my-1 clearfix cursor-pointer ${
+                          (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                        } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
                         style={{
                           fontFamily: localSection.bodyFont || "'Martel', serif",
                           fontSize: localSection.bodySize || '11px',
-                          columnCount: localSection.bodyCols || 1,
-                          columnGap: '14px',
                           textAlign: (localSection.bodyAlign as any) || 'justify',
                           lineHeight: 1.38,
                           backgroundColor: '#fcfbfa',
                           color: '#111111',
                         }}
                       >
+                        {localSection.image && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('image');
+                            }}
+                            className={`cursor-pointer ${localSection.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''
+                            }`}
+                          >
+                            <img
+                              src={localSection.image}
+                              alt="Photo"
+                              className="cutout-shape-img rounded-xs"
+                              style={{
+                                float: localSection.cutoutFloat === 'right' ? 'right' : 'left',
+                                shapeOutside: `url('${localSection.image}')`,
+                                shapeMargin: `${localSection.cutoutMargin !== undefined ? localSection.cutoutMargin : 2}px`,
+                                width: `${localSection.cutoutWidth || 240}px`,
+                                maxWidth: '95%',
+                                marginTop: `${localSection.cutoutOffsetY || 0}px`,
+                                [localSection.cutoutFloat === 'right' ? 'marginRight' : 'marginLeft']: `${localSection.cutoutOffsetX || 0}px`,
+                                marginBottom: '2px',
+                                objectFit: 'contain',
+                                display: 'block',
+                              }}
+                            />
+                          </div>
+                        )}
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('bullets');
+                            }}
+                            className="p-1.5 mb-1 rounded border border-slate-300"
+                            style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                          >
+                            {bulletsList.map((b, idx) => (
+                              <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                <span className="font-semibold text-slate-900">{b}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {paragraphs.length > 0 ? (
+                          paragraphs.map((p, pIdx) => (
+                            <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                              {pIdx === 0 && localSection.dropCap ? (
+                                <>
+                                  <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                    {p.charAt(0)}
+                                  </span>
+                                  {p.slice(1)}
+                                </>
+                              ) : (
+                                p
+                              )}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                        )}
+                        {localSection.caption && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('image');
+                            }}
+                            className="clear-both pt-1 cursor-pointer text-[9.5px] italic text-slate-700"
+                          >
+                            {localSection.caption}
+                          </div>
+                        )}
+                      </div>
+                    ) : localSection.layout === 'left-img' ? (
+                      <div
+                        onClick={() => setActiveTarget('body')}
+                        className={`font-martel leading-relaxed clearfix my-1 cursor-pointer rounded transition ${
+                          (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                        } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
+                        style={{
+                          fontFamily: localSection.bodyFont || "'Martel', serif",
+                          fontSize: localSection.bodySize || '11px',
+                          textAlign: (localSection.bodyAlign as any) || 'justify',
+                          lineHeight: 1.38,
+                          backgroundColor: '#fcfbfa',
+                          color: '#111111',
+                        }}
+                      >
+                        {localSection.image ? (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('image');
+                            }}
+                            className={`float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                            }`}
+                            title="क्लिक करके फोटो व लेआउट एडिट करें"
+                          >
+                            <img
+                              src={localSection.image}
+                              alt="Photo"
+                              className="w-full max-h-44 object-cover"
+                            />
+                            {localSection.caption && (
+                              <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                {localSection.caption}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('bullets');
+                            }}
+                            className="p-1.5 mb-1 rounded border border-slate-300"
+                            style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                          >
+                            {bulletsList.map((b, idx) => (
+                              <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                <span className="font-semibold text-slate-900">{b}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {paragraphs.length > 0 ? (
                           paragraphs.map((p, pIdx) => (
                             <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
@@ -568,23 +647,373 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                           <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
                         )}
                       </div>
-                    </div>
-
-                    {/* IMAGE (BOTTOM LAYOUT) */}
-                    {localSection.image && localSection.layout === 'bottom-img' && (
+                    ) : localSection.layout === 'right-img' ? (
                       <div
-                        onClick={() => setActiveTarget('image')}
-                        className={`my-1 cursor-pointer group relative transition rounded ${
-                          activeTarget === 'image' ? 'ring-2 ring-blue-500 bg-blue-500/10' : 'hover:ring-1 hover:ring-blue-400'
-                        }`}
+                        onClick={() => setActiveTarget('body')}
+                        className={`font-martel leading-relaxed clearfix my-1 cursor-pointer rounded transition ${
+                          (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                        } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
+                        style={{
+                          fontFamily: localSection.bodyFont || "'Martel', serif",
+                          fontSize: localSection.bodySize || '11px',
+                          textAlign: (localSection.bodyAlign as any) || 'justify',
+                          lineHeight: 1.38,
+                          backgroundColor: '#fcfbfa',
+                          color: '#111111',
+                        }}
                       >
-                        <img
-                          src={localSection.image}
-                          alt="Photo"
-                          className="w-full object-cover border border-black p-0.5"
-                          style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
-                        />
+                        {localSection.image ? (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('image');
+                            }}
+                            className={`float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                            }`}
+                            title="क्लिक करके फोटो व लेआउट एडिट करें"
+                          >
+                            <img
+                              src={localSection.image}
+                              alt="Photo"
+                              className="w-full max-h-44 object-cover"
+                            />
+                            {localSection.caption && (
+                              <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                {localSection.caption}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTarget('bullets');
+                            }}
+                            className="p-1.5 mb-1 rounded border border-slate-300"
+                            style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                          >
+                            {bulletsList.map((b, idx) => (
+                              <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                <span className="font-semibold text-slate-900">{b}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {paragraphs.length > 0 ? (
+                          paragraphs.map((p, pIdx) => (
+                            <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                              {pIdx === 0 && localSection.dropCap ? (
+                                <>
+                                  <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                    {p.charAt(0)}
+                                  </span>
+                                  {p.slice(1)}
+                                </>
+                              ) : (
+                                p
+                              )}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                        )}
                       </div>
+                    ) : localSection.layout === 'hero-split' ? (
+                      <>
+                        {localSection.image && (
+                          <div
+                            onClick={() => setActiveTarget('image')}
+                            className={`my-1 cursor-pointer transition rounded ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                            }`}
+                          >
+                            <img
+                              src={localSection.image}
+                              alt="Photo"
+                              className="w-full max-h-56 object-cover border border-black p-0.5"
+                            />
+                            {localSection.caption && (
+                              <div
+                                className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
+                              >
+                                {localSection.caption}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={() => setActiveTarget('bullets')}
+                            className={`my-1 cursor-pointer rounded transition ${
+                              activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                            }`}
+                          >
+                            <div
+                              className="p-1.5 rounded border border-slate-300"
+                              style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                            >
+                              {bulletsList.map((b, idx) => (
+                                <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                  <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                  <span className="font-semibold text-slate-900">{b}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          onClick={() => setActiveTarget('body')}
+                          className={`font-martel leading-relaxed cursor-pointer rounded transition ${
+                            (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                          } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
+                          style={{
+                            fontFamily: localSection.bodyFont || "'Martel', serif",
+                            fontSize: localSection.bodySize || '11px',
+                            textAlign: (localSection.bodyAlign as any) || 'justify',
+                            lineHeight: 1.38,
+                            backgroundColor: '#fcfbfa',
+                            color: '#111111',
+                          }}
+                        >
+                          {paragraphs.length > 0 ? (
+                            paragraphs.map((p, pIdx) => (
+                              <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                {pIdx === 0 && localSection.dropCap ? (
+                                  <>
+                                    <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                      {p.charAt(0)}
+                                    </span>
+                                    {p.slice(1)}
+                                  </>
+                                ) : (
+                                  p
+                                )}
+                              </p>
+                            ))
+                          ) : (
+                            <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                          )}
+                        </div>
+                      </>
+                    ) : localSection.layout === 'bottom-img' ? (
+                      <>
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={() => setActiveTarget('bullets')}
+                            className={`my-1 cursor-pointer rounded transition ${
+                              activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                            }`}
+                          >
+                            <div
+                              className="p-1.5 rounded border border-slate-300"
+                              style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                            >
+                              {bulletsList.map((b, idx) => (
+                                <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                  <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                  <span className="font-semibold text-slate-900">{b}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          onClick={() => setActiveTarget('body')}
+                          className={`font-martel leading-relaxed my-0.5 cursor-pointer rounded transition ${
+                            (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                          } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
+                          style={{
+                            fontFamily: localSection.bodyFont || "'Martel', serif",
+                            fontSize: localSection.bodySize || '11px',
+                            textAlign: (localSection.bodyAlign as any) || 'justify',
+                            lineHeight: 1.38,
+                            backgroundColor: '#fcfbfa',
+                            color: '#111111',
+                          }}
+                        >
+                          {paragraphs.length > 0 ? (
+                            paragraphs.map((p, pIdx) => (
+                              <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                {pIdx === 0 && localSection.dropCap ? (
+                                  <>
+                                    <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                      {p.charAt(0)}
+                                    </span>
+                                    {p.slice(1)}
+                                  </>
+                                ) : (
+                                  p
+                                )}
+                              </p>
+                            ))
+                          ) : (
+                            <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                          )}
+                        </div>
+                        {localSection.image && (
+                          <div
+                            onClick={() => setActiveTarget('image')}
+                            className={`my-1 cursor-pointer transition rounded ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                            }`}
+                          >
+                            <img
+                              src={localSection.image}
+                              alt="Photo"
+                              className="w-full object-cover border border-black p-0.5"
+                              style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
+                            />
+                            {localSection.caption && (
+                              <div
+                                className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
+                              >
+                                {localSection.caption}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : localSection.layout === 'text-only' ? (
+                      <>
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={() => setActiveTarget('bullets')}
+                            className={`my-1 cursor-pointer rounded transition ${
+                              activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                            }`}
+                          >
+                            <div
+                              className="p-1.5 rounded border border-slate-300"
+                              style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                            >
+                              {bulletsList.map((b, idx) => (
+                                <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                  <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                  <span className="font-semibold text-slate-900">{b}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          onClick={() => setActiveTarget('body')}
+                          className={`font-martel leading-relaxed my-0.5 cursor-pointer rounded transition ${
+                            (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                          } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
+                          style={{
+                            fontFamily: localSection.bodyFont || "'Martel', serif",
+                            fontSize: localSection.bodySize || '11px',
+                            textAlign: (localSection.bodyAlign as any) || 'justify',
+                            lineHeight: 1.38,
+                            backgroundColor: '#fcfbfa',
+                            color: '#111111',
+                          }}
+                        >
+                          {paragraphs.length > 0 ? (
+                            paragraphs.map((p, pIdx) => (
+                              <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                {pIdx === 0 && localSection.dropCap ? (
+                                  <>
+                                    <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                      {p.charAt(0)}
+                                    </span>
+                                    {p.slice(1)}
+                                  </>
+                                ) : (
+                                  p
+                                )}
+                              </p>
+                            ))
+                          ) : (
+                            <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      // Default / top-img
+                      <>
+                        {localSection.image && (
+                          <div
+                            onClick={() => setActiveTarget('image')}
+                            className={`my-1 cursor-pointer transition rounded ${
+                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                            }`}
+                          >
+                            <img
+                              src={localSection.image}
+                              alt="Photo"
+                              className="w-full object-cover border border-black p-0.5"
+                              style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
+                            />
+                            {localSection.caption && (
+                              <div
+                                className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
+                              >
+                                {localSection.caption}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {bulletsList.length > 0 && (
+                          <div
+                            onClick={() => setActiveTarget('bullets')}
+                            className={`my-1 cursor-pointer rounded transition ${
+                              activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                            }`}
+                          >
+                            <div
+                              className="p-1.5 rounded border border-slate-300"
+                              style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                            >
+                              {bulletsList.map((b, idx) => (
+                                <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                  <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                  <span className="font-semibold text-slate-900">{b}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          onClick={() => setActiveTarget('body')}
+                          className={`font-martel leading-relaxed cursor-pointer rounded transition ${
+                            (localSection.bodyCols || 1) === 2 ? 'columns-2 gap-3.5' : (localSection.bodyCols || 1) === 3 ? 'columns-3 gap-3.5' : 'columns-1'
+                          } ${activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}`}
+                          style={{
+                            fontFamily: localSection.bodyFont || "'Martel', serif",
+                            fontSize: localSection.bodySize || '11px',
+                            textAlign: (localSection.bodyAlign as any) || 'justify',
+                            lineHeight: 1.38,
+                            backgroundColor: '#fcfbfa',
+                            color: '#111111',
+                          }}
+                        >
+                          {paragraphs.length > 0 ? (
+                            paragraphs.map((p, pIdx) => (
+                              <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                {pIdx === 0 && localSection.dropCap ? (
+                                  <>
+                                    <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                      {p.charAt(0)}
+                                    </span>
+                                    {p.slice(1)}
+                                  </>
+                                ) : (
+                                  p
+                                )}
+                              </p>
+                            ))
+                          ) : (
+                            <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                          )}
+                        </div>
+                      </>
                     )}
 
                     {/* Bottom Clearfix to Guarantee White Paper Fully Covers Multi-Columns */}

@@ -6504,14 +6504,16 @@
         ` : ''}
       `;
 
-      // Photo Component for different placements
-      const photoHTML = (imgClass = "w-full max-h-48 object-cover border border-black p-0.5", captionAlign = 'left', wrapperClass = "my-1") => `
-        <div onclick="setModalActiveTarget('image', event)" class="${wrapperClass} cursor-pointer transition rounded ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="margin: 0; padding: 0;" title="क्लिक करके फोटो व लेआउट एडिट करें">
+      // Helper for modal photo component with target switcher
+      const renderModalPhotoBlock = (wrapperClass, imgClass = "w-full max-h-48 object-cover border border-black p-0.5", captionAlign = 'left') => `
+        <div onclick="setModalActiveTarget('image', event)" class="${wrapperClass} cursor-pointer transition rounded ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" title="क्लिक करके फोटो व लेआउट एडिट करें">
           ${sec.image ? `
             <img src="${sec.image}" alt="Photo" class="${imgClass}">
-            <div id="modal-preview-caption" class="pt-0.5">
-              ${renderCaptionHTML(sec, captionAlign)}
-            </div>
+            ${sec.caption ? `
+              <div id="modal-preview-caption" class="pt-0.5">
+                ${renderCaptionHTML(sec, captionAlign)}
+              </div>
+            ` : ''}
           ` : `
             <div class="w-full py-3 border-2 border-dashed border-slate-300 rounded bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition">
               <i class="fa-solid fa-image text-xl mb-0.5 text-slate-400"></i>
@@ -6522,39 +6524,32 @@
       `;
 
       // Bullets Component
-      const bulletsHTML = `
-        ${(sec.bullets) ? `
-          <div onclick="setModalActiveTarget('bullets', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'}" style="margin: 0; padding: 0;" title="क्लिक करके बुलेट बिंदु एडिट करें">
-            <div id="modal-preview-bullets">
-              ${renderBulletsHTML(sec)}
-            </div>
-          </div>
-        ` : ''}
-      `;
-
-      // Paragraphs Component (Clean single multi-column container with solid paper coverage)
-      const bodyColsClass = sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
-      const paragraphsHTML = `
-        <div onclick="setModalActiveTarget('body', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" style="margin: 0; padding: 0; background-color: transparent !important;" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
-          <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${bodyColsClass}" style="display: block; width: 100%; height: auto; overflow: visible !important; background-color: transparent !important;">
-            ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+      const bulletsHTML = (sec.bullets) ? `
+        <div onclick="setModalActiveTarget('bullets', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'}" title="क्लिक करके बुलेट बिंदु एडिट करें">
+          <div id="modal-preview-bullets">
+            ${renderBulletsHTML(sec)}
           </div>
         </div>
-      `;
+      ` : '';
 
-      // Layout Specific Inner Content
+      // Body Columns Class (Matches exact canvas columns)
+      const bodyColsClass = sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
+
+      // Layout Specific Inner Content (100% PARITY WITH BROADSHEET CANVAS)
       let layoutInnerHTML = '';
 
       if (sec.cutoutWrap) {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed my-1 clearfix ${bodyColsClass}" style="background-color: transparent !important; display: block; overflow: visible !important;">
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed my-1 clearfix cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
             ${sec.image ? `
               <div onclick="setModalActiveTarget('image', event)" class="cursor-pointer ${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" title="क्लिक करके फोटो एडिट करें">
                 <img src="${sec.image}" class="cutout-shape-img rounded-xs" style="float: ${sec.cutoutFloat === 'right' ? 'right' : 'left'}; shape-outside: url('${sec.image}'); shape-margin: ${sec.cutoutMargin !== undefined ? sec.cutoutMargin : 2}px; width: ${sec.cutoutWidth || 240}px; max-width: 95%; margin-top: ${sec.cutoutOffsetY || 0}px; margin-${sec.cutoutFloat === 'right' ? 'right' : 'left'}: ${sec.cutoutOffsetX || 0}px; margin-bottom: 2px; object-fit: contain; display: block;">
               </div>
             ` : ''}
             ${bulletsHTML}
-            ${renderParagraphsHTML(sec, true)}
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
             ${sec.caption ? `
               <div onclick="setModalActiveTarget('image', event)" class="clear-both pt-1 cursor-pointer">
                 ${renderCaptionHTML(sec, 'left')}
@@ -6564,43 +6559,63 @@
         `;
       } else if (sec.layout === 'hero-split') {
         layoutInnerHTML = `
-          ${photoHTML("w-full max-h-56 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
+          ${renderModalPhotoBlock("my-1", "w-full max-h-56 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
           ${bulletsHTML}
-          ${paragraphsHTML}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
+          </div>
         `;
       } else if (sec.layout === 'left-img') {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}" style="background-color: transparent !important; display: block; overflow: visible !important;">
-            ${photoHTML("w-full max-h-44 object-cover", "center", "float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white")}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed clearfix my-1 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            ${renderModalPhotoBlock("float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white", "w-full max-h-44 object-cover", "center")}
             ${bulletsHTML}
-            ${paragraphsHTML}
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
           </div>
         `;
       } else if (sec.layout === 'right-img') {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}" style="background-color: transparent !important; display: block; overflow: visible !important;">
-            ${photoHTML("w-full max-h-44 object-cover", "center", "float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white")}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed clearfix my-1 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            ${renderModalPhotoBlock("float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white", "w-full max-h-44 object-cover", "center")}
             ${bulletsHTML}
-            ${paragraphsHTML}
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
           </div>
         `;
       } else if (sec.layout === 'bottom-img') {
         layoutInnerHTML = `
           ${bulletsHTML}
-          ${paragraphsHTML}
-          ${photoHTML("w-full max-h-44 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed my-0.5 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
+          </div>
+          ${renderModalPhotoBlock("my-1", "w-full max-h-44 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
         `;
       } else if (sec.layout === 'text-only') {
         layoutInnerHTML = `
           ${bulletsHTML}
-          ${paragraphsHTML}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed my-0.5 cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
+          </div>
         `;
       } else {
         // Standard 'top-img' or default
         layoutInnerHTML = `
-          ${sec.image ? photoHTML("w-full max-h-48 object-cover border border-black p-0.5", sec.titleAlign || 'left') : ''}
+          ${sec.image ? renderModalPhotoBlock("my-1", "w-full max-h-48 object-cover border border-black p-0.5", sec.titleAlign || 'left') : ''}
           ${bulletsHTML}
-          ${paragraphsHTML}
+          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+            <div id="modal-preview-paragraphs" style="display: contents;">
+              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            </div>
+          </div>
         `;
       }
 
