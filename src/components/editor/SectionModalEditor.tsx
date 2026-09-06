@@ -121,7 +121,21 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
   // Calculate preview slot width based on colSpan (exact broadsheet parity)
   const span = Math.min(12, Math.max(1, localSection.colSpan || 6));
-  const previewSlotWidthPx = Math.round((span / 12) * 1284 - (span < 12 ? (18 * (12 - span) / 12) : 0));
+  let previewSlotWidthPx = 850;
+  if (typeof window !== 'undefined' && localSection.id) {
+    const canvasEl = document.getElementById('wrapper-' + localSection.id);
+    if (canvasEl) {
+      const parsed = parseFloat(window.getComputedStyle(canvasEl).width);
+      if (parsed && !isNaN(parsed) && parsed > 50) {
+        previewSlotWidthPx = Math.round(parsed);
+      }
+    }
+  }
+  if (previewSlotWidthPx === 850) {
+    const innerGridWidth = 1283.52; // standard 14x22 broadsheet grid
+    const gapDec = span < 12 ? (18 * (12 - span) / 12) : 0;
+    previewSlotWidthPx = Math.round((span / 12) * innerGridWidth - gapDec);
+  }
 
   // Helper render paragraphs
   const paragraphs = (localSection.content || '')
@@ -197,15 +211,19 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
             {/* Authentic Paper Container */}
             <div
-              className="newspaper-page-preview newspaper-page bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text"
+              className="newspaper-modal-slot-view bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text"
               style={{
                 width: `${previewSlotWidthPx}px`,
                 minWidth: `${previewSlotWidthPx}px`,
                 maxWidth: `${previewSlotWidthPx}px`,
                 minHeight: '180px',
-                padding: '4px 6px 6px 6px',
+                padding: '0px',
+                margin: '0px',
                 boxSizing: 'border-box',
                 lineHeight: 1.38,
+                backgroundColor: '#fcfbfa',
+                color: '#111111',
+                display: 'flow-root',
                 ...borderStyleStr,
               }}
             >
@@ -214,7 +232,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                 <div
                   onClick={() => setActiveTarget('border')}
                   className={`relative full-ad-block cursor-pointer transition ${
-                    activeTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''
+                    activeTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''
                   }`}
                 >
                   {localSection.showAdTag !== false && (
@@ -224,7 +242,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         setActiveTarget('subheading');
                       }}
                       className={`text-center mb-0.5 cursor-pointer ${
-                        activeTarget === 'subheading' ? 'ring-2 ring-amber-500 rounded' : 'hover:bg-amber-50'
+                        activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 rounded' : 'hover:outline hover:outline-1 hover:outline-amber-400'
                       }`}
                     >
                       <span className="inline-block text-[8px] uppercase tracking-widest text-slate-700 font-serif font-bold px-2 py-0.2 bg-slate-100 border border-slate-300 rounded-[2px] leading-tight shadow-xs">
@@ -239,7 +257,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                       setActiveTarget('image');
                     }}
                     className={`w-full relative overflow-hidden bg-slate-100 border border-black shadow-xs cursor-pointer ${
-                      activeTarget === 'image' ? 'ring-2 ring-blue-500' : 'hover:ring-2 hover:ring-blue-400'
+                      activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                     }`}
                     style={{ height: `${localSection.imageHeight || 220}px` }}
                   >
@@ -264,7 +282,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         setActiveTarget('heading');
                       }}
                       className={`mt-1 text-center font-bold text-[11px] text-slate-900 cursor-pointer ${
-                        activeTarget === 'heading' ? 'ring-2 ring-red-500 rounded' : 'hover:bg-red-50'
+                        activeTarget === 'heading' ? 'outline outline-2 outline-red-500 rounded' : 'hover:outline hover:outline-1 hover:outline-red-400'
                       }`}
                       style={{ fontFamily: localSection.titleFont || "'Martel', serif" }}
                     >
@@ -277,14 +295,14 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                 <div
                   className={`relative ${
                     localSection.showBorderLine ? 'border-b border-slate-400 pb-1' : ''
-                  } ${activeTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}`}
+                  } ${activeTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''}`}
                 >
                   {/* TOPLINE / KICKER */}
                   {(localSection.topLine || localSection.tag) && (
                     <div
                       onClick={() => setActiveTarget('subheading')}
-                      className={`cursor-pointer group relative p-0.5 -m-0.5 rounded transition ${
-                        activeTarget === 'subheading' ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:ring-1 hover:ring-amber-400'
+                      className={`cursor-pointer rounded transition ${
+                        activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'
                       }`}
                     >
                       <div
@@ -320,8 +338,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                   {/* MAIN HEADLINE */}
                   <div
                     onClick={() => setActiveTarget('heading')}
-                    className={`cursor-pointer group relative p-0.5 -m-0.5 my-0.5 rounded transition ${
-                      activeTarget === 'heading' ? 'ring-2 ring-red-500 bg-red-500/10' : 'hover:ring-1 hover:ring-red-400'
+                    className={`cursor-pointer my-0.5 rounded transition ${
+                      activeTarget === 'heading' ? 'outline outline-2 outline-red-500 bg-red-500/10' : 'hover:outline hover:outline-1 hover:outline-red-400'
                     }`}
                   >
                     <h2
@@ -347,8 +365,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                   {localSection.subtitle && (
                     <div
                       onClick={() => setActiveTarget('subheading')}
-                      className={`cursor-pointer group relative p-0.5 -m-0.5 my-0.5 rounded transition ${
-                        activeTarget === 'subheading' ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:ring-1 hover:ring-amber-400'
+                      className={`cursor-pointer my-0.5 rounded transition ${
+                        activeTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'
                       }`}
                     >
                       <h3
@@ -369,8 +387,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                   {localSection.image && localSection.layout !== 'bottom-img' && localSection.layout !== 'text-only' && (
                     <div
                       onClick={() => setActiveTarget('image')}
-                      className={`my-1 cursor-pointer group relative transition rounded ${
-                        activeTarget === 'image' ? 'ring-2 ring-blue-500 bg-blue-500/10' : 'hover:ring-1 hover:ring-blue-400'
+                      className={`my-1 cursor-pointer transition rounded ${
+                        activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                       }`}
                     >
                       <img
@@ -394,8 +412,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                   {bulletsList.length > 0 && (
                     <div
                       onClick={() => setActiveTarget('bullets')}
-                      className={`my-1 cursor-pointer group relative rounded transition p-0.5 ${
-                        activeTarget === 'bullets' ? 'ring-2 ring-purple-500 bg-purple-500/10' : 'hover:ring-1 hover:ring-purple-400'
+                      className={`my-1 cursor-pointer rounded transition ${
+                        activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
                       }`}
                     >
                       <div
@@ -415,8 +433,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                   {/* MAIN BODY PARAGRAPHS */}
                   <div
                     onClick={() => setActiveTarget('body')}
-                    className={`cursor-pointer group relative rounded transition p-0.5 -m-0.5 ${
-                      activeTarget === 'body' ? 'ring-2 ring-emerald-500 bg-emerald-500/10' : 'hover:ring-1 hover:ring-emerald-400'
+                    className={`cursor-pointer rounded transition ${
+                      activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
                     }`}
                   >
                     <div

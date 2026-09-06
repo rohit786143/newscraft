@@ -78,19 +78,26 @@
     .newspaper-page h1,
     .newspaper-page h2,
     .newspaper-page h3,
-    .newspaper-page h4 {
+    .newspaper-page h4,
+    .newspaper-page-preview h1,
+    .newspaper-page-preview h2,
+    .newspaper-page-preview h3,
+    .newspaper-page-preview h4,
+    .newspaper-modal-slot-view h1,
+    .newspaper-modal-slot-view h2,
+    .newspaper-modal-slot-view h3,
+    .newspaper-modal-slot-view h4 {
       line-height: 1.18 !important;
       margin-top: 0;
       padding-bottom: 2px;
-      letter-spacing: 0.01em;
-      word-spacing: 0.02em;
     }
 
-    .newspaper-page p {
+    .newspaper-page p,
+    .newspaper-page-preview p,
+    .newspaper-modal-slot-view p {
       line-height: 1.38 !important;
       margin-top: 0;
       margin-bottom: 4px;
-      letter-spacing: 0.01em;
       text-align: justify !important;
       text-justify: inter-word !important;
       word-break: normal !important;
@@ -2205,12 +2212,12 @@
               location: 'शिमला',
               title: 'शिमला-मनाली फोरलेन प्रोजेक्ट पर केंद्र का बड़ा फैसला: ₹4,500 करोड़ की नई राहत राशि मंजूर',
               titleFont: "'Rozha One', serif",
-              fontSize: '26px',
+              fontSize: '22px',
               titleColor: '#111111',
               titleAlign: 'left',
               subtitle: 'केंद्रीय भू-भूतल परिवहन मंत्रालय ने जारी की अधिसूचना; अगले महीने से सभी टनल पर कार्य शुरू होगा।',
               subtitleFont: "'Martel', serif",
-              subtitleSize: '13px',
+              subtitleSize: '12.5px',
               subtitleColor: '#334155',
               subtitleAlign: 'left',
               image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80',
@@ -5998,16 +6005,22 @@
         .replace(/>/g, '&gt;');
     }
 
-    // Measure exact broadsheet slot width in pixels
+    // Measure exact broadsheet slot width in pixels (100% exact matching canvas grid)
     function getExactSlotWidthPx(sec) {
-      const canvasSlotEl = document.getElementById('wrapper-' + sec.id);
-      if (canvasSlotEl && canvasSlotEl.offsetWidth > 100) {
-        return Math.round(canvasSlotEl.offsetWidth);
+      if (sec && sec.id) {
+        const canvasEl = document.getElementById('wrapper-' + sec.id);
+        if (canvasEl) {
+          const comp = window.getComputedStyle(canvasEl);
+          const parsed = parseFloat(comp.width);
+          if (parsed && !isNaN(parsed) && parsed > 50) {
+            return Math.round(parsed);
+          }
+        }
       }
       const curSizeCfg = (typeof PAGE_SIZES !== 'undefined' && PAGE_SIZES[studioState?.paperMeta?.pageSize || '11x17']) || { widthPx: 1056 };
-      // Canvas padding is 8mm (~30.25px) left & right = 60.5px total padding
-      const innerGridWidth = (curSizeCfg.widthPx || 1056) - 60.5;
-      const span = Math.min(12, Math.max(1, sec.colSpan || 6));
+      // Canvas padding is 8mm (~30.24px) left & right = 60.48px total padding
+      const innerGridWidth = (curSizeCfg.widthPx || 1056) - 60.48;
+      const span = Math.min(12, Math.max(1, sec ? (sec.colSpan || 6) : 6));
       const widthPct = (span / 12);
       const gapDec = span < 12 ? (18 * (12 - span) / 12) : 0;
       return Math.round(innerGridWidth * widthPct - gapDec);
@@ -6275,8 +6288,8 @@
               <span>अखबार में जैसा दिख रहा है, बिल्कुल वैसा ही यहाँ दिखेगा। किसी भी हिस्से पर क्लिक करके एडिट करें।</span>
             </div>
 
-            <!-- Authentic Broadsheet Paper Slot Container (100% Exact 1:1 Pixel Dimensions & Clean Ink White Paper) -->
-            <div id="modalSlotPaperWrap" class="newspaper-page-preview newspaper-page bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text" style="width: ${exactWidthPx}px !important; min-width: ${exactWidthPx}px !important; max-width: ${exactWidthPx}px !important; height: auto; min-height: 180px; padding: 6px 8px 16px 8px; box-sizing: border-box; line-height: 1.38; background-color: #fcfbfa !important; color: #111111 !important; display: flow-root !important;">
+            <!-- Authentic Broadsheet Paper Slot Container (100% Exact 1:1 Pixel Dimensions, Zero Margin/Padding Shift, Solid Paper Background) -->
+            <div id="modalSlotPaperWrap" class="newspaper-modal-slot-view bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text" style="width: ${exactWidthPx}px !important; min-width: ${exactWidthPx}px !important; max-width: ${exactWidthPx}px !important; height: auto; min-height: 180px; padding: 0px !important; margin: 0px !important; box-sizing: border-box !important; line-height: 1.38; background-color: #fcfbfa !important; color: #111111 !important; display: flow-root !important;">
               ${renderModalSlotInnerHTML(sec)}
             </div>
           </div>
@@ -6361,22 +6374,6 @@
       }
       const boxContainerStyle = `${hasBg ? `background-color: ${sec.bgColor}; ` : ''}${borderStyleStr}`.trim();
 
-      // Heading Style - 100% exact match with Canvas Broadsheet
-      const titleStyle = `
-        font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"};
-        font-size: ${sec.fontSize || '22px'};
-        color: ${sec.titleColor || '#111111'};
-        text-align: ${sec.titleAlign || 'left'};
-        font-weight: ${sec.titleBold !== false ? '800' : 'normal'};
-        font-style: ${sec.titleItalic ? 'italic' : 'normal'};
-        text-decoration: ${sec.titleUnderline ? 'underline' : 'none'};
-        line-height: 1.18;
-        letter-spacing: -0.01em;
-        margin-top: 0;
-        padding-top: ${!sec.topLine && !sec.tag ? '3px' : '0px'};
-        padding-bottom: 2px;
-      `;
-
       // Topline & Tag
       const tagBg = sec.tagBgColor || (sec.topLine ? '#0369a1' : '#dc2626');
       const tagTextColor = sec.tagTextColor || '#ffffff';
@@ -6384,73 +6381,6 @@
       const tagSize = sec.tagFontSize || '10px';
       const tagBold = sec.tagBold !== false;
 
-      const toplineStyle = `
-        font-family: ${sec.topLineFont || "'Mukta', sans-serif"};
-        font-size: ${sec.topLineSize || '13px'};
-        color: ${sec.topLineColor || '#dc2626'};
-        text-align: ${sec.topLineAlign || 'left'};
-        font-weight: ${sec.topLineBold !== false ? '700' : '400'};
-        font-style: ${sec.topLineItalic ? 'italic' : 'normal'};
-      `;
-
-      // Subtitle
-      const subtitleStyle = `
-        font-family: ${sec.subtitleFont || "'Martel', serif"};
-        font-size: ${sec.subtitleSize || '12.5px'};
-        color: ${sec.subtitleColor || '#334155'};
-        text-align: ${sec.subtitleAlign || 'left'};
-        font-weight: 600;
-        font-style: italic;
-        line-height: 1.25;
-      `;
-
-      // ================= 1. FULL AD SLOT =================
-      if (isAd) {
-        const dim = calculateSectionDimensions(sec);
-        const imgH = `${dim.heightPx || 220}px`;
-        const imgFit = sec.imageFit || 'cover';
-        const showTag = sec.showAdTag !== false;
-        const tagText = sec.adTagText || 'विज्ञापन';
-        const borderClass = sec.borderStyle === 'double' ? 'border-4 border-double border-black' : (sec.borderStyle === 'none' ? '' : (sec.borderStyle === 'dashed' ? 'border-2 border-dashed border-slate-400' : 'border border-black'));
-
-        return `
-          <div id="modal-preview-card-wrap" onclick="setModalActiveTarget('border', event)" class="relative full-ad-block cursor-pointer transition ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}" style="display: flow-root; width: 100%; box-sizing: border-box; ${boxContainerStyle}">
-            
-            ${showTag ? `
-              <div onclick="setModalActiveTarget('subheading', event)" class="text-center mb-0.5 cursor-pointer group ${modalActiveTarget === 'subheading' ? 'ring-2 ring-amber-500 rounded' : 'hover:bg-amber-50'}">
-                <span class="inline-block text-[8px] uppercase tracking-widest text-slate-700 font-serif font-bold px-2 py-0.2 bg-slate-100 border border-slate-300 rounded-[2px] leading-tight shadow-xs">
-                  ${tagText}
-                </span>
-              </div>
-            ` : ''}
-
-            <div onclick="setModalActiveTarget('image', event)" class="w-full relative overflow-hidden bg-slate-100 ${borderClass} shadow-xs cursor-pointer group hover:ring-2 hover:ring-blue-400 transition ${modalActiveTarget === 'image' ? 'ring-2 ring-blue-500' : ''}" style="height: ${imgH}; min-height: 50px;">
-              ${sec.image ? `
-                <img src="${sec.image}" alt="${sec.title || 'Advertisement'}" class="w-full h-full block" style="object-fit: ${imgFit}; object-position: center;">
-              ` : `
-                <div class="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-300 text-slate-400 p-4 text-center bg-slate-50">
-                  <i class="fa-solid fa-rectangle-ad text-3xl text-amber-500/60 mb-1"></i>
-                  <span class="font-bold text-xs text-slate-700">विज्ञापन इमेज (JPG / PNG) अपलोड करें</span>
-                </div>
-              `}
-            </div>
-
-            ${sec.caption ? `
-              <div onclick="setModalActiveTarget('image', event)" class="cursor-pointer group pt-0.5 ${modalActiveTarget === 'image' ? 'ring-1 ring-blue-500 rounded' : ''}">
-                ${renderCaptionHTML(sec, 'center')}
-              </div>
-            ` : ''}
-
-            ${sec.title ? `
-              <div onclick="setModalActiveTarget('heading', event)" class="mt-1 text-center font-bold text-[11px] text-slate-900 cursor-pointer group p-0.5 ${modalActiveTarget === 'heading' ? 'ring-2 ring-red-500 rounded' : 'hover:bg-red-50'}" style="font-family: ${sec.titleFont || "'Martel', serif"};">
-                ${sec.title}
-              </div>
-            ` : ''}
-          </div>
-        `;
-      }
-
-      // ================= 2. STANDARD ARTICLE NEWS RENDERER =================
       const tagHTML = (sec.tag || modalActiveTarget === 'subheading') ? `
         <span id="modal-preview-tag" class="inline-block px-1.5 py-0.5 uppercase tracking-wide align-middle shadow-xs ${sec.topLine ? 'mr-1.5' : 'mb-1'}" style="background-color: ${tagBg}; color: ${tagTextColor}; font-family: ${tagFont}; font-size: ${tagSize}; font-weight: ${tagBold ? '800' : '600'}; border-radius: 2px; line-height: 1.25;">
           ${sec.tag || 'टैग'}
@@ -6460,10 +6390,10 @@
       const toplineHTML = `
         <!-- 1. SUB-HEADING / KICKER / TAG -->
         ${(sec.topLine || sec.tag) ? `
-          <div onclick="setModalActiveTarget('subheading', event)" class="cursor-pointer group relative p-0.5 -m-0.5 rounded transition ${modalActiveTarget === 'subheading' ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:ring-1 hover:ring-amber-400'}" title="क्लिक करके सबहेडिंग / किकर एडिट करें">
-            <div id="modal-preview-topline-wrap" class="leading-snug pt-0.5 tracking-tight" style="${toplineStyle}">
+          <div onclick="setModalActiveTarget('subheading', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'}" title="क्लिक करके सबहेडिंग / किकर एडिट करें">
+            <div id="modal-preview-topline-wrap" class="leading-snug mb-1 pt-0.5 tracking-tight" style="font-family: ${sec.topLineFont || "'Mukta', sans-serif"}; font-size: ${sec.topLineSize || '13px'}; color: ${sec.topLineColor || '#dc2626'}; text-align: ${sec.topLineAlign || 'left'}; font-weight: ${sec.topLineBold !== false ? '700' : '400'}; font-style: ${sec.topLineItalic ? 'italic' : 'normal'};">
               ${tagHTML}
-              <span id="modal-preview-topline" class="align-middle">${sec.topLine || ''}</span>
+              ${sec.topLine ? `<span id="modal-preview-topline" class="align-middle">${sec.topLine}</span>` : ''}
             </div>
           </div>
         ` : ''}
@@ -6471,8 +6401,8 @@
 
       const headlineHTML = `
         <!-- 2. MAIN HEADLINE -->
-        <div onclick="setModalActiveTarget('heading', event)" class="cursor-pointer group relative p-0.5 -m-0.5 my-0.5 rounded transition ${modalActiveTarget === 'heading' ? 'ring-2 ring-red-500 bg-red-500/10' : 'hover:ring-1 hover:ring-red-400'}" title="क्लिक करके मुख्य हेडिंग एडिट करें">
-          <h2 id="modal-preview-title" class="font-extrabold select-text leading-snug my-1" style="${titleStyle}">
+        <div onclick="setModalActiveTarget('heading', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'heading' ? 'outline outline-2 outline-red-500 bg-red-500/10' : 'hover:outline hover:outline-1 hover:outline-red-400'}" title="क्लिक करके मुख्य हेडिंग एडिट करें">
+          <h2 id="modal-preview-title" class="font-extrabold text-slate-950 leading-snug my-1 select-text" style="font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"}; font-size: ${sec.fontSize || '22px'}; color: ${sec.titleColor || '#111111'}; text-align: ${sec.titleAlign || 'left'}; letter-spacing: -0.01em; padding-top: ${!sec.topLine && !sec.tag ? '3px' : '0px'}; font-style: ${sec.titleItalic ? 'italic' : 'normal'}; text-decoration: ${sec.titleUnderline ? 'underline' : 'none'};">
             ${sec.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
           </h2>
         </div>
@@ -6481,8 +6411,8 @@
       const subtitleHTML = `
         <!-- 3. SUBTITLE -->
         ${(sec.subtitle) ? `
-          <div onclick="setModalActiveTarget('subheading', event)" class="cursor-pointer group relative p-0.5 -m-0.5 my-0.5 rounded transition ${modalActiveTarget === 'subheading' ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:ring-1 hover:ring-amber-400'}" title="क्लिक करके उप-शीर्षक एडिट करें">
-            <h3 id="modal-preview-subtitle" class="font-semibold italic my-0.5 leading-snug" style="${subtitleStyle}">
+          <div onclick="setModalActiveTarget('subheading', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'}" title="क्लिक करके उप-शीर्षक एडिट करें">
+            <h3 id="modal-preview-subtitle" class="font-semibold italic my-1 leading-snug" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'};">
               ${sec.subtitle}
             </h3>
           </div>
@@ -6491,7 +6421,7 @@
 
       // Photo Component for different placements
       const photoHTML = (imgClass = "w-full max-h-48 object-cover border border-black p-0.5", captionAlign = 'left', wrapperClass = "my-1") => `
-        <div onclick="setModalActiveTarget('image', event)" class="${wrapperClass} cursor-pointer group relative transition rounded ${modalActiveTarget === 'image' ? 'ring-2 ring-blue-500 bg-blue-500/10' : 'hover:ring-1 hover:ring-blue-400'}" title="क्लिक करके फोटो व लेआउट एडिट करें">
+        <div onclick="setModalActiveTarget('image', event)" class="${wrapperClass} cursor-pointer transition rounded ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" title="क्लिक करके फोटो व लेआउट एडिट करें">
           ${sec.image ? `
             <img src="${sec.image}" alt="Photo" class="${imgClass}">
             <div id="modal-preview-caption" class="pt-0.5">
@@ -6509,7 +6439,7 @@
       // Bullets Component
       const bulletsHTML = `
         ${(sec.bullets) ? `
-          <div onclick="setModalActiveTarget('bullets', event)" class="cursor-pointer group relative rounded transition p-0.5 ${modalActiveTarget === 'bullets' ? 'ring-2 ring-purple-500 bg-purple-500/10' : 'hover:ring-1 hover:ring-purple-400'}" title="क्लिक करके बुलेट बिंदु एडिट करें">
+          <div onclick="setModalActiveTarget('bullets', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'}" title="क्लिक करके बुलेट बिंदु एडिट करें">
             <div id="modal-preview-bullets">
               ${renderBulletsHTML(sec)}
             </div>
@@ -6517,10 +6447,10 @@
         ` : ''}
       `;
 
-      // Paragraphs Component (Clean single multi-column container, no double nesting)
+      // Paragraphs Component (Clean single multi-column container, matching canvas)
       const bodyColsClass = sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
       const paragraphsHTML = `
-        <div onclick="setModalActiveTarget('body', event)" class="cursor-pointer group relative rounded transition p-0.5 -m-0.5 ${modalActiveTarget === 'body' ? 'ring-2 ring-emerald-500 bg-emerald-500/10' : 'hover:ring-1 hover:ring-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+        <div onclick="setModalActiveTarget('body', event)" class="cursor-pointer transition rounded ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
           <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${bodyColsClass}" style="display: block; width: 100%;">
             ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
           </div>
@@ -6532,14 +6462,14 @@
 
       if (sec.cutoutWrap) {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed my-1 clearfix">
+          <div class="font-martel leading-relaxed my-1 clearfix ${bodyColsClass}">
             ${sec.image ? `
-              <div onclick="setModalActiveTarget('image', event)" class="cursor-pointer group ${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${modalActiveTarget === 'image' ? 'ring-2 ring-blue-500' : ''}" title="क्लिक करके फोटो एडिट करें">
+              <div onclick="setModalActiveTarget('image', event)" class="cursor-pointer ${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" title="क्लिक करके फोटो एडिट करें">
                 <img src="${sec.image}" class="cutout-shape-img rounded-xs" style="float: ${sec.cutoutFloat === 'right' ? 'right' : 'left'}; shape-outside: url('${sec.image}'); shape-margin: ${sec.cutoutMargin !== undefined ? sec.cutoutMargin : 2}px; width: ${sec.cutoutWidth || 240}px; max-width: 95%; margin-top: ${sec.cutoutOffsetY || 0}px; margin-${sec.cutoutFloat === 'right' ? 'right' : 'left'}: ${sec.cutoutOffsetX || 0}px; margin-bottom: 2px; object-fit: contain; display: block;">
               </div>
             ` : ''}
             ${bulletsHTML}
-            ${paragraphsHTML}
+            ${renderParagraphsHTML(sec, true)}
             ${sec.caption ? `
               <div onclick="setModalActiveTarget('image', event)" class="clear-both pt-1 cursor-pointer">
                 ${renderCaptionHTML(sec, 'left')}
@@ -6555,7 +6485,7 @@
         `;
       } else if (sec.layout === 'left-img') {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed clearfix my-1">
+          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}">
             ${photoHTML("w-full max-h-44 object-cover", "center", "float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white")}
             ${bulletsHTML}
             ${paragraphsHTML}
@@ -6563,7 +6493,7 @@
         `;
       } else if (sec.layout === 'right-img') {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed clearfix my-1">
+          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}">
             ${photoHTML("w-full max-h-44 object-cover", "center", "float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white")}
             ${bulletsHTML}
             ${paragraphsHTML}
@@ -6590,7 +6520,7 @@
       }
 
       return `
-        <div id="modal-preview-card-wrap" class="relative ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}" style="display: flow-root; width: 100%; box-sizing: border-box; ${boxContainerStyle}">
+        <div id="modal-preview-card-wrap" class="relative ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'outline outline-2 outline-cyan-500 rounded' : ''}" style="display: flow-root; width: 100%; box-sizing: border-box; ${boxContainerStyle}">
           ${toplineHTML}
           ${headlineHTML}
           ${subtitleHTML}
