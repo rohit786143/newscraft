@@ -119,9 +119,9 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
     };
   }
 
-  // Calculate preview slot width based on colSpan
+  // Calculate preview slot width based on colSpan (exact broadsheet parity)
   const span = Math.min(12, Math.max(1, localSection.colSpan || 6));
-  const previewSlotWidthPx = Math.round((span / 12) * 980);
+  const previewSlotWidthPx = Math.round((span / 12) * 1284 - (span < 12 ? (18 * (12 - span) / 12) : 0));
 
   // Helper render paragraphs
   const paragraphs = (localSection.content || '')
@@ -144,7 +144,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
       }}
     >
       <div
-        className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-[98vw] max-w-7xl h-[94vh] max-h-[96vh] flex flex-col overflow-hidden text-slate-100 font-sans"
+        className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-[99vw] max-w-[1680px] h-[95vh] max-h-[96vh] flex flex-col overflow-hidden text-slate-100 font-sans"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ================= TOP HEADER ================= */}
@@ -189,7 +189,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
           {/* LEFT PANE: AUTHENTIC BROADSHEET CANVAS SLOT PREVIEW (100% UNTOUCHED LAYOUT) */}
-          <div className="flex-1 bg-[#090d16] p-3 sm:p-6 overflow-y-auto flex flex-col items-center justify-start custom-scrollbar border-b md:border-b-0 md:border-r border-slate-800/80">
+          <div className="flex-1 bg-[#090d16] p-4 sm:p-6 overflow-y-auto overflow-x-auto flex flex-col items-center justify-start custom-scrollbar border-b md:border-b-0 md:border-r border-slate-800/80">
             <div className="mb-3 text-[11px] text-slate-400 flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-800 shadow-sm shrink-0">
               <span className="text-amber-400">💡</span> 
               <span>अखबार में जैसा दिख रहा है, बिल्कुल वैसा ही यहाँ दिखेगा। किसी भी हिस्से पर क्लिक करके एडिट करें।</span>
@@ -197,10 +197,11 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
             {/* Authentic Paper Container */}
             <div
-              className="bg-[#fcfbfa] text-[#111111] shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text"
+              className="newspaper-page-preview newspaper-page bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text"
               style={{
                 width: `${previewSlotWidthPx}px`,
-                maxWidth: '100%',
+                minWidth: `${previewSlotWidthPx}px`,
+                maxWidth: `${previewSlotWidthPx}px`,
                 minHeight: '180px',
                 padding: '4px 6px 6px 6px',
                 boxSizing: 'border-box',

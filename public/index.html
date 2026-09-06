@@ -6002,14 +6002,15 @@
     function getExactSlotWidthPx(sec) {
       const canvasSlotEl = document.getElementById('wrapper-' + sec.id);
       if (canvasSlotEl && canvasSlotEl.offsetWidth > 100) {
-        return canvasSlotEl.offsetWidth;
+        return Math.round(canvasSlotEl.offsetWidth);
       }
-      const canvasEl = document.getElementById('newspaperCanvas');
-      const canvasWidth = canvasEl ? (canvasEl.clientWidth - 32) : 1000;
+      const curSizeCfg = (typeof PAGE_SIZES !== 'undefined' && PAGE_SIZES[studioState?.paperMeta?.pageSize || '11x17']) || { widthPx: 1056 };
+      // Canvas padding is 8mm (~30.25px) left & right = 60.5px total padding
+      const innerGridWidth = (curSizeCfg.widthPx || 1056) - 60.5;
       const span = Math.min(12, Math.max(1, sec.colSpan || 6));
       const widthPct = (span / 12);
       const gapDec = span < 12 ? (18 * (12 - span) / 12) : 0;
-      return Math.round(canvasWidth * widthPct - gapDec);
+      return Math.round(innerGridWidth * widthPct - gapDec);
     }
 
     // OPEN NEWS SECTION POPUP FROM CANVAS OR SIDEBAR
@@ -6268,14 +6269,14 @@
         <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
           
           <!-- LEFT PANE: AUTHENTIC BROADSHEET CANVAS SLOT PREVIEW (100% VISUAL PARITY) -->
-          <div class="flex-1 bg-[#090d16] p-3 sm:p-6 overflow-y-auto flex flex-col items-center justify-start custom-scrollbar border-b md:border-b-0 md:border-r border-slate-800/80">
-            <div class="mb-3 text-[11px] text-slate-400 flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-800 shadow-sm shrink-0">
+          <div class="flex-1 bg-[#090d16] p-4 sm:p-6 overflow-y-auto overflow-x-auto flex flex-col items-center justify-start custom-scrollbar border-b md:border-b-0 md:border-r border-slate-800/80">
+            <div class="mb-3 text-[11px] text-slate-400 flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-800 shadow-sm shrink-0 select-none">
               <span class="text-amber-400">💡</span> 
               <span>अखबार में जैसा दिख रहा है, बिल्कुल वैसा ही यहाँ दिखेगा। किसी भी हिस्से पर क्लिक करके एडिट करें।</span>
             </div>
 
-            <!-- Authentic Broadsheet Paper Slot Container -->
-            <div id="modalSlotPaperWrap" class="newspaper-page-preview bg-[#fcfbfa] text-[#111111] shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text" style="width: ${exactWidthPx}px; max-width: 100%; height: auto; min-height: 180px; padding: 4px 6px 6px 6px; box-sizing: border-box; line-height: 1.38;">
+            <!-- Authentic Broadsheet Paper Slot Container (100% Exact 1:1 Pixel Dimensions & Clean Ink White Paper) -->
+            <div id="modalSlotPaperWrap" class="newspaper-page-preview newspaper-page bg-[#fcfbfa] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,0.6)] rounded-[2px] transition-all relative select-text" style="width: ${exactWidthPx}px !important; min-width: ${exactWidthPx}px !important; max-width: ${exactWidthPx}px !important; height: auto; min-height: 180px; padding: 6px 8px 16px 8px; box-sizing: border-box; line-height: 1.38; background-color: #fcfbfa !important; color: #111111 !important; display: flow-root !important;">
               ${renderModalSlotInnerHTML(sec)}
             </div>
           </div>
@@ -6360,7 +6361,7 @@
       }
       const boxContainerStyle = `${hasBg ? `background-color: ${sec.bgColor}; ` : ''}${borderStyleStr}`.trim();
 
-      // Heading Style
+      // Heading Style - 100% exact match with Canvas Broadsheet
       const titleStyle = `
         font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"};
         font-size: ${sec.fontSize || '22px'};
@@ -6372,6 +6373,7 @@
         line-height: 1.18;
         letter-spacing: -0.01em;
         margin-top: 0;
+        padding-top: ${!sec.topLine && !sec.tag ? '3px' : '0px'};
         padding-bottom: 2px;
       `;
 
@@ -6412,7 +6414,7 @@
         const borderClass = sec.borderStyle === 'double' ? 'border-4 border-double border-black' : (sec.borderStyle === 'none' ? '' : (sec.borderStyle === 'dashed' ? 'border-2 border-dashed border-slate-400' : 'border border-black'));
 
         return `
-          <div id="modal-preview-card-wrap" onclick="setModalActiveTarget('border', event)" class="relative full-ad-block cursor-pointer transition ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}" style="${boxContainerStyle}">
+          <div id="modal-preview-card-wrap" onclick="setModalActiveTarget('border', event)" class="relative full-ad-block cursor-pointer transition ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}" style="display: flow-root; width: 100%; box-sizing: border-box; ${boxContainerStyle}">
             
             ${showTag ? `
               <div onclick="setModalActiveTarget('subheading', event)" class="text-center mb-0.5 cursor-pointer group ${modalActiveTarget === 'subheading' ? 'ring-2 ring-amber-500 rounded' : 'hover:bg-amber-50'}">
@@ -6470,7 +6472,7 @@
       const headlineHTML = `
         <!-- 2. MAIN HEADLINE -->
         <div onclick="setModalActiveTarget('heading', event)" class="cursor-pointer group relative p-0.5 -m-0.5 my-0.5 rounded transition ${modalActiveTarget === 'heading' ? 'ring-2 ring-red-500 bg-red-500/10' : 'hover:ring-1 hover:ring-red-400'}" title="क्लिक करके मुख्य हेडिंग एडिट करें">
-          <h2 id="modal-preview-title" class="select-text m-0" style="${titleStyle}">
+          <h2 id="modal-preview-title" class="font-extrabold select-text leading-snug my-1" style="${titleStyle}">
             ${sec.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
           </h2>
         </div>
@@ -6515,11 +6517,11 @@
         ` : ''}
       `;
 
-      // Paragraphs Component
+      // Paragraphs Component (Clean single multi-column container, no double nesting)
       const bodyColsClass = sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
       const paragraphsHTML = `
         <div onclick="setModalActiveTarget('body', event)" class="cursor-pointer group relative rounded transition p-0.5 -m-0.5 ${modalActiveTarget === 'body' ? 'ring-2 ring-emerald-500 bg-emerald-500/10' : 'hover:ring-1 hover:ring-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
-          <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${bodyColsClass}">
+          <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${bodyColsClass}" style="display: block; width: 100%;">
             ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
           </div>
         </div>
@@ -6530,7 +6532,7 @@
 
       if (sec.cutoutWrap) {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed my-1 clearfix ${bodyColsClass}">
+          <div class="font-martel leading-relaxed my-1 clearfix">
             ${sec.image ? `
               <div onclick="setModalActiveTarget('image', event)" class="cursor-pointer group ${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${modalActiveTarget === 'image' ? 'ring-2 ring-blue-500' : ''}" title="क्लिक करके फोटो एडिट करें">
                 <img src="${sec.image}" class="cutout-shape-img rounded-xs" style="float: ${sec.cutoutFloat === 'right' ? 'right' : 'left'}; shape-outside: url('${sec.image}'); shape-margin: ${sec.cutoutMargin !== undefined ? sec.cutoutMargin : 2}px; width: ${sec.cutoutWidth || 240}px; max-width: 95%; margin-top: ${sec.cutoutOffsetY || 0}px; margin-${sec.cutoutFloat === 'right' ? 'right' : 'left'}: ${sec.cutoutOffsetX || 0}px; margin-bottom: 2px; object-fit: contain; display: block;">
@@ -6549,13 +6551,11 @@
         layoutInnerHTML = `
           ${photoHTML("w-full max-h-56 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
           ${bulletsHTML}
-          <div class="font-martel leading-relaxed ${bodyColsClass}">
-            ${paragraphsHTML}
-          </div>
+          ${paragraphsHTML}
         `;
       } else if (sec.layout === 'left-img') {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}">
+          <div class="font-martel leading-relaxed clearfix my-1">
             ${photoHTML("w-full max-h-44 object-cover", "center", "float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white")}
             ${bulletsHTML}
             ${paragraphsHTML}
@@ -6563,7 +6563,7 @@
         `;
       } else if (sec.layout === 'right-img') {
         layoutInnerHTML = `
-          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}">
+          <div class="font-martel leading-relaxed clearfix my-1">
             ${photoHTML("w-full max-h-44 object-cover", "center", "float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white")}
             ${bulletsHTML}
             ${paragraphsHTML}
@@ -6572,31 +6572,25 @@
       } else if (sec.layout === 'bottom-img') {
         layoutInnerHTML = `
           ${bulletsHTML}
-          <div class="font-martel leading-relaxed my-0.5 ${bodyColsClass}">
-            ${paragraphsHTML}
-          </div>
+          ${paragraphsHTML}
           ${photoHTML("w-full max-h-44 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
         `;
       } else if (sec.layout === 'text-only') {
         layoutInnerHTML = `
           ${bulletsHTML}
-          <div class="font-martel leading-relaxed my-0.5 ${bodyColsClass}">
-            ${paragraphsHTML}
-          </div>
+          ${paragraphsHTML}
         `;
       } else {
         // Standard 'top-img' or default
         layoutInnerHTML = `
           ${sec.image ? photoHTML("w-full max-h-48 object-cover border border-black p-0.5", sec.titleAlign || 'left') : ''}
           ${bulletsHTML}
-          <div class="font-martel leading-relaxed ${bodyColsClass}">
-            ${paragraphsHTML}
-          </div>
+          ${paragraphsHTML}
         `;
       }
 
       return `
-        <div id="modal-preview-card-wrap" class="relative ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}" style="${boxContainerStyle}">
+        <div id="modal-preview-card-wrap" class="relative ${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''} ${modalActiveTarget === 'border' ? 'ring-2 ring-cyan-500 rounded p-1' : ''}" style="display: flow-root; width: 100%; box-sizing: border-box; ${boxContainerStyle}">
           ${toplineHTML}
           ${headlineHTML}
           ${subtitleHTML}
@@ -10511,7 +10505,7 @@
   <!-- MODAL: INTERACTIVE NEWS SECTION POPUP EDITOR (WYSIWYG BELOW-ELEMENT TOOLBARS)-->
   <!-- ============================================================================ -->
   <div id="newsSectionModalEditor" class="hidden fixed inset-0 z-50 items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200" onclick="handleModalBackdropClick(event)">
-    <div class="w-[98vw] max-w-7xl h-[94vh] max-h-[96vh] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-100 font-sans" onclick="event.stopPropagation()">
+    <div class="w-[99vw] max-w-[1680px] h-[95vh] max-h-[96vh] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-100 font-sans" onclick="event.stopPropagation()">
       <!-- Dynamically filled by renderSectionModalContent() -->
       <div id="newsSectionModalInner" class="flex-1 flex flex-col overflow-hidden"></div>
     </div>
