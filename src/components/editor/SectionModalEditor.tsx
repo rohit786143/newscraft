@@ -39,13 +39,13 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
   onChange,
 }) => {
   const [localSection, setLocalSection] = useState<NewsSection | null>(null);
-  const [activeTarget, setActiveTarget] = useState<ActiveTarget>('heading');
+  const [activeTarget, setActiveTarget] = useState<ActiveTarget>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (section && isOpen) {
       setLocalSection({ ...section });
-      setActiveTarget('heading');
+      setActiveTarget(null); // Clean 'as-it-is' newspaper view on open
     } else {
       setLocalSection(null);
       setActiveTarget(null);
@@ -152,6 +152,17 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setActiveTarget(null)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold ${
+                activeTarget === null
+                  ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-md'
+                  : 'text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700'
+              } transition cursor-pointer flex items-center gap-1.5`}
+            >
+              <span>👁️</span> <span>ओरिजिनल व्यू (Clean)</span>
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 transition cursor-pointer"
             >
@@ -170,11 +181,24 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
         {/* ================= TARGET NAVIGATION PILLS ================= */}
         <div className="px-4 sm:px-6 py-2 bg-slate-900 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none">
-          <span className="text-[10.5px] text-slate-400 font-bold uppercase tracking-wider mr-1 hidden sm:inline">जंप टू:</span>
+          <button
+            type="button"
+            onClick={() => setActiveTarget(null)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+              activeTarget === null
+                ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-400'
+                : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <span>👁️</span>
+            <span>फुल व्यू (Clean)</span>
+          </button>
+
+          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mx-1">|</span>
 
           <button
             type="button"
-            onClick={() => setActiveTarget('heading')}
+            onClick={() => setActiveTarget(activeTarget === 'heading' ? null : 'heading')}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
               activeTarget === 'heading'
                 ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-400'
@@ -187,7 +211,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTarget('subheading')}
+            onClick={() => setActiveTarget(activeTarget === 'subheading' ? null : 'subheading')}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
               activeTarget === 'subheading'
                 ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
@@ -200,7 +224,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTarget('body')}
+            onClick={() => setActiveTarget(activeTarget === 'body' ? null : 'body')}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
               activeTarget === 'body'
                 ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
@@ -213,7 +237,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTarget('image')}
+            onClick={() => setActiveTarget(activeTarget === 'image' ? null : 'image')}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
               activeTarget === 'image'
                 ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400'
@@ -226,7 +250,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTarget('border')}
+            onClick={() => setActiveTarget(activeTarget === 'border' ? null : 'border')}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
               activeTarget === 'border'
                 ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400'

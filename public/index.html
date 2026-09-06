@@ -5999,7 +5999,7 @@
     }
 
     // OPEN NEWS SECTION POPUP FROM CANVAS OR SIDEBAR
-    function openSectionEditorFromCanvas(secId, target = 'heading') {
+    function openSectionEditorFromCanvas(secId, target = null) {
       selectSection(secId);
       openSectionModalPopup(secId, target);
 
@@ -6017,14 +6017,14 @@
       }
     }
 
-    function openSectionModalPopup(secId, target = 'heading') {
+    function openSectionModalPopup(secId, target = null) {
       const curPage = getCurrentPage();
       if (!curPage || !curPage.sections) return;
       const sec = curPage.sections.find(s => s.id === secId);
       if (!sec) return;
 
       modalActiveSecId = secId;
-      modalActiveTarget = target;
+      modalActiveTarget = target; // null by default -> clean 'as-it-is' newspaper view
       selectSection(secId);
 
       const modal = document.getElementById('newsSectionModalEditor');
@@ -6042,6 +6042,7 @@
         modal.classList.remove('flex');
       }
       modalActiveSecId = null;
+      modalActiveTarget = null;
       renderActiveCanvasPage();
       autoSave();
     }
@@ -6052,7 +6053,18 @@
       }
     }
 
-    function setModalActiveTarget(target) {
+    function toggleModalActiveTarget(target, event) {
+      if (event) event.stopPropagation();
+      if (modalActiveTarget === target) {
+        modalActiveTarget = null; // Toggle off -> back to clean view
+      } else {
+        modalActiveTarget = target;
+      }
+      renderSectionModalContent();
+    }
+
+    function setModalActiveTarget(target, event) {
+      if (event) event.stopPropagation();
       modalActiveTarget = target;
       renderSectionModalContent();
     }
@@ -6205,6 +6217,95 @@
         return;
       }
       const sec = curPage.sections[secIndex];
+
+      container.innerHTML = `
+        <!-- ================= MODAL TOP HEADER ================= -->
+        <div class="px-4 sm:px-6 py-3 bg-slate-950 border-b border-slate-800 flex flex-wrap gap-2 justify-between items-center shrink-0 select-none">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-red-600 flex items-center justify-center text-white text-sm shadow-md font-bold">
+              ${secIndex + 1}
+            </div>
+            <div>
+              <h2 class="font-bold text-sm text-white flex items-center gap-2">
+                <span>न्यूज़ सेक्शन एडिटर (Interactive Direct Editor)</span>
+                <span class="text-[10px] bg-slate-800 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-slate-700">
+                  ${sec.colSpan || 6} Col • ${sec.layout || 'standard'}
+                </span>
+              </h2>
+              <p class="text-[11px] text-slate-400">
+                सीधे खबर के किसी भी हिस्से (हेडिंग, सबहेडिंग, फोटो, या मुख्य समाचार) पर क्लिक करके नीचे उसके टूलबार से एडिट करें।
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="setModalActiveTarget(null)" class="px-3 py-1.5 rounded-xl text-xs font-semibold ${modalActiveTarget === null ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-md' : 'text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700'} transition cursor-pointer flex items-center gap-1.5" title="सभी टूलबार बंद करके केवल ओरिजिनल न्यूज़ लेआउट देखें">
+              <span>👁️</span> <span>ओरिजिनल व्यू (Clean View)</span>
+            </button>
+            <button type="button" onclick="closeSectionModalPopup()" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 transition cursor-pointer">
+              ✕ बंद करें
+            </button>
+            <button type="button" onclick="closeSectionModalPopup()" class="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-600/30 transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i>
+              <span>सेव और डन (Done)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= MODAL QUICK NAVIGATION TABS STRIP ================= -->
+        <div class="px-4 sm:px-6 py-2 bg-slate-900 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none custom-scrollbar">
+          <button type="button" onclick="setModalActiveTarget(null)" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === null ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>👁️</span>
+            <span>फुल व्यू (Clean)</span>
+          </button>
+
+          <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mx-1">|</span>
+          
+          <button type="button" onclick="toggleModalActiveTarget('heading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'heading' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🔤</span>
+            <span>हेडिंग (Heading)</span>
+          </button>
+
+          <button type="button" onclick="toggleModalActiveTarget('subheading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'subheading' ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🏷️</span>
+            <span>सबहेडिंग / किकर</span>
+          </button>
+
+          <button type="button" onclick="toggleModalActiveTarget('body')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'body' ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>📄</span>
+            <span>मुख्य समाचार (Body)</span>
+          </button>
+
+          <button type="button" onclick="toggleModalActiveTarget('image')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'image' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🖼️</span>
+            <span>फोटो / लेआउट</span>
+          </button>
+
+          <button type="button" onclick="toggleModalActiveTarget('bullets')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'bullets' ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>📋</span>
+            <span>बुलेट बिंदु</span>
+          </button>
+
+          <button type="button" onclick="toggleModalActiveTarget('border')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'border' ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
+            <span>🔲</span>
+            <span>बॉर्डर व बैकग्राउंड</span>
+          </button>
+        </div>
+
+        <!-- ================= MAIN SCROLLABLE LIVE NEWSPAPER WORKSPACE ================= -->
+        <div class="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-950 custom-scrollbar flex flex-col items-center justify-start">
+          
+          <div class="w-full max-w-3xl relative select-text transition-all duration-150">
+            ${renderModalSlotInnerHTML(sec)}
+          </div>
+
+        </div>
+      `;
+    }
+
+    // AUTHENTIC NEWSPAPER ARTICLE RENDERER FOR MODAL (PRESERVES EXACT LAYOUT WITH CLICK-TO-EDIT TARGETS)
+    function renderModalSlotInnerHTML(sec) {
+      if (!sec) return '';
       const isAd = sec.layout === 'full-ad' || sec.type === 'ad';
 
       // Computed Box Styling
@@ -6216,18 +6317,22 @@
         const bStyle = sec.cardBorderStyle || 'solid';
         const bRadius = sec.cardBorderRadius !== undefined ? `${sec.cardBorderRadius}px` : '0px';
         const rawPad = sec.cardPadding !== undefined ? parseFloat(sec.cardPadding) : 8;
-        const padCSS = `padding: ${rawPad + 6}px ${rawPad + 8}px;`;
+        const padTop = Math.max(8, rawPad + 4);
+        const padSide = Math.max(6, rawPad + 2);
+        const padBottom = Math.max(6, rawPad);
+        const padCSS = `padding: ${padTop}px ${padSide}px ${padBottom}px ${padSide}px;`;
+
         if (bStyle === 'newspaper-vintage') {
-          borderStyleStr = `border-top: ${Math.max(2, bWidth + 1)}px solid ${bColor}; border-bottom: ${Math.max(2, bWidth + 1)}px solid ${bColor}; border-left: 1px solid ${bColor}; border-right: 1px solid ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+          borderStyleStr = `border-top: ${Math.max(2, bWidth + 1)}px solid ${bColor}; border-bottom: ${Math.max(2, bWidth + 1)}px solid ${bColor}; border-left: 1px solid ${bColor}; border-right: 1px solid ${bColor}; ${padCSS} border-radius: ${bRadius}; box-sizing: border-box;`;
         } else if (bStyle === 'thick-bottom') {
-          borderStyleStr = `border: 1px solid ${bColor}; border-bottom: ${Math.max(3, bWidth + 2)}px solid ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+          borderStyleStr = `border: 1px solid ${bColor}; border-bottom: ${Math.max(3, bWidth + 2)}px solid ${bColor}; ${padCSS} border-radius: ${bRadius}; box-sizing: border-box;`;
         } else if (bStyle === 'double') {
-          borderStyleStr = `border: ${Math.max(3, bWidth * 2)}px double ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+          borderStyleStr = `border: ${Math.max(3, bWidth * 2)}px double ${bColor}; ${padCSS} border-radius: ${bRadius}; box-sizing: border-box;`;
         } else {
-          borderStyleStr = `border: ${bWidth}px ${bStyle} ${bColor}; ${padCSS} border-radius: ${bRadius};`;
+          borderStyleStr = `border: ${bWidth}px ${bStyle} ${bColor}; ${padCSS} border-radius: ${bRadius}; box-sizing: border-box;`;
         }
       } else if (hasBg) {
-        borderStyleStr = `padding: 10px 12px; border-radius: 4px; border: 1px solid #cbd5e1;`;
+        borderStyleStr = `padding: 10px 14px; border-radius: 4px; border: 1px solid #d1d5db; box-sizing: border-box;`;
       }
       const paperCardStyle = `${hasBg ? `background-color: ${sec.bgColor}; ` : 'background-color: #fcfbfa; '}${borderStyleStr}`.trim();
 
@@ -6270,175 +6375,229 @@
         font-style: italic;
       `;
 
-      container.innerHTML = `
-        <!-- ================= MODAL TOP HEADER ================= -->
-        <div class="px-4 sm:px-6 py-3 bg-slate-950 border-b border-slate-800 flex flex-wrap gap-2 justify-between items-center shrink-0">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-red-600 flex items-center justify-center text-white text-sm shadow-md font-bold">
-              ${secIndex + 1}
-            </div>
-            <div>
-              <h2 class="font-bold text-sm text-white flex items-center gap-2">
-                <span>न्यूज़ सेक्शन एडिटर (Interactive Direct Editor)</span>
-                <span class="text-[10px] bg-slate-800 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-slate-700">
-                  ${sec.colSpan || 6} Col • ${sec.layout || 'standard'}
-                </span>
-              </h2>
-              <p class="text-[11px] text-slate-400">
-                सीधे खबर के किसी भी हिस्से (हेडिंग, सबहेडिंग, फोटो, या मुख्य समाचार) पर क्लिक करके नीचे उसके टूलबार से एडिट करें।
-              </p>
-            </div>
-          </div>
+      // ================= 1. FULL AD SLOT =================
+      if (isAd) {
+        const dim = calculateSectionDimensions(sec);
+        const imgH = `${dim.heightPx || 220}px`;
+        const imgFit = sec.imageFit || 'cover';
+        const showTag = sec.showAdTag !== false;
+        const tagText = sec.adTagText || 'विज्ञापन';
+        const borderClass = sec.borderStyle === 'double' ? 'border-4 border-double border-black' : (sec.borderStyle === 'none' ? '' : (sec.borderStyle === 'dashed' ? 'border-2 border-dashed border-slate-400' : 'border border-black'));
 
-          <div class="flex items-center gap-2">
-            <button type="button" onclick="closeSectionModalPopup()" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 transition cursor-pointer">
-              ✕ बंद करें
-            </button>
-            <button type="button" onclick="closeSectionModalPopup()" class="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-600/30 transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-check"></i>
-              <span>सेव और डन (Done)</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- ================= MODAL QUICK NAVIGATION TABS STRIP ================= -->
-        <div class="px-4 sm:px-6 py-2 bg-slate-900 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none custom-scrollbar">
-          <span class="text-[10.5px] text-slate-400 font-bold uppercase tracking-wider mr-1 hidden sm:inline">जंप टू:</span>
-          
-          <button type="button" onclick="setModalActiveTarget('heading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'heading' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
-            <span>🔤</span>
-            <span>हेडिंग (Heading)</span>
-          </button>
-
-          <button type="button" onclick="setModalActiveTarget('subheading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'subheading' ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
-            <span>🏷️</span>
-            <span>सबहेडिंग / किकर</span>
-          </button>
-
-          <button type="button" onclick="setModalActiveTarget('body')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'body' ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
-            <span>📄</span>
-            <span>मुख्य समाचार (Body)</span>
-          </button>
-
-          <button type="button" onclick="setModalActiveTarget('image')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'image' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
-            <span>🖼️</span>
-            <span>फोटो / लेआउट</span>
-          </button>
-
-          <button type="button" onclick="setModalActiveTarget('bullets')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'bullets' ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
-            <span>📋</span>
-            <span>बुलेट बिंदु</span>
-          </button>
-
-          <button type="button" onclick="setModalActiveTarget('border')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'border' ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400' : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'}">
-            <span>🔲</span>
-            <span>बॉर्डर व बैकग्राउंड</span>
-          </button>
-        </div>
-
-        <!-- ================= MAIN SCROLLABLE LIVE NEWSPAPER WORKSPACE ================= -->
-        <div class="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-950 custom-scrollbar flex flex-col items-center justify-start">
-          
-          <div class="w-full max-w-3xl rounded-xl shadow-2xl p-4 sm:p-7 relative select-text transition-all duration-150" style="${paperCardStyle}">
-
-            <!-- ================= 1. SUB-HEADING & TAG ROW ================= -->
-            <div onclick="setModalActiveTarget('subheading')" class="cursor-pointer group relative p-1.5 -m-1 rounded-lg transition-all border-2 ${modalActiveTarget === 'subheading' ? 'border-amber-500 bg-amber-500/10 shadow-sm' : 'border-transparent hover:border-amber-300/60 hover:bg-amber-50/40'}" title="क्लिक करके सबहेडिंग / किकर / टैग एडिट करें">
-              <div class="flex items-center justify-between">
-                <div id="modal-preview-topline-wrap" class="leading-snug pt-0.5 tracking-tight flex-1" style="${toplineStyle}">
-                  ${sec.tag ? `
-                    <span id="modal-preview-tag" class="inline-block px-1.5 py-0.5 uppercase tracking-wide align-middle shadow-xs ${sec.topLine ? 'mr-1.5' : 'mb-1'}" style="background-color: ${tagBg}; color: ${tagTextColor}; font-family: ${tagFont}; font-size: ${tagSize}; font-weight: ${tagBold ? '800' : '600'}; border-radius: 2px; line-height: 1.25;">
-                      ${sec.tag}
-                    </span>
-                  ` : ''}
-                  <span id="modal-preview-topline" class="align-middle">${sec.topLine || (sec.tag ? '' : '<span class="text-slate-400 italic text-[11px] font-sans">[सुपर हेडलाइन / किकर जोड़ने के लिए यहाँ क्लिक करें]</span>')}</span>
-                </div>
-                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 ml-2 shrink-0 transition">
-                  ✏️ सबहेडिंग एडिट
-                </span>
-              </div>
-            </div>
-
-            <!-- SUB-HEADING CONTEXTUAL TOOLBAR (EXPANDS DIRECTLY BELOW SUB-HEADING) -->
-            ${modalActiveTarget === 'subheading' ? renderSubheadingToolbarHTML(sec) : ''}
-
-            <!-- ================= 2. MAIN HEADING (HEADLINE) ================= -->
-            <div onclick="setModalActiveTarget('heading')" class="cursor-pointer group relative p-1.5 -m-1 my-1 rounded-lg transition-all border-2 ${modalActiveTarget === 'heading' ? 'border-red-500 bg-red-500/10 shadow-sm' : 'border-transparent hover:border-red-300/60 hover:bg-red-50/40'}" title="क्लिक करके मुख्य हेडिंग एडिट करें">
-              <div class="flex items-start justify-between gap-2">
-                <h2 id="modal-preview-title" class="m-0 select-text flex-1" style="${titleStyle}">
-                  ${sec.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
-                </h2>
-                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-red-700 font-bold bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shrink-0 transition mt-1">
-                  ✏️ हेडिंग एडिट
-                </span>
-              </div>
-            </div>
-
-            <!-- HEADING CONTEXTUAL TOOLBAR (EXPANDS DIRECTLY BELOW HEADING) -->
-            ${modalActiveTarget === 'heading' ? renderHeadingToolbarHTML(sec) : ''}
-
-            <!-- ================= 3. SUBTITLE (उप-शीर्षक) ================= -->
-            ${sec.subtitle || modalActiveTarget === 'subheading' ? `
-              <div onclick="setModalActiveTarget('subheading')" class="cursor-pointer group relative p-1.5 -m-1 my-1 rounded-lg transition-all border-2 ${modalActiveTarget === 'subheading' ? 'border-amber-400 bg-amber-500/5' : 'border-transparent hover:border-amber-300/60'}" title="क्लिक करके उप-शीर्षक एडिट करें">
-                <div class="flex items-center justify-between">
-                  <h3 id="modal-preview-subtitle" class="m-0 leading-snug flex-1" style="${subtitleStyle}">
-                    ${sec.subtitle || '<span class="text-slate-400 font-normal">[उप-शीर्षक / Subtitle यहाँ लिखें]</span>'}
-                  </h3>
-                </div>
-              </div>
-            ` : ''}
-
-            <!-- ================= 4. PHOTO / IMAGE BLOCK ================= -->
-            ${(sec.layout !== 'text-only' || modalActiveTarget === 'image' || sec.image) ? `
-              <div onclick="setModalActiveTarget('image')" class="cursor-pointer group relative p-1.5 -m-1 my-1.5 rounded-lg transition-all border-2 ${modalActiveTarget === 'image' ? 'border-blue-500 bg-blue-500/10 shadow-sm' : 'border-transparent hover:border-blue-300/60 hover:bg-blue-50/40'}" title="क्लिक करके फोटो व कैप्शन एडिट करें">
-                ${sec.image ? `
-                  <div class="w-full relative overflow-hidden bg-slate-100 border border-slate-400 rounded-sm">
-                    <img src="${sec.image}" alt="Photo" class="w-full object-cover block" style="max-height: ${sec.imageHeight || 240}px; object-fit: ${sec.imageFit || 'cover'};">
-                  </div>
-                  <div id="modal-preview-caption" class="pt-0.5">
-                    ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
-                  </div>
-                ` : `
-                  <div class="w-full py-4 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition">
-                    <i class="fa-solid fa-image text-2xl mb-1 text-slate-400"></i>
-                    <span class="text-xs font-bold">➕ फोटो जोड़ने के लिए क्लिक करें</span>
-                  </div>
-                `}
-              </div>
-              ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
-            ` : ''}
-
-            <!-- ================= 5. BULLETS / HIGHLIGHTS ================= -->
-            ${(sec.bullets || modalActiveTarget === 'bullets') ? `
-              <div onclick="setModalActiveTarget('bullets')" class="cursor-pointer group relative p-1.5 -m-1 my-1.5 rounded-lg transition-all border-2 ${modalActiveTarget === 'bullets' ? 'border-purple-500 bg-purple-500/10 shadow-sm' : 'border-transparent hover:border-purple-300/60'}" title="क्लिक करके मुख्य बिंदु एडिट करें">
-                <div id="modal-preview-bullets">
-                  ${renderBulletsHTML(sec) || '<div class="p-2 border border-dashed border-purple-300 text-purple-600 text-xs font-bold rounded bg-purple-50">➕ मुख्य बुलेट बिंदु जोड़ने के लिए क्लिक करें</div>'}
-                </div>
-              </div>
-              ${modalActiveTarget === 'bullets' ? renderBulletsToolbarHTML(sec) : ''}
-            ` : ''}
-
-            <!-- ================= 6. MAIN CONTENT (BODY PARAGRAPHS) ================= -->
-            <div onclick="setModalActiveTarget('body')" class="cursor-pointer group relative p-1.5 -m-1 my-1.5 rounded-lg transition-all border-2 ${modalActiveTarget === 'body' ? 'border-emerald-500 bg-emerald-500/10 shadow-sm' : 'border-transparent hover:border-emerald-300/60 hover:bg-emerald-50/40'}" title="क्लिक करके मुख्य समाचार टेक्स्ट व पैराग्राफ एडिट करें">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">मुख्य समाचार (Body Content):</span>
-                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300 transition">
-                  ✏️ टेक्स्ट एडिटर खोलें
-                </span>
-              </div>
-              
-              <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1')}">
-                ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट लिखने या कहीं से भी कॉपी-पेस्ट करने के लिए यहाँ क्लिक करें]</p>'}
-              </div>
-            </div>
-
-            <!-- MAIN CONTENT CONTEXTUAL TOOLBAR (EXPANDS DIRECTLY BELOW CONTENT) -->
-            ${modalActiveTarget === 'body' ? renderContentToolbarHTML(sec) : ''}
-
-            <!-- ================= 7. BORDER & BACKGROUND SETTINGS ================= -->
+        return `
+          <div id="modal-preview-card-wrap" class="relative rounded-lg p-3 sm:p-5 transition-all shadow-md bg-white ${sec.showBorderLine ? 'border-b border-slate-400 pb-2' : ''}" style="${paperCardStyle}">
+            
             ${modalActiveTarget === 'border' ? renderBorderToolbarHTML(sec) : ''}
 
-          </div>
+            ${showTag ? `
+              <div onclick="toggleModalActiveTarget('subheading', event)" class="text-center mb-1 cursor-pointer group relative p-1 rounded hover:bg-amber-50 ${modalActiveTarget === 'subheading' ? 'ring-2 ring-amber-500' : ''}" title="टैग एडिट करें">
+                <span class="inline-block text-[9px] uppercase tracking-widest text-slate-700 font-serif font-bold px-2.5 py-0.5 bg-slate-100 border border-slate-300 rounded-[2px] leading-tight shadow-xs">
+                  ${tagText}
+                </span>
+              </div>
+            ` : ''}
+            ${modalActiveTarget === 'subheading' ? renderSubheadingToolbarHTML(sec) : ''}
 
+            <div onclick="toggleModalActiveTarget('image', event)" class="w-full relative overflow-hidden bg-slate-100 ${borderClass} shadow-xs cursor-pointer group hover:ring-2 hover:ring-blue-400 transition ${modalActiveTarget === 'image' ? 'ring-2 ring-blue-500' : ''}" style="height: ${imgH}; min-height: 80px;" title="विज्ञापन इमेज एडिट / अपलोड करें">
+              ${sec.image ? `
+                <img src="${sec.image}" alt="${sec.title || 'Advertisement'}" class="w-full h-full block" style="object-fit: ${imgFit}; object-position: center;">
+              ` : `
+                <div class="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-300 text-slate-400 p-4 text-center bg-slate-50">
+                  <i class="fa-solid fa-rectangle-ad text-3xl text-amber-500/60 mb-1"></i>
+                  <span class="font-bold text-xs text-slate-700">विज्ञापन इमेज (JPG / PNG) अपलोड करें</span>
+                </div>
+              `}
+              <div class="opacity-0 group-hover:opacity-100 absolute bottom-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">✏️ विज्ञापन इमेज एडिट</div>
+            </div>
+            ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+
+            ${sec.caption ? `
+              <div onclick="toggleModalActiveTarget('image', event)" class="cursor-pointer group pt-1">
+                ${renderCaptionHTML(sec, 'center')}
+              </div>
+            ` : ''}
+
+            ${sec.title || modalActiveTarget === 'heading' ? `
+              <div onclick="toggleModalActiveTarget('heading', event)" class="mt-2 text-center font-bold text-sm text-slate-900 cursor-pointer group p-1 hover:bg-red-50 rounded ${modalActiveTarget === 'heading' ? 'ring-2 ring-red-500' : ''}" style="font-family: ${sec.titleFont || "'Martel', serif"};">
+                ${sec.title || '<span class="text-slate-400 font-normal italic">[विज्ञापन शीर्षक लिखें]</span>'}
+              </div>
+            ` : ''}
+            ${modalActiveTarget === 'heading' ? renderHeadingToolbarHTML(sec) : ''}
+          </div>
+        `;
+      }
+
+      // ================= 2. STANDARD ARTICLE NEWS RENDERER =================
+      const tagHTML = (sec.tag || modalActiveTarget === 'subheading') ? `
+        <span id="modal-preview-tag" class="inline-block px-1.5 py-0.5 uppercase tracking-wide align-middle shadow-xs ${sec.topLine ? 'mr-1.5' : 'mb-1'}" style="background-color: ${tagBg}; color: ${tagTextColor}; font-family: ${tagFont}; font-size: ${tagSize}; font-weight: ${tagBold ? '800' : '600'}; border-radius: 2px; line-height: 1.25;">
+          ${sec.tag || 'टैग'}
+        </span>
+      ` : '';
+
+      const toplineInteractiveHTML = `
+        <!-- 1. SUB-HEADING / KICKER / TAG -->
+        ${(sec.topLine || sec.tag || modalActiveTarget === 'subheading') ? `
+          <div onclick="toggleModalActiveTarget('subheading', event)" class="cursor-pointer group relative p-1 -m-1 rounded transition border-2 ${modalActiveTarget === 'subheading' ? 'border-amber-500 bg-amber-500/10 shadow-sm' : 'border-transparent hover:border-amber-300 hover:bg-amber-50/50'}" title="क्लिक करके सबहेडिंग / किकर / टैग एडिट करें">
+            <div id="modal-preview-topline-wrap" class="leading-snug pt-0.5 tracking-tight flex items-center justify-between" style="${toplineStyle}">
+              <div>
+                ${tagHTML}
+                <span id="modal-preview-topline" class="align-middle">${sec.topLine || (sec.tag ? '' : '<span class="text-slate-400 italic text-[11px] font-sans">[सुपर हेडलाइन / किकर जोड़ने के लिए क्लिक करें]</span>')}</span>
+              </div>
+              <span class="opacity-0 group-hover:opacity-100 text-[9.5px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.2 rounded border border-amber-300 ml-2 shrink-0 transition">
+                ✏️ सबहेडिंग एडिट
+              </span>
+            </div>
+          </div>
+          ${modalActiveTarget === 'subheading' ? renderSubheadingToolbarHTML(sec) : ''}
+        ` : ''}
+      `;
+
+      const headlineInteractiveHTML = `
+        <!-- 2. MAIN HEADLINE -->
+        <div onclick="toggleModalActiveTarget('heading', event)" class="cursor-pointer group relative p-1 -m-1 my-1 rounded transition border-2 ${modalActiveTarget === 'heading' ? 'border-red-500 bg-red-500/10 shadow-sm' : 'border-transparent hover:border-red-300 hover:bg-red-50/50'}" title="क्लिक करके मुख्य हेडिंग एडिट करें">
+          <div class="flex items-start justify-between gap-2">
+            <h2 id="modal-preview-title" class="m-0 select-text flex-1" style="${titleStyle}">
+              ${sec.title || 'मुख्य समाचार शीर्षक यहाँ लिखें'}
+            </h2>
+            <span class="opacity-0 group-hover:opacity-100 text-[9.5px] text-red-700 font-bold bg-red-100 px-1.5 py-0.2 rounded border border-red-300 shrink-0 transition mt-1">
+              ✏️ हेडिंग एडिट
+            </span>
+          </div>
+        </div>
+        ${modalActiveTarget === 'heading' ? renderHeadingToolbarHTML(sec) : ''}
+      `;
+
+      const subtitleInteractiveHTML = `
+        <!-- 3. SUBTITLE -->
+        ${(sec.subtitle || modalActiveTarget === 'subheading') ? `
+          <div onclick="toggleModalActiveTarget('subheading', event)" class="cursor-pointer group relative p-1 -m-1 my-1 rounded transition border-2 ${modalActiveTarget === 'subheading' ? 'border-amber-400 bg-amber-500/5' : 'border-transparent hover:border-amber-300'}" title="क्लिक करके उप-शीर्षक एडिट करें">
+            <h3 id="modal-preview-subtitle" class="font-semibold italic my-0.5 leading-snug" style="${subtitleStyle}">
+              ${sec.subtitle || '<span class="text-slate-400 font-normal">[उप-शीर्षक / Subtitle यहाँ लिखें]</span>'}
+            </h3>
+          </div>
+        ` : ''}
+      `;
+
+      // Photo Component for different placements
+      const photoInteractiveHTML = (imgClass = "w-full max-h-48 object-cover border border-black p-0.5", captionAlign = 'left', wrapperClass = "my-1") => `
+        <div onclick="toggleModalActiveTarget('image', event)" class="${wrapperClass} cursor-pointer group relative transition hover:ring-2 hover:ring-blue-400 rounded ${modalActiveTarget === 'image' ? 'ring-2 ring-blue-500' : ''}" title="क्लिक करके फोटो व कैप्शन एडिट करें">
+          ${sec.image ? `
+            <img src="${sec.image}" alt="Photo" class="${imgClass}">
+            <div id="modal-preview-caption" class="pt-0.5">
+              ${renderCaptionHTML(sec, captionAlign)}
+            </div>
+          ` : `
+            <div class="w-full py-4 border-2 border-dashed border-slate-300 rounded bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition">
+              <i class="fa-solid fa-image text-2xl mb-1 text-slate-400"></i>
+              <span class="text-xs font-bold">➕ फोटो जोड़ने के लिए क्लिक करें</span>
+            </div>
+          `}
+          <div class="opacity-0 group-hover:opacity-100 absolute bottom-1 right-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.2 rounded shadow">✏️ फोटो एडिट</div>
+        </div>
+      `;
+
+      // Bullets Component
+      const bulletsInteractiveHTML = `
+        ${(sec.bullets || modalActiveTarget === 'bullets') ? `
+          <div onclick="toggleModalActiveTarget('bullets', event)" class="cursor-pointer group relative hover:ring-1 hover:ring-purple-300 rounded transition p-0.5 ${modalActiveTarget === 'bullets' ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''}" title="क्लिक करके बुलेट बिंदु एडिट करें">
+            <div id="modal-preview-bullets">
+              ${renderBulletsHTML(sec) || '<div class="p-1 border border-dashed border-purple-300 text-purple-600 text-xs font-bold rounded bg-purple-50">➕ मुख्य बुलेट बिंदु जोड़ें</div>'}
+            </div>
+          </div>
+          ${modalActiveTarget === 'bullets' ? renderBulletsToolbarHTML(sec) : ''}
+        ` : ''}
+      `;
+
+      // Paragraphs Component
+      const bodyColsClass = sec.bodyCols == 2 ? 'broadsheet-cols-2' : (sec.bodyCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
+      const paragraphsInteractiveHTML = `
+        <div onclick="toggleModalActiveTarget('body', event)" class="cursor-pointer group relative hover:ring-1 hover:ring-emerald-300 rounded transition p-1 -m-1 ${modalActiveTarget === 'body' ? 'ring-2 ring-emerald-500 bg-emerald-500/10' : ''}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
+          <div id="modal-preview-paragraphs" class="font-martel leading-relaxed ${bodyColsClass}">
+            ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट लिखने या कहीं से भी कॉपी-पेस्ट करने के लिए क्लिक करें]</p>'}
+          </div>
+          <span class="opacity-0 group-hover:opacity-100 text-[9px] text-emerald-700 bg-emerald-100 font-bold px-1.5 py-0.2 rounded border border-emerald-300 inline-block mt-1">✏️ समाचार टेक्स्ट एडिट</span>
+        </div>
+        ${modalActiveTarget === 'body' ? renderContentToolbarHTML(sec) : ''}
+      `;
+
+      // Layout Specific Inner Content
+      let layoutInnerHTML = '';
+
+      if (sec.cutoutWrap) {
+        layoutInnerHTML = `
+          <div class="font-martel leading-relaxed my-1 clearfix ${bodyColsClass}">
+            ${sec.image ? `
+              <div onclick="toggleModalActiveTarget('image', event)" class="cursor-pointer group ${sec.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative" title="क्लिक करके फोटो एडिट करें">
+                <img src="${sec.image}" class="cutout-shape-img rounded-xs" style="float: ${sec.cutoutFloat === 'right' ? 'right' : 'left'}; shape-outside: url('${sec.image}'); shape-margin: ${sec.cutoutMargin !== undefined ? sec.cutoutMargin : 2}px; width: ${sec.cutoutWidth || 240}px; max-width: 95%; margin-top: ${sec.cutoutOffsetY || 0}px; margin-${sec.cutoutFloat === 'right' ? 'right' : 'left'}: ${sec.cutoutOffsetX || 0}px; margin-bottom: 2px; object-fit: contain; display: block;">
+                <div class="opacity-0 group-hover:opacity-100 absolute bottom-1 right-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">✏️ एडिट</div>
+              </div>
+            ` : ''}
+            ${bulletsInteractiveHTML}
+            ${paragraphsInteractiveHTML}
+            ${sec.caption ? `
+              <div onclick="toggleModalActiveTarget('image', event)" class="clear-both pt-1 cursor-pointer">
+                ${renderCaptionHTML(sec, 'left')}
+              </div>
+            ` : ''}
+          </div>
+          ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+        `;
+      } else if (sec.layout === 'hero-split') {
+        layoutInnerHTML = `
+          ${photoInteractiveHTML("w-full max-h-56 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
+          ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+          ${bulletsInteractiveHTML}
+          ${paragraphsInteractiveHTML}
+        `;
+      } else if (sec.layout === 'left-img') {
+        layoutInnerHTML = `
+          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}">
+            ${photoInteractiveHTML("w-full max-h-44 object-cover", "center", "float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white")}
+            ${bulletsInteractiveHTML}
+            ${paragraphsInteractiveHTML}
+          </div>
+          ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+        `;
+      } else if (sec.layout === 'right-img') {
+        layoutInnerHTML = `
+          <div class="font-martel leading-relaxed clearfix my-1 ${bodyColsClass}">
+            ${photoInteractiveHTML("w-full max-h-44 object-cover", "center", "float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white")}
+            ${bulletsInteractiveHTML}
+            ${paragraphsInteractiveHTML}
+          </div>
+          ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+        `;
+      } else if (sec.layout === 'bottom-img') {
+        layoutInnerHTML = `
+          ${bulletsInteractiveHTML}
+          ${paragraphsInteractiveHTML}
+          ${photoInteractiveHTML("w-full max-h-44 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
+          ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+        `;
+      } else if (sec.layout === 'text-only') {
+        layoutInnerHTML = `
+          ${bulletsInteractiveHTML}
+          ${paragraphsInteractiveHTML}
+        `;
+      } else {
+        // Standard 'top-img' or default
+        layoutInnerHTML = `
+          ${(sec.image || modalActiveTarget === 'image') ? `
+            ${photoInteractiveHTML("w-full max-h-48 object-cover border border-black p-0.5", sec.titleAlign || 'left')}
+            ${modalActiveTarget === 'image' ? renderImageToolbarHTML(sec) : ''}
+          ` : ''}
+          ${bulletsInteractiveHTML}
+          ${paragraphsInteractiveHTML}
+        `;
+      }
+
+      return `
+        <div id="modal-preview-card-wrap" class="relative rounded-lg p-3 sm:p-5 transition-all shadow-md ${sec.showBorderLine ? 'border-b border-slate-400 pb-2' : ''}" style="${paperCardStyle}">
+          ${modalActiveTarget === 'border' ? renderBorderToolbarHTML(sec) : ''}
+          ${toplineInteractiveHTML}
+          ${headlineInteractiveHTML}
+          ${subtitleInteractiveHTML}
+          ${layoutInnerHTML}
         </div>
       `;
     }
@@ -6455,9 +6614,14 @@
             <span class="font-bold text-amber-400 text-xs flex items-center gap-1.5">
               <i class="fa-solid fa-tag text-amber-400"></i> सबहेडिंग, किकर व श्रेणी टैग एडिटर (Subheading & Kicker Controls)
             </span>
-            <button type="button" onclick="setModalActiveTarget('heading')" class="text-slate-400 hover:text-white text-[11px] font-semibold flex items-center gap-1">
-              <span>आगे हेडिंग पर जाएँ</span> <i class="fa-solid fa-arrow-down text-[10px]"></i>
-            </button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="setModalActiveTarget('heading')" class="text-slate-400 hover:text-white text-[11px] font-semibold flex items-center gap-1">
+                <span>आगे हेडिंग पर जाएँ</span> <i class="fa-solid fa-arrow-down text-[10px]"></i>
+              </button>
+              <button type="button" onclick="setModalActiveTarget(null)" class="text-slate-400 hover:text-white hover:bg-slate-800 text-[10.5px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition">
+                ✕ बंद करें
+              </button>
+            </div>
           </div>
 
           <div class="space-y-3">
@@ -6556,6 +6720,9 @@
               <button type="button" onclick="setModalActiveTarget('body')" class="text-slate-400 hover:text-white text-[11px] font-semibold flex items-center gap-1">
                 <span>आगे मुख्य समाचार पर जाएँ</span> <i class="fa-solid fa-arrow-down text-[10px]"></i>
               </button>
+              <button type="button" onclick="setModalActiveTarget(null)" class="text-slate-400 hover:text-white hover:bg-slate-800 text-[10.5px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition">
+                ✕ बंद करें
+              </button>
             </div>
           </div>
 
@@ -6642,7 +6809,10 @@
             </span>
             <div class="flex items-center gap-2">
               <button type="button" onclick="pasteToModalContent()" class="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow">
-                <i class="fa-solid fa-paste text-xs"></i> <span>📋 क्लिपबोर्ड से पेस्ट करें (Paste News)</span>
+                <i class="fa-solid fa-paste text-xs"></i> <span>📋 क्लिपबोर्ड से पेस्ट करें</span>
+              </button>
+              <button type="button" onclick="setModalActiveTarget(null)" class="text-slate-400 hover:text-white hover:bg-slate-800 text-[10.5px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition">
+                ✕ बंद करें
               </button>
             </div>
           </div>
@@ -6729,6 +6899,9 @@
               <button type="button" onclick="document.getElementById('modalImgUploadInput').click()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs shadow transition flex items-center gap-1.5 cursor-pointer">
                 <i class="fa-solid fa-cloud-arrow-up text-xs"></i> <span>📁 नई फ़ोटो अपलोड करें</span>
               </button>
+              <button type="button" onclick="setModalActiveTarget(null)" class="text-slate-400 hover:text-white hover:bg-slate-800 text-[10.5px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition">
+                ✕ बंद करें
+              </button>
             </div>
           </div>
 
@@ -6805,6 +6978,9 @@
             <span class="font-bold text-purple-400 text-xs flex items-center gap-1.5">
               <i class="fa-solid fa-list text-purple-400"></i> मुख्य बिंदु एडिटर (Bullet Points & Highlights Box)
             </span>
+            <button type="button" onclick="setModalActiveTarget(null)" class="text-slate-400 hover:text-white hover:bg-slate-800 text-[10.5px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition">
+              ✕ बंद करें
+            </button>
           </div>
 
           <div class="space-y-3">
@@ -6850,6 +7026,9 @@
             <span class="font-bold text-cyan-400 text-xs flex items-center gap-1.5">
               <i class="fa-solid fa-border-all text-cyan-400"></i> सेक्शन फ्रेम, बॉर्डर व बैकग्राउंड सेटिंग्स (Card Border & Background)
             </span>
+            <button type="button" onclick="setModalActiveTarget(null)" class="text-slate-400 hover:text-white hover:bg-slate-800 text-[10.5px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition">
+              ✕ बंद करें
+            </button>
           </div>
 
           <div class="space-y-3">
