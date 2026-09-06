@@ -5548,25 +5548,44 @@
       }).join('');
     }
 
-    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH COLUMN 2 TOP PHOTO
+    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH COLUMN 2 TOP PHOTO & CONTINUOUS MULTI-COLUMN FLOW
     function renderDualPhotoColumnsHTML(sec, isModal = false) {
       const effectiveCols = Math.max(2, sec.bodyCols || 3);
-      const colParas = splitStoryContent(sec.content || '', effectiveCols, sec);
+      const colsClass = effectiveCols === 2 ? 'broadsheet-cols-2' : (effectiveCols === 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
       const bulletsHTML = renderBulletsHTML(sec);
+
+      const words = (sec.content || '').trim().split(/\s+/).filter(Boolean);
+      const W = words.length;
+
+      // Calculate Column 1 split point so Col 1 fills completely from top to bottom
+      const lineH = 15.2;
+      const wordsPerLine = 6.8;
+      const L1 = sec.image ? (sec.layout === 'left-img' || sec.layout === 'right-img' ? 0.46 * (Math.min(160, (sec.imageHeight || 150) + 20) / lineH) : ((sec.imageHeight || 150) + 24) / lineH) : 0;
+      const L2 = ((sec.image2Height || 180) + 24) / lineH;
+      const totalTextLines = W / wordsPerLine;
+      const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
+      const C1 = Math.max(2, targetH - L1);
+      const C2 = Math.max(1, targetH - L2);
+      const C3 = Math.max(2, targetH);
+      const p1 = C1 / (C1 + C2 + C3);
+      const col1WordCount = Math.min(Math.max(15, Math.round(W * p1)), Math.max(15, W - 10));
+
+      const col1Text = words.slice(0, col1WordCount).join(' ');
+      const remainingText = words.slice(col1WordCount).join(' ');
 
       // Col 1 Photo block
       let col1PhotoHTML = '';
       if (sec.image) {
         if (sec.layout === 'left-img') {
           col1PhotoHTML = `
-            <div class="float-left w-[46%] max-w-[200px] mr-2 mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+            <div class="float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
               <img src="${sec.image}" alt="Photo 1" class="w-full max-h-44 object-cover">
               ${renderCaptionHTML(sec, 'center')}
             </div>
           `;
         } else if (sec.layout === 'right-img') {
           col1PhotoHTML = `
-            <div class="float-right w-[46%] max-w-[200px] ml-2 mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+            <div class="float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
               <img src="${sec.image}" alt="Photo 1" class="w-full max-h-44 object-cover">
               ${renderCaptionHTML(sec, 'center')}
             </div>
@@ -5583,9 +5602,9 @@
         }
       }
 
-      // Col 2 Photo block (ALWAYS TOP OF COLUMN 2, ALIGNED TO COL 1 TOP)
+      // Col 2 Photo block (Starts at Top of Column 2 via CSS break-before: column)
       const col2PhotoHTML = `
-        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column; -webkit-column-break-before: always; break-inside: avoid; -webkit-column-break-inside: avoid; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
           <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
           <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5">
             ${renderCaption2HTML(sec, 'center')}
@@ -5593,41 +5612,29 @@
         </div>
       `;
 
-      let colsHTML = '';
-      for (let i = 0; i < effectiveCols; i++) {
-        const isFirst = (i === 0);
-        const isSecond = (i === 1);
-        const isLast = (i === effectiveCols - 1);
-        const borderStyle = !isLast ? 'border-right: 1px solid #d4cebe; padding-right: 8px;' : '';
+      const font = sec.bodyFont || studioState?.paperMeta?.defaultBodyFont || "'Martel', serif";
+      const size = sec.bodySize || '11px';
+      const color = sec.bodyColor || '#111111';
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; word-break: normal; line-height: 1.38; margin-bottom: 2px;`;
 
-        let innerContent = '';
-        if (isFirst) {
-          innerContent = `
-            ${col1PhotoHTML}
-            ${renderColumnParagraphsHTML(sec, colParas[0], true, '', isLast)}
-          `;
-        } else if (isSecond) {
-          innerContent = `
-            ${col2PhotoHTML}
-            ${renderColumnParagraphsHTML(sec, colParas[1], false, '', isLast)}
-          `;
-        } else {
-          innerContent = `
-            ${renderColumnParagraphsHTML(sec, colParas[i], false, '', isLast)}
-          `;
+      let col1TextFormatted = col1Text;
+      if (sec.dropCap !== false && col1Text) {
+        const match = col1Text.match(/^(\p{L}\p{M}*|\S)/u);
+        if (match) {
+          const firstChar = match[0];
+          const restText = col1Text.slice(firstChar.length);
+          const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
+          col1TextFormatted = `${dropCapHTML}${restText}`;
         }
-
-        colsHTML += `
-          <div class="dual-col dual-col-${i + 1} flex-1 font-martel leading-relaxed ${isModal && modalActiveTarget === 'body' ? 'hover:outline hover:outline-1 hover:outline-emerald-400' : ''}" style="${borderStyle} min-width: 0; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
-            ${innerContent}
-          </div>
-        `;
       }
 
       return `
         ${bulletsHTML}
-        <div class="dual-photo-grid-container flex flex-row items-stretch my-1 w-full" style="display: flex; flex-direction: row; align-items: stretch; gap: 10px; width: 100%; box-sizing: border-box;">
-          ${colsHTML}
+        <div class="font-martel leading-relaxed clearfix my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" style="column-count: ${effectiveCols}; column-rule: 1px solid #d4cebe; column-gap: 12px; column-fill: balance; -webkit-column-fill: balance; text-align: justify; text-justify: inter-word; font-family: ${font}; font-size: ${size}; color: ${color}; line-height: 1.38;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+          ${col1PhotoHTML}
+          ${col1Text ? `<p class="story-paragraph" style="${styleStr}">${col1TextFormatted}</p>` : ''}
+          ${col2PhotoHTML}
+          ${remainingText ? `<p class="story-paragraph" style="${styleStr}">${remainingText}</p>` : ''}
         </div>
       `;
     }
