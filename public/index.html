@@ -171,12 +171,31 @@
       padding: 0 !important;
     }
 
+    /* Embedded Media Containers & Photo Blocks inside Multi-Column Flow */
+    .embedded-media-container,
+    .col1-top-photo-block,
+    .col2-top-photo-block,
+    .broadsheet-cols-1 img,
+    .broadsheet-cols-2 img,
+    .broadsheet-cols-3 img,
+    .broadsheet-cols-1 figure,
+    .broadsheet-cols-2 figure,
+    .broadsheet-cols-3 figure {
+      break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
     /* Dual Photo (2nd Column Top Photo) Break & Balancing Rules */
     .col2-top-photo-block {
       break-before: column !important;
       -webkit-column-break-before: always !important;
       break-inside: avoid !important;
       -webkit-column-break-inside: avoid !important;
+      page-break-inside: avoid !important;
       display: block !important;
       width: 100% !important;
       box-sizing: border-box !important;
@@ -5557,54 +5576,40 @@
       const words = (sec.content || '').trim().split(/\s+/).filter(Boolean);
       const W = words.length;
 
-      // Calculate Column 1 split point so Col 1 fills completely from top to bottom
+      // Calculate Column 1 split point with block positioning for both photos
       const lineH = 15.2;
       const wordsPerLine = 6.8;
-      const L1 = sec.image ? (sec.layout === 'left-img' || sec.layout === 'right-img' ? 0.46 * (Math.min(160, (sec.imageHeight || 150) + 20) / lineH) : ((sec.imageHeight || 150) + 24) / lineH) : 0;
-      const L2 = ((sec.image2Height || 180) + 24) / lineH;
+      const L1 = (sec.image && sec.layout !== 'text-only') ? (((sec.imageHeight || 150) + (sec.caption ? 24 : 8)) / lineH) : 0;
+      const L2 = ((sec.image2Height || 180) + (sec.caption2 ? 24 : 8)) / lineH;
       const totalTextLines = W / wordsPerLine;
       const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
-      const C1 = Math.max(2, targetH - L1);
+      const C1 = Math.max(1, targetH - L1);
       const C2 = Math.max(1, targetH - L2);
       const C3 = Math.max(2, targetH);
       const p1 = C1 / (C1 + C2 + C3);
-      const col1WordCount = Math.min(Math.max(15, Math.round(W * p1)), Math.max(15, W - 10));
+      const col1WordCount = Math.min(Math.max(10, Math.round(W * p1)), Math.max(10, W - 10));
 
       const col1Text = words.slice(0, col1WordCount).join(' ');
       const remainingText = words.slice(col1WordCount).join(' ');
 
-      // Col 1 Photo block
+      // Col 1 Photo block (Block positioning at Top of Column 1, break-inside: avoid)
       let col1PhotoHTML = '';
-      if (sec.image) {
-        if (sec.layout === 'left-img') {
-          col1PhotoHTML = `
-            <div class="float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-              <img src="${sec.image}" alt="Photo 1" class="w-full max-h-44 object-cover">
-              ${renderCaptionHTML(sec, 'center')}
-            </div>
-          `;
-        } else if (sec.layout === 'right-img') {
-          col1PhotoHTML = `
-            <div class="float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-              <img src="${sec.image}" alt="Photo 1" class="w-full max-h-44 object-cover">
-              ${renderCaptionHTML(sec, 'center')}
-            </div>
-          `;
-        } else if (sec.layout === 'text-only') {
-          col1PhotoHTML = '';
-        } else {
-          col1PhotoHTML = `
-            <div class="mb-1 border border-black p-0.5 bg-white ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-              <img src="${sec.image}" alt="Photo 1" class="w-full max-h-48 object-cover">
-              ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
-            </div>
-          `;
-        }
+      if (sec.image && sec.layout !== 'text-only') {
+        col1PhotoHTML = `
+          <div class="col1-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="display: block; width: 100%; box-sizing: border-box; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover block" style="max-height: ${sec.imageHeight || 160}px; object-fit: ${sec.imageFit || 'cover'};">
+            ${sec.caption ? `
+              <div class="pt-0.5">
+                ${renderCaptionHTML(sec, 'center')}
+              </div>
+            ` : ''}
+          </div>
+        `;
       }
 
-      // Col 2 Photo block (Starts at Top of Column 2 via CSS break-before: column)
+      // Col 2 Photo block (Block positioning at Top of Column 2 via CSS break-before: column, break-inside: avoid)
       const col2PhotoHTML = `
-        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column; -webkit-column-break-before: always; break-inside: avoid; -webkit-column-break-inside: avoid; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important; display: block !important; width: 100% !important; box-sizing: border-box !important;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
           <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
           <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5">
             ${renderCaption2HTML(sec, 'center')}

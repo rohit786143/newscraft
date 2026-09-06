@@ -562,84 +562,53 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         const words = (localSection.content || '').trim().split(/\s+/).filter(Boolean);
                         const W = words.length;
 
-                        // Calculate Column 1 split point
+                        // Calculate Column 1 split point with block positioning for both photos
                         const lineH = 15.2;
                         const wordsPerLine = 6.8;
-                        const L1 = localSection.image ? (localSection.layout === 'left-img' || localSection.layout === 'right-img' ? 0.46 * (Math.min(160, (localSection.imageHeight || 150) + 20) / lineH) : ((localSection.imageHeight || 150) + 24) / lineH) : 0;
-                        const L2 = ((localSection.image2Height || 180) + 24) / lineH;
+                        const L1 = (localSection.image && localSection.layout !== 'text-only') ? (((localSection.imageHeight || 150) + (localSection.caption ? 24 : 8)) / lineH) : 0;
+                        const L2 = ((localSection.image2Height || 180) + (localSection.caption2 ? 24 : 8)) / lineH;
                         const totalTextLines = W / wordsPerLine;
                         const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
-                        const C1 = Math.max(2, targetH - L1);
+                        const C1 = Math.max(1, targetH - L1);
                         const C2 = Math.max(1, targetH - L2);
                         const C3 = Math.max(2, targetH);
                         const p1 = C1 / (C1 + C2 + C3);
-                        const col1WordCount = Math.min(Math.max(15, Math.round(W * p1)), Math.max(15, W - 10));
+                        const col1WordCount = Math.min(Math.max(10, Math.round(W * p1)), Math.max(10, W - 10));
 
                         const col1Text = words.slice(0, col1WordCount).join(' ');
                         const remainingText = words.slice(col1WordCount).join(' ');
 
                         let col1Photo = null;
-                        if (localSection.image) {
-                          if (localSection.layout === 'left-img') {
-                            col1Photo = (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTarget('image');
-                                }}
-                                className={`float-left w-[46%] max-w-[200px] mr-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
-                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                }`}
-                              >
-                                <img src={localSection.image} alt="Photo 1" className="w-full max-h-44 object-cover" />
-                                {localSection.caption && (
-                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
-                                    {localSection.caption}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          } else if (localSection.layout === 'right-img') {
-                            col1Photo = (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTarget('image');
-                                }}
-                                className={`float-right w-[46%] max-w-[200px] ml-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
-                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                }`}
-                              >
-                                <img src={localSection.image} alt="Photo 1" className="w-full max-h-44 object-cover" />
-                                {localSection.caption && (
-                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
-                                    {localSection.caption}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          } else if (localSection.layout === 'text-only') {
-                            col1Photo = null;
-                          } else {
-                            col1Photo = (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTarget('image');
-                                }}
-                                className={`mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
-                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                }`}
-                              >
-                                <img src={localSection.image} alt="Photo 1" className="w-full max-h-48 object-cover" />
-                                {localSection.caption && (
-                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5" style={{ textAlign: (localSection.captionAlign as any) || 'left' }}>
-                                    {localSection.caption}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
+                        if (localSection.image && localSection.layout !== 'text-only') {
+                          col1Photo = (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col1-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                breakInside: 'avoid' as any,
+                              }}
+                            >
+                              <img
+                                src={localSection.image}
+                                alt="Photo 1"
+                                className="w-full object-cover block"
+                                style={{ maxHeight: `${localSection.imageHeight || 160}px`, objectFit: (localSection.imageFit as any) || 'cover' }}
+                              />
+                              {localSection.caption && (
+                                <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                  {localSection.caption}
+                                </div>
+                              )}
+                            </div>
+                          );
                         }
 
                         return (
