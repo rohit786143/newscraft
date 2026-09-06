@@ -52,6 +52,9 @@ export interface NewsSection {
   fontSize?: string;
   titleColor?: string;
   titleAlign?: 'left' | 'center' | 'right' | 'justify';
+  titleBold?: boolean;
+  titleItalic?: boolean;
+  titleUnderline?: boolean;
   subtitle?: string;
   subtitleFont?: string;
   subtitleSize?: string;
@@ -63,6 +66,9 @@ export interface NewsSection {
   captionSize?: string;
   captionColor?: string;
   captionAlign?: 'left' | 'center' | 'right';
+  bullets?: string;
+  bulletColor?: string;
+  bulletBgColor?: string;
   content?: string;
   bodyFont?: string;
   bodySize?: string;
@@ -71,13 +77,14 @@ export interface NewsSection {
   dropCap?: boolean;
   colSpan: number; // 1 to 12
   imageHeight?: number;
-  imageFit?: 'cover' | 'contain' | 'fill';
+  imageFit?: 'cover' | 'contain' | 'fill' | string;
   showSizeBadge?: boolean;
   showAdTag?: boolean;
   adTagText?: string;
   borderStyle?: string;
   bgColor?: string;
   clearRow?: boolean;
+  showBorderLine?: boolean;
   // Card Border & Frame Customization
   showCardBorder?: boolean;
   cardBorderStyle?: 'solid' | 'double' | 'dashed' | 'dotted' | 'newspaper-vintage' | 'thick-bottom' | string;
@@ -92,6 +99,7 @@ export interface NewsSection {
   cutoutWidth?: number;
   cutoutOffsetX?: number;
   cutoutOffsetY?: number;
+  [key: string]: any;
 }
 
 export interface PageItem {
