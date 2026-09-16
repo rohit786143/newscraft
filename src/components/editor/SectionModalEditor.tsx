@@ -559,7 +559,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols === 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isDualPhoto) {
-                        const words = (localSection.content || '').trim().split(/\s+/).filter(Boolean);
+                        const contentWithTokens = (localSection.content || '').trim().replace(/\n/g, ' [[NEWLINE]] ');
+                        const words = contentWithTokens.split(/\s+/).filter(Boolean);
                         const W = words.length;
 
                         // Calculate Column 1 split point with block positioning for both photos
@@ -568,15 +569,37 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         const L1 = (localSection.image && localSection.layout !== 'text-only') ? (((localSection.imageHeight || 150) + (localSection.caption ? 24 : 8)) / lineH) : 0;
                         const L2 = ((localSection.image2Height || 180) + (localSection.caption2 ? 24 : 8)) / lineH;
                         const totalTextLines = W / wordsPerLine;
-                        const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
-                        const C1 = Math.max(1, targetH - L1);
-                        const C2 = Math.max(1, targetH - L2);
-                        const C3 = Math.max(2, targetH);
+                        
+                        // Ensure target height is at least the height of the tallest image
+                        const targetH = Math.max((L1 + L2 + totalTextLines) / effectiveCols, L1, L2);
+                        
+                        const C1 = Math.max(0.1, targetH - L1);
+                        const C2 = Math.max(0.1, targetH - L2);
+                        const C3 = Math.max(1, targetH);
                         const p1 = C1 / (C1 + C2 + C3);
-                        const col1WordCount = Math.min(Math.max(10, Math.round(W * p1)), Math.max(10, W - 10));
+                        const col1WordCount = Math.min(Math.max(0, Math.round(W * p1)), Math.max(0, W - 5));
 
-                        const col1Text = words.slice(0, col1WordCount).join(' ');
-                        const remainingText = words.slice(col1WordCount).join(' ');
+                        const col1Text = words.slice(0, col1WordCount).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+                        const remainingText = words.slice(col1WordCount).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+
+                        const renderParagraphs = (text: string, isCol1: boolean) => {
+                          const parts = text.split(/\n/).map(p => p.trim()).filter(Boolean);
+                          if (parts.length === 0) return null;
+                          return parts.map((p, pIdx) => (
+                            <p key={pIdx} className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
+                              {isCol1 && pIdx === 0 && localSection.dropCap ? (
+                                <>
+                                  <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                    {p.charAt(0)}
+                                  </span>
+                                  {p.slice(1)}
+                                </>
+                              ) : (
+                                p
+                              )}
+                            </p>
+                          ));
+                        };
 
                         let col1Photo = null;
                         if (localSection.image && localSection.layout !== 'text-only') {
@@ -650,20 +673,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               }}
                             >
                               {col1Photo}
-                              {col1Text && (
-                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
-                                  {localSection.dropCap ? (
-                                    <>
-                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                        {col1Text.charAt(0)}
-                                      </span>
-                                      {col1Text.slice(1)}
-                                    </>
-                                  ) : (
-                                    col1Text
-                                  )}
-                                </p>
-                              )}
+                              {col1Text && renderParagraphs(col1Text, true)}
 
                               {/* Photo 2 Break Before Column */}
                               <div
@@ -697,11 +707,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               </div>
 
                               {/* Remaining Text flows under Photo 2 in Col 2 and into Col 3 */}
-                              {remainingText && (
-                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
-                                  {remainingText}
-                                </p>
-                              )}
+                              {remainingText && renderParagraphs(remainingText, false)}
                             </div>
                           </>
                         );
