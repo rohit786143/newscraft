@@ -685,7 +685,6 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                   activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                 }`}
                                 style={{
-                                  breakBefore: 'column' as any,
                                   breakInside: 'avoid' as any,
                                   display: 'block',
                                   width: '100%',
