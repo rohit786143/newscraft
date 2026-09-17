@@ -685,6 +685,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                   activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                 }`}
                                 style={{
+                                  breakBefore: 'column' as any,
                                   breakInside: 'avoid' as any,
                                   display: 'block',
                                   width: '100%',
@@ -728,35 +729,6 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               color: '#111111',
                             }}
                           >
-                            {localSection.image && (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTarget('image');
-                                }}
-                                className={`cursor-pointer ${localSection.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${
-                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''
-                                }`}
-                              >
-                                <img
-                                  src={localSection.image}
-                                  alt="Photo"
-                                  className="cutout-shape-img rounded-xs"
-                                  style={{
-                                    float: localSection.cutoutFloat === 'right' ? 'right' : 'left',
-                                    shapeOutside: `url('${localSection.image}')`,
-                                    shapeMargin: `${localSection.cutoutMargin !== undefined ? localSection.cutoutMargin : 2}px`,
-                                    width: `${localSection.cutoutWidth || 240}px`,
-                                    maxWidth: '95%',
-                                    marginTop: `${localSection.cutoutOffsetY || 0}px`,
-                                    [localSection.cutoutFloat === 'right' ? 'marginRight' : 'marginLeft']: `${localSection.cutoutOffsetX || 0}px`,
-                                    marginBottom: '2px',
-                                    objectFit: 'contain',
-                                    display: 'block',
-                                  }}
-                                />
-                              </div>
-                            )}
                             {bulletsList.length > 0 && (
                               <div
                                 onClick={(e) => {
@@ -776,22 +748,87 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             )}
 
                             {paragraphs.length > 0 ? (
-                              paragraphs.map((p, pIdx) => (
-                                <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
-                                  {pIdx === 0 && localSection.dropCap ? (
-                                    <>
-                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                        {p.charAt(0)}
-                                      </span>
-                                      {p.slice(1)}
-                                    </>
-                                  ) : (
-                                    p
-                                  )}
-                                </p>
-                              ))
+                              paragraphs.map((p, pIdx) => {
+                                const injectImage = localSection.image && pIdx === (effectiveCols > 1 ? Math.floor(paragraphs.length / effectiveCols) : 0);
+                                return (
+                                  <React.Fragment key={pIdx}>
+                                    {injectImage && (
+                                      <div
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveTarget('image');
+                                        }}
+                                        className={`cursor-pointer ${localSection.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${
+                                          activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''
+                                        }`}
+                                      >
+                                        <img
+                                          src={localSection.image}
+                                          alt="Photo"
+                                          className="cutout-shape-img rounded-xs"
+                                          style={{
+                                            float: localSection.cutoutFloat === 'right' ? 'right' : 'left',
+                                            shapeOutside: `url('${localSection.image}')`,
+                                            shapeMargin: `${localSection.cutoutMargin !== undefined ? localSection.cutoutMargin : 2}px`,
+                                            width: `${localSection.cutoutWidth || 240}px`,
+                                            maxWidth: '95%',
+                                            marginTop: `${localSection.cutoutOffsetY || 0}px`,
+                                            [localSection.cutoutFloat === 'right' ? 'marginRight' : 'marginLeft']: `${localSection.cutoutOffsetX || 0}px`,
+                                            marginBottom: '2px',
+                                            objectFit: 'contain',
+                                            display: 'block',
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                    <p className="story-paragraph mb-1 text-[#111111]">
+                                      {pIdx === 0 && localSection.dropCap ? (
+                                        <>
+                                          <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                            {p.charAt(0)}
+                                          </span>
+                                          {p.slice(1)}
+                                        </>
+                                      ) : (
+                                        p
+                                      )}
+                                    </p>
+                                  </React.Fragment>
+                                );
+                              })
                             ) : (
-                              <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                              <>
+                                {localSection.image && (
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveTarget('image');
+                                    }}
+                                    className={`cursor-pointer ${localSection.cutoutFloat === 'right' ? 'float-right' : 'float-left'} relative ${
+                                      activeTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''
+                                    }`}
+                                  >
+                                    <img
+                                      src={localSection.image}
+                                      alt="Photo"
+                                      className="cutout-shape-img rounded-xs"
+                                      style={{
+                                        float: localSection.cutoutFloat === 'right' ? 'right' : 'left',
+                                        shapeOutside: `url('${localSection.image}')`,
+                                        shapeMargin: `${localSection.cutoutMargin !== undefined ? localSection.cutoutMargin : 2}px`,
+                                        width: `${localSection.cutoutWidth || 240}px`,
+                                        maxWidth: '95%',
+                                        marginTop: `${localSection.cutoutOffsetY || 0}px`,
+                                        [localSection.cutoutFloat === 'right' ? 'marginRight' : 'marginLeft']: `${localSection.cutoutOffsetX || 0}px`,
+                                        marginBottom: '2px',
+                                        objectFit: 'contain',
+                                        display: 'block',
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                              </>
                             )}
                             {localSection.caption && (
                               <div

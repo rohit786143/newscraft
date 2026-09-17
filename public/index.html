@@ -5970,8 +5970,10 @@
 
       if (meta.customHeaderImage && (page.mastheadType === 'full' || studioState.activePageIndex === 0)) {
         // PURE CUSTOM HEADER BANNER (NO OVERLAY DATA ON TOP OF CUSTOM BANNER)
+        const _custHdrFixedH = (meta.mastheadFixedHeight && meta.mastheadFixedHeight > 0) ? meta.mastheadFixedHeight : 0;
+        const _custHdrFixedStyle = _custHdrFixedH > 0 ? `min-height:${_custHdrFixedH}px; max-height:${_custHdrFixedH}px; overflow:hidden;` : '';
         headerHTML = `
-          <div class="mb-1 shrink-0">
+          <div class="mb-1 shrink-0" style="${_custHdrFixedStyle}">
             <div class="relative border-b-2 border-black overflow-hidden select-none bg-stone-50 rounded-[1px]" style="height: ${meta.customHeaderHeight || 140}px;">
               <img src="${meta.customHeaderImage}" alt="Custom Header Banner" class="w-full h-full object-cover block border-none">
             </div>
@@ -6003,8 +6005,10 @@
           margin-bottom: 1px;
         `;
 
+        const _stdHdrFixedH = (meta.mastheadFixedHeight && meta.mastheadFixedHeight > 0) ? meta.mastheadFixedHeight : 0;
+        const _stdHdrFixedStyle = _stdHdrFixedH > 0 ? `min-height:${_stdHdrFixedH}px; max-height:${_stdHdrFixedH}px; overflow:hidden;` : '';
         headerHTML = `
-          <div class="mb-1 shrink-0">
+          <div class="mb-1 shrink-0" style="${_stdHdrFixedStyle}">
             <!-- TOP FOLIO BAR WITH EDITION, WEBSITE & AUTO DATE -->
             <div class="flex justify-between items-center text-[11px] font-sans tracking-tight text-slate-900 pb-[1px] mb-1.5" style="border-bottom: 3px double #222;">
               <span class="font-semibold text-slate-800 uppercase text-[11px]">${meta.edition || 'शिमला - धर्मशाला - मंडी संस्करण'}</span>
@@ -7810,6 +7814,38 @@
       autoSave();
     }
 
+    function toggleMastheadFixedHeight(enabled) {
+      if (enabled) {
+        // Default to 180px if not set yet
+        if (!studioState.paperMeta.mastheadFixedHeight || studioState.paperMeta.mastheadFixedHeight <= 0) {
+          studioState.paperMeta.mastheadFixedHeight = 180;
+        }
+      } else {
+        studioState.paperMeta.mastheadFixedHeight = 0;
+      }
+      const controls = document.getElementById('mastheadFixedHeightControls');
+      if (controls) controls.classList.toggle('hidden', !enabled);
+      const slider = document.getElementById('mastheadFixedHeightSlider');
+      if (slider) slider.value = studioState.paperMeta.mastheadFixedHeight || 180;
+      const lbl = document.getElementById('mastheadFixedHeightLabel');
+      if (lbl) lbl.textContent = `${studioState.paperMeta.mastheadFixedHeight || 180}px`;
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
+    function updateMastheadFixedHeight(val) {
+      const h = parseInt(val, 10) || 180;
+      studioState.paperMeta.mastheadFixedHeight = h;
+      // Sync slider
+      const slider = document.getElementById('mastheadFixedHeightSlider');
+      if (slider) slider.value = h;
+      // Sync label
+      const lbl = document.getElementById('mastheadFixedHeightLabel');
+      if (lbl) lbl.textContent = `${h}px`;
+      renderActiveCanvasPage();
+      autoSave();
+    }
+
     // SMART AUTOMATIC BACKGROUND REMOVER (ELIMINATES 100% OF FAKE CHECKERBOARDS & LIGHT BACKGROUNDS)
     async function processRemoveBackground(dataUrl, sensitivity = 30) {
       return new Promise((resolve) => {
@@ -8404,6 +8440,46 @@
                        class="w-full accent-blue-500 bg-slate-950 h-1.5 rounded cursor-pointer">
               </div>
             ` : ''}
+          </div>
+
+          <!-- MASTHEAD FIXED HEIGHT CONTROL -->
+          <div class="bg-slate-900/90 border border-violet-800/60 p-3 rounded-xl shadow-md space-y-2">
+            <div class="flex justify-between items-center border-b border-violet-900/60 pb-1.5">
+              <span class="text-violet-300 font-bold text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-ruler-vertical text-violet-400"></i> हेडर की ऊंचाई लॉक करें (Fix Header Height)
+              </span>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" id="chkMastheadFixedHeight"
+                  onchange="toggleMastheadFixedHeight(this.checked)"
+                  ${(meta.mastheadFixedHeight && meta.mastheadFixedHeight > 0) ? 'checked' : ''}
+                  class="accent-violet-500 w-3.5 h-3.5 rounded cursor-pointer">
+                <span class="text-[10px] text-slate-300 font-semibold">Enable</span>
+              </label>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">
+              एक बार ऊंचाई सेट करने के बाद हेडर में कोई भी चीज़ जोड़ने पर हेडर का साइज़ नहीं बदलेगा।
+            </p>
+            <div id="mastheadFixedHeightControls" class="${(meta.mastheadFixedHeight && meta.mastheadFixedHeight > 0) ? '' : 'hidden'} space-y-1.5">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-300 text-[10.5px] font-semibold">हेडर की ऊंचाई:</span>
+                <span class="text-violet-300 font-mono text-[11px] font-bold" id="mastheadFixedHeightLabel">${meta.mastheadFixedHeight || 180}px</span>
+              </div>
+              <input type="range" min="100" max="400" step="5"
+                value="${meta.mastheadFixedHeight || 180}"
+                id="mastheadFixedHeightSlider"
+                oninput="updateMastheadFixedHeight(this.value)"
+                class="w-full accent-violet-500 bg-slate-950 h-1.5 rounded cursor-pointer">
+              <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+                <span>100px</span><span>200px</span><span>300px</span><span>400px</span>
+              </div>
+              <div class="grid grid-cols-4 gap-1">
+                ${[120, 150, 180, 220].map(h => `
+                  <button type="button" onclick="updateMastheadFixedHeight(${h})"
+                    class="py-1 text-[9.5px] font-bold rounded border ${(meta.mastheadFixedHeight||180) === h ? 'border-violet-500 bg-violet-950/60 text-violet-300' : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-violet-600 hover:text-violet-300'} transition">
+                    ${h}px
+                  </button>`).join('')}
+              </div>
+            </div>
           </div>
 
           <!-- 1. NEWSPAPER MAIN TITLE & TYPOGRAPHY -->
