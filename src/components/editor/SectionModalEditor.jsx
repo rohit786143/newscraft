@@ -35,10 +35,12 @@ function splitStoryContent(content, numCols, sec = {}) {
   const wordsPerLine = 6.8;
   const L = new Array(numCols).fill(0);
 
-  // Column 1 has Photo 1
+  // Column 1 has Photo 1 — floated at 44% width, so text wraps beside it.
+  // The float only displaces ~half the lines (text fills the other 56% beside the image)
   if (sec.image && sec.layout !== 'text-only') {
     const img1H = (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
-    L[0] = img1H / lineH;
+    // Float takes ~44% width, so effective line displacement is reduced
+    L[0] = (img1H / lineH) * 0.44;
   }
 
   // Column 2 has Photo 2 at the top (full width of col 2) — only when image2 actually exists
@@ -551,6 +553,10 @@ export const SectionModalEditor = ({
                       if (isDualPhoto) {
                         const colParas = splitStoryContent(localSection.content || '', effectiveCols, localSection);
 
+                        // Determine photo 1 float direction from layout setting
+                        const photo1Float = localSection.layout === 'right-img' ? 'right' : 'left';
+                        const photo1MarginSide = photo1Float === 'right' ? 'marginLeft' : 'marginRight';
+
                         let col1Photo = null;
                         if (localSection.image && localSection.layout !== 'text-only') {
                           col1Photo = (
@@ -559,12 +565,15 @@ export const SectionModalEditor = ({
                                 e.stopPropagation();
                                 setActiveTarget('image');
                               }}
-                              className={`col1-top-photo-block mb-1 cursor-pointer transition rounded ${
+                              className={`col1-float-photo mb-1 cursor-pointer transition rounded ${
                                 activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                               }`}
                               style={{
-                                display: 'block',
-                                width: '100%',
+                                float: photo1Float,
+                                width: '44%',
+                                maxWidth: '220px',
+                                [photo1MarginSide]: '8px',
+                                marginBottom: '4px',
                                 boxSizing: 'border-box',
                               }}
                               title="क्लिक करके फोटो 1 एडिट करें"
@@ -672,6 +681,7 @@ export const SectionModalEditor = ({
                                       flex: '1 1 0%',
                                       minWidth: 0,
                                       boxSizing: 'border-box',
+                                      overflow: 'hidden',
                                       ...borderStyle,
                                       fontFamily: localSection.bodyFont || "'Martel', serif",
                                       fontSize: localSection.bodySize || '11px',
