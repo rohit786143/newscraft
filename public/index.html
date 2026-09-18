@@ -5487,34 +5487,31 @@
 
       // Line height in pixels (~15.2px for standard 11px broadsheet body text)
       const lineH = 15.2;
-      const words = content.trim().split(/\s+/).filter(Boolean);
+      const contentWithTokens = content.trim().replace(/\n/g, ' [[NEWLINE]] ');
+      const words = contentWithTokens.split(/\s+/).filter(Boolean);
       const W = words.length;
       if (W === 0) return Array.from({ length: numCols }, () => []);
 
       const wordsPerLine = 6.8;
       const L = new Array(numCols).fill(0);
 
-      // Column 2 has Photo 2 at the top (full width of col 2)
-      if (numCols >= 2 && (sec.image2 || true)) {
-        const img2H = (sec.image2Height || 180) + (sec.caption2 ? 24 : 10);
-        L[1] = img2H / lineH;
+      // Column 1 has Photo 1
+      if (sec.image && sec.layout !== 'text-only') {
+        const img1H = (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
+        L[0] = img1H / lineH;
       }
 
-      // Column 1 has Photo 1
-      if (sec.image) {
-        if (sec.layout === 'left-img' || sec.layout === 'right-img') {
-          const img1H = Math.min(160, (sec.imageHeight || 150) + (sec.caption ? 20 : 6));
-          L[0] = 0.46 * (img1H / lineH);
-        } else if (sec.layout !== 'text-only') {
-          const img1H = (sec.imageHeight || 150) + (sec.caption ? 24 : 8);
-          L[0] = img1H / lineH;
-        }
+      // Column 2 has Photo 2 at the top (full width of col 2) — only when image2 actually exists
+      if (numCols >= 2 && !!sec.image2) {
+        const img2H = (sec.image2Height || 180) + (sec.caption2 ? 22 : 6);
+        L[1] = img2H / lineH;
       }
 
       const totalTextLines = W / wordsPerLine;
       const sumL = L.reduce((a, b) => a + b, 0);
-      const targetH = (sumL + totalTextLines) / numCols;
-      const caps = L.map(l => Math.max(0.2, targetH - l));
+      const targetH = Math.max((sumL + totalTextLines) / numCols, L[0] + 1, L[1] + 1);
+
+      const caps = L.map(l => Math.max(0.5, targetH - l));
       const sumCaps = caps.reduce((a, b) => a + b, 0);
       const proportions = caps.map(c => c / sumCaps);
 
@@ -5522,15 +5519,21 @@
       let startIdx = 0;
       for (let c = 0; c < numCols; c++) {
         if (c === numCols - 1) {
-          const slice = words.slice(startIdx).join(' ');
-          if (slice) result[c].push(slice);
+          const slice = words.slice(startIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+          if (slice) {
+            const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
+            result[c] = paras.length > 0 ? paras : [slice];
+          }
           break;
         }
 
         const wordsForCol = Math.round(W * proportions[c]);
         const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
-        const slice = words.slice(startIdx, endIdx).join(' ');
-        if (slice) result[c].push(slice);
+        const slice = words.slice(startIdx, endIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+        if (slice) {
+          const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
+          result[c] = paras.length > 0 ? paras : [slice];
+        }
         startIdx = endIdx;
       }
 
@@ -5567,79 +5570,78 @@
       }).join('');
     }
 
-    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH COLUMN 2 TOP PHOTO & CONTINUOUS MULTI-COLUMN FLOW
+    // HELPER TO RENDER DUAL PHOTO COLUMNS (GRID > 6) WITH COLUMN 2 TOP PHOTO & BALANCED MULTI-COLUMN FLOW
     function renderDualPhotoColumnsHTML(sec, isModal = false) {
       const effectiveCols = Math.max(2, sec.bodyCols || 3);
-      const colsClass = effectiveCols === 2 ? 'broadsheet-cols-2' : (effectiveCols === 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
       const bulletsHTML = renderBulletsHTML(sec);
+      const colParas = splitStoryContent(sec.content || '', effectiveCols, sec);
 
-      const words = (sec.content || '').trim().split(/\s+/).filter(Boolean);
-      const W = words.length;
-
-      // Calculate Column 1 split point with block positioning for both photos
-      const lineH = 15.2;
-      const wordsPerLine = 6.8;
-      const L1 = (sec.image && sec.layout !== 'text-only') ? (((sec.imageHeight || 150) + (sec.caption ? 24 : 8)) / lineH) : 0;
-      const L2 = ((sec.image2Height || 180) + (sec.caption2 ? 24 : 8)) / lineH;
-      const totalTextLines = W / wordsPerLine;
-      const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
-      const C1 = Math.max(1, targetH - L1);
-      const C2 = Math.max(1, targetH - L2);
-      const C3 = Math.max(2, targetH);
-      const p1 = C1 / (C1 + C2 + C3);
-      const col1WordCount = Math.min(Math.max(10, Math.round(W * p1)), Math.max(10, W - 10));
-
-      const col1Text = words.slice(0, col1WordCount).join(' ');
-      const remainingText = words.slice(col1WordCount).join(' ');
-
-      // Col 1 Photo block (Block positioning at Top of Column 1, break-inside: avoid)
+      // Col 1 Photo block (Matches exact Single Photo styling)
       let col1PhotoHTML = '';
       if (sec.image && sec.layout !== 'text-only') {
         col1PhotoHTML = `
-          <div class="col1-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="display: block; width: 100%; box-sizing: border-box; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover block" style="max-height: ${sec.imageHeight || 160}px; object-fit: ${sec.imageFit || 'cover'};">
+          <div class="col1-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
             ${sec.caption ? `
-              <div class="pt-0.5">
-                ${renderCaptionHTML(sec, 'center')}
+              <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
+                ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
               </div>
             ` : ''}
           </div>
         `;
       }
 
-      // Col 2 Photo block (Block positioning at Top of Column 2 via CSS break-before: column, break-inside: avoid)
-      const col2PhotoHTML = `
-        <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; page-break-inside: avoid !important; display: block !important; width: 100% !important; box-sizing: border-box !important;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
-          <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
-          <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5">
-            ${renderCaption2HTML(sec, 'center')}
+      // Col 2 Photo block (Matches exact Single Photo styling)
+      let col2PhotoHTML = '';
+      if (sec.image2) {
+        col2PhotoHTML = `
+          <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col2-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+            <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover border border-black p-0.5 block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
+            ${sec.caption2 ? `
+              <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5" style="text-align: ${sec.caption2Align || sec.captionAlign || 'left'};">
+                ${renderCaption2HTML(sec, sec.caption2Align || sec.captionAlign || 'left')}
+              </div>
+            ` : ''}
           </div>
-        </div>
-      `;
+        `;
+      }
 
       const font = sec.bodyFont || studioState?.paperMeta?.defaultBodyFont || "'Martel', serif";
       const size = sec.bodySize || '11px';
       const color = sec.bodyColor || '#111111';
-      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; word-break: normal; line-height: 1.38; margin-bottom: 2px;`;
-
-      let col1TextFormatted = col1Text;
-      if (sec.dropCap !== false && col1Text) {
-        const match = col1Text.match(/^(\p{L}\p{M}*|\S)/u);
-        if (match) {
-          const firstChar = match[0];
-          const restText = col1Text.slice(firstChar.length);
-          const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
-          col1TextFormatted = `${dropCapHTML}${restText}`;
-        }
-      }
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; word-break: normal; line-height: 1.38; margin-bottom: 3px;`;
 
       return `
         ${bulletsHTML}
-        <div class="font-martel leading-relaxed clearfix my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" style="column-count: ${effectiveCols}; column-rule: 1px solid #d4cebe; column-gap: 12px; column-fill: balance; -webkit-column-fill: balance; text-align: justify; text-justify: inter-word; font-family: ${font}; font-size: ${size}; color: ${color}; line-height: 1.38;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
-          ${col1PhotoHTML}
-          ${col1Text ? `<p class="story-paragraph" style="${styleStr}">${col1TextFormatted}</p>` : ''}
-          ${col2PhotoHTML}
-          ${remainingText ? `<p class="story-paragraph" style="${styleStr}">${remainingText}</p>` : ''}
+        <div class="dual-photo-grid-container my-1 w-full ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" style="display: flex; flex-direction: row; align-items: stretch; gap: 12px; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
+          ${Array.from({ length: effectiveCols }).map((_, colIdx) => {
+            const isFirst = colIdx === 0;
+            const isSecond = colIdx === 1;
+            const isLast = colIdx === effectiveCols - 1;
+            const borderStyle = !isLast ? 'border-right: 1px solid #d4cebe; padding-right: 12px;' : '';
+            const pList = colParas[colIdx] || [];
+
+            const parasHTML = pList.map((p, pIdx) => {
+              if (isFirst && pIdx === 0 && sec.dropCap !== false) {
+                const match = p.match(/^(\p{L}\p{M}*|\S)/u);
+                if (match) {
+                  const firstChar = match[0];
+                  const restText = p.slice(firstChar.length);
+                  const dropCapHTML = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>`;
+                  return `<p class="story-paragraph" style="${styleStr}">${dropCapHTML}${restText}</p>`;
+                }
+              }
+              return `<p class="story-paragraph" style="${styleStr}">${p}</p>`;
+            }).join('');
+
+            return `
+              <div class="dual-col dual-col-${colIdx + 1} flex-1 font-martel leading-relaxed" style="flex: 1 1 0%; min-width: 0; box-sizing: border-box; ${borderStyle} font-family: ${font}; font-size: ${size}; color: ${color}; text-align: justify; text-justify: inter-word; line-height: 1.38;">
+                ${isFirst ? col1PhotoHTML : ''}
+                ${isSecond ? col2PhotoHTML : ''}
+                ${parasHTML || '<p class="text-slate-400 italic text-xs">[कॉलम ' + (colIdx + 1) + '...]</p>'}
+              </div>
+            `;
+          }).join('')}
         </div>
       `;
     }
@@ -5868,8 +5870,8 @@
             return `
               ${sec.image ? `
                 <div class="my-1">
-                  <img src="${sec.image}" alt="Photo" class="w-full max-h-48 object-cover border border-black p-0.5">
-                  ${renderCaptionHTML(sec, sec.titleAlign || 'left')}
+                  <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
+                  ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
                 </div>
               ` : ''}
               ${renderBulletsHTML(sec)}
@@ -6750,13 +6752,13 @@
       `;
 
       // Helper for modal photo component with target switcher
-      const renderModalPhotoBlock = (wrapperClass, imgClass = "w-full max-h-48 object-cover border border-black p-0.5", captionAlign = 'left') => `
+      const renderModalPhotoBlock = (wrapperClass, imgClass = "w-full object-cover border border-black p-0.5", captionAlign = 'left') => `
         <div onclick="setModalActiveTarget('image', event)" class="${wrapperClass} cursor-pointer transition rounded ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" title="क्लिक करके फोटो व लेआउट एडिट करें">
           ${sec.image ? `
-            <img src="${sec.image}" alt="Photo" class="${imgClass}">
+            <img src="${sec.image}" alt="Photo" class="${imgClass}" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
             ${sec.caption ? `
-              <div id="modal-preview-caption" class="pt-0.5">
-                ${renderCaptionHTML(sec, captionAlign)}
+              <div id="modal-preview-caption" class="pt-0.5" style="text-align: ${sec.captionAlign || captionAlign};">
+                ${renderCaptionHTML(sec, sec.captionAlign || captionAlign)}
               </div>
             ` : ''}
           ` : `
@@ -6859,7 +6861,7 @@
       } else {
         // Standard 'top-img' or default
         layoutInnerHTML = `
-          ${sec.image ? renderModalPhotoBlock("my-1", "w-full max-h-48 object-cover border border-black p-0.5", sec.titleAlign || 'left') : ''}
+          ${sec.image ? renderModalPhotoBlock("my-1", "w-full object-cover border border-black p-0.5", sec.captionAlign || 'left') : ''}
           ${bulletsHTML}
           <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
             <div id="modal-preview-paragraphs" style="display: contents;">

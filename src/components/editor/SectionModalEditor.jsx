@@ -27,34 +27,31 @@ function splitStoryContent(content, numCols, sec = {}) {
 
   // Line height in pixels (~15.2px for standard 11px broadsheet body text)
   const lineH = 15.2;
-  const words = content.trim().split(/\s+/).filter(Boolean);
+  const contentWithTokens = content.trim().replace(/\n/g, ' [[NEWLINE]] ');
+  const words = contentWithTokens.split(/\s+/).filter(Boolean);
   const W = words.length;
   if (W === 0) return Array.from({ length: numCols }, () => []);
 
   const wordsPerLine = 6.8;
   const L = new Array(numCols).fill(0);
 
-  // Column 2 has Photo 2 at the top (full width of col 2)
-  if (numCols >= 2 && (sec.image2 || true)) {
-    const img2H = (sec.image2Height || 180) + (sec.caption2 ? 24 : 10);
-    L[1] = img2H / lineH;
+  // Column 1 has Photo 1
+  if (sec.image && sec.layout !== 'text-only') {
+    const img1H = (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
+    L[0] = img1H / lineH;
   }
 
-  // Column 1 has Photo 1
-  if (sec.image) {
-    if (sec.layout === 'left-img' || sec.layout === 'right-img') {
-      const img1H = Math.min(160, (sec.imageHeight || 150) + (sec.caption ? 20 : 6));
-      L[0] = 0.46 * (img1H / lineH);
-    } else if (sec.layout !== 'text-only') {
-      const img1H = (sec.imageHeight || 150) + (sec.caption ? 24 : 8);
-      L[0] = img1H / lineH;
-    }
+  // Column 2 has Photo 2 at the top (full width of col 2) — only when image2 actually exists
+  if (numCols >= 2 && !!sec.image2) {
+    const img2H = (sec.image2Height || 180) + (sec.caption2 ? 22 : 6);
+    L[1] = img2H / lineH;
   }
 
   const totalTextLines = W / wordsPerLine;
   const sumL = L.reduce((a, b) => a + b, 0);
-  const targetH = (sumL + totalTextLines) / numCols;
-  const caps = L.map(l => Math.max(0.2, targetH - l));
+  const targetH = Math.max((sumL + totalTextLines) / numCols, L[0] + 1, L[1] + 1);
+
+  const caps = L.map(l => Math.max(0.5, targetH - l));
   const sumCaps = caps.reduce((a, b) => a + b, 0);
   const proportions = caps.map(c => c / sumCaps);
 
@@ -62,15 +59,21 @@ function splitStoryContent(content, numCols, sec = {}) {
   let startIdx = 0;
   for (let c = 0; c < numCols; c++) {
     if (c === numCols - 1) {
-      const slice = words.slice(startIdx).join(' ');
-      if (slice) result[c].push(slice);
+      const slice = words.slice(startIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+      if (slice) {
+        const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
+        result[c] = paras.length > 0 ? paras : [slice];
+      }
       break;
     }
 
     const wordsForCol = Math.round(W * proportions[c]);
     const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
-    const slice = words.slice(startIdx, endIdx).join(' ');
-    if (slice) result[c].push(slice);
+    const slice = words.slice(startIdx, endIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+    if (slice) {
+      const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
+      result[c] = paras.length > 0 ? paras : [slice];
+    }
     startIdx = endIdx;
   }
 
@@ -548,25 +551,6 @@ export const SectionModalEditor = ({
                       if (isDualPhoto) {
                         const colParas = splitStoryContent(localSection.content || '', effectiveCols, localSection);
 
-                        const words = (localSection.content || '').trim().split(/\s+/).filter(Boolean);
-                        const W = words.length;
-
-                        // Calculate Column 1 split point with block positioning for both photos
-                        const lineH = 15.2;
-                        const wordsPerLine = 6.8;
-                        const L1 = (localSection.image && localSection.layout !== 'text-only') ? (((localSection.imageHeight || 150) + (localSection.caption ? 24 : 8)) / lineH) : 0;
-                        const L2 = ((localSection.image2Height || 180) + (localSection.caption2 ? 24 : 8)) / lineH;
-                        const totalTextLines = W / wordsPerLine;
-                        const targetH = (L1 + L2 + totalTextLines) / effectiveCols;
-                        const C1 = Math.max(1, targetH - L1);
-                        const C2 = Math.max(1, targetH - L2);
-                        const C3 = Math.max(2, targetH);
-                        const p1 = C1 / (C1 + C2 + C3);
-                        const col1WordCount = Math.min(Math.max(10, Math.round(W * p1)), Math.max(10, W - 10));
-
-                        const col1Text = words.slice(0, col1WordCount).join(' ');
-                        const remainingText = words.slice(col1WordCount).join(' ');
-
                         let col1Photo = null;
                         if (localSection.image && localSection.layout !== 'text-only') {
                           col1Photo = (
@@ -575,25 +559,64 @@ export const SectionModalEditor = ({
                                 e.stopPropagation();
                                 setActiveTarget('image');
                               }}
-                              className={`col1-top-photo-block embedded-media-container mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
+                              className={`col1-top-photo-block mb-1 cursor-pointer transition rounded ${
                                 activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                               }`}
                               style={{
                                 display: 'block',
                                 width: '100%',
                                 boxSizing: 'border-box',
-                                breakInside: 'avoid',
                               }}
+                              title="क्लिक करके फोटो 1 एडिट करें"
                             >
                               <img
                                 src={localSection.image}
                                 alt="Photo 1"
-                                className="w-full object-cover block"
-                                style={{ maxHeight: `${localSection.imageHeight || 160}px`, objectFit: localSection.imageFit || 'cover' }}
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: localSection.imageFit || 'cover' }}
                               />
                               {localSection.caption && (
-                                <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                  style={{ textAlign: localSection.captionAlign || 'left' }}
+                                >
                                   {localSection.caption}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        let col2Photo = null;
+                        if (localSection.image2) {
+                          col2Photo = (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col2-top-photo-block mb-1 cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                              }}
+                              title="क्लिक करके फोटो 2 एडिट करें"
+                            >
+                              <img
+                                src={localSection.image2}
+                                alt="Photo 2"
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
+                              />
+                              {localSection.caption2 && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                  style={{ textAlign: localSection.caption2Align || localSection.captionAlign || 'left' }}
+                                >
+                                  {localSection.caption2}
                                 </div>
                               )}
                             </div>
@@ -621,78 +644,67 @@ export const SectionModalEditor = ({
                             )}
                             <div
                               onClick={() => setActiveTarget('body')}
-                              className={`font-martel leading-relaxed my-1 clearfix cursor-pointer ${colsClass} ${
+                              className={`dual-photo-grid-container my-1 w-full cursor-pointer ${
                                 activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
                               }`}
                               style={{
-                                columnCount: effectiveCols,
-                                columnRule: '1px solid #d4cebe',
-                                columnGap: '14px',
-                                columnFill: 'balance',
-                                fontFamily: localSection.bodyFont || "'Martel', serif",
-                                fontSize: localSection.bodySize || '11px',
-                                textAlign: localSection.bodyAlign || 'justify',
-                                textJustify: 'inter-word',
-                                lineHeight: 1.38,
-                                backgroundColor: '#fcfbfa',
-                                color: '#111111',
+                                display: 'flex',
+                                flexDirection: 'row',
+                                alignItems: 'stretch',
+                                gap: '12px',
+                                width: '100%',
+                                boxSizing: 'border-box',
                               }}
+                              title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                             >
-                              {col1Photo}
-                              {col1Text && (
-                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
-                                  {localSection.dropCap ? (
-                                    <>
-                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                        {col1Text.charAt(0)}
-                                      </span>
-                                      {col1Text.slice(1)}
-                                    </>
-                                  ) : (
-                                    col1Text
-                                  )}
-                                </p>
-                              )}
+                              {Array.from({ length: effectiveCols }).map((_, colIdx) => {
+                                const isFirst = colIdx === 0;
+                                const isSecond = colIdx === 1;
+                                const isLast = colIdx === effectiveCols - 1;
+                                const borderStyle = !isLast ? { borderRight: '1px solid #d4cebe', paddingRight: '12px' } : {};
+                                const pList = colParas[colIdx] || [];
 
-                              {/* Photo 2 Break Before Column */}
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTarget('image');
-                                }}
-                                className={`col2-top-photo-block mb-1.5 border border-black p-0.5 bg-white shadow-xs cursor-pointer transition rounded ${
-                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                }`}
-                                style={{
-                                  breakBefore: 'column',
-                                  WebkitColumnBreakBefore: 'always',
-                                  breakInside: 'avoid',
-                                  WebkitColumnBreakInside: 'avoid',
-                                  display: 'block',
-                                  width: '100%',
-                                  boxSizing: 'border-box'
-                                }}
-                                title="क्लिक करके फोटो 2 एडिट करें"
-                              >
-                                <img
-                                  src={localSection.image2}
-                                  alt="Photo 2"
-                                  className="w-full object-cover block"
-                                  style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
-                                />
-                                {localSection.caption2 && (
-                                  <div className="text-[9.5px] italic text-slate-700 pt-0.5 text-center">
-                                    {localSection.caption2}
+                                return (
+                                  <div
+                                    key={colIdx}
+                                    className={`dual-col dual-col-${colIdx + 1} flex-1 font-martel leading-relaxed`}
+                                    style={{
+                                      flex: '1 1 0%',
+                                      minWidth: 0,
+                                      boxSizing: 'border-box',
+                                      ...borderStyle,
+                                      fontFamily: localSection.bodyFont || "'Martel', serif",
+                                      fontSize: localSection.bodySize || '11px',
+                                      textAlign: localSection.bodyAlign || 'justify',
+                                      textJustify: 'inter-word',
+                                      lineHeight: 1.38,
+                                      backgroundColor: '#fcfbfa',
+                                      color: '#111111',
+                                    }}
+                                  >
+                                    {isFirst && col1Photo}
+                                    {isSecond && col2Photo}
+                                    {pList.length > 0 ? (
+                                      pList.map((p, pIdx) => (
+                                        <p key={pIdx} className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
+                                          {isFirst && pIdx === 0 && localSection.dropCap ? (
+                                            <>
+                                              <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                                {p.charAt(0)}
+                                              </span>
+                                              {p.slice(1)}
+                                            </>
+                                          ) : (
+                                            p
+                                          )}
+                                        </p>
+                                      ))
+                                    ) : (
+                                      <p className="text-slate-400 italic text-xs">[कॉलम {colIdx + 1}...]</p>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-
-                              {/* Remaining Text flows under Photo 2 in Col 2 and into Col 3 */}
-                              {remainingText && (
-                                <p className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
-                                  {remainingText}
-                                </p>
-                              )}
+                                );
+                              })}
                             </div>
                           </>
                         );
@@ -1305,7 +1317,7 @@ export const SectionModalEditor = ({
                                   e.stopPropagation();
                                   setActiveTarget('image');
                                 }}
-                                className={`mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${
+                                className={`mb-1 cursor-pointer transition rounded ${
                                   activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                 }`}
                                 style={{ breakInside: 'avoid', WebkitColumnBreakInside: 'avoid' }}
@@ -1313,7 +1325,8 @@ export const SectionModalEditor = ({
                                 <img
                                   src={localSection.image}
                                   alt="Photo"
-                                  className="w-full max-h-48 object-cover"
+                                  className="w-full object-cover border border-black p-0.5"
+                                  style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: localSection.imageFit || 'cover' }}
                                 />
                                 {localSection.caption && (
                                   <div
@@ -1359,7 +1372,7 @@ export const SectionModalEditor = ({
                                 src={localSection.image}
                                 alt="Photo"
                                 className="w-full object-cover border border-black p-0.5"
-                                style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
+                                style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: localSection.imageFit || 'cover' }}
                               />
                               {localSection.caption && (
                                 <div

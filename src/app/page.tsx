@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 /* ─────────────────────────────────────────────
    ROOT PAGE  /
@@ -9,8 +9,10 @@ import { useRouter } from 'next/navigation';
    • Authenticated    → show Editor (iframe)
    ───────────────────────────────────────────── */
 
-export default function PressCraftStudioPage() {
+function PressCraftStudioContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isPreviewMode = searchParams.get('preview') === '1';
 
   // ── Auth state ──
   const [authChecked, setAuthChecked] = useState(false);
@@ -51,9 +53,11 @@ export default function PressCraftStudioPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user) {
-          if (data.user.role === 'admin') {
+          if (data.user.role === 'admin' && !isPreviewMode) {
+            // Admin without preview flag → go to admin dashboard
             router.push('/admin');
           } else {
+            // Regular user OR admin previewing studio → show editor
             setCurrentUser(data.user);
             setAuthChecked(true);
           }
@@ -333,5 +337,13 @@ export default function PressCraftStudioPage() {
         © 2026 PressCraft Pro Studio • Multi-Device Protected Publishing Platform
       </div>
     </div>
+  );
+}
+
+export default function PressCraftStudioPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-900 text-white text-sm">Loading...</div>}>
+      <PressCraftStudioContent />
+    </Suspense>
   );
 }

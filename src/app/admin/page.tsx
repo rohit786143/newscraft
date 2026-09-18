@@ -437,7 +437,7 @@ export default function AdminDashboardPage() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.open('/', '_blank')}
+            onClick={() => window.open('/?preview=1', '_blank')}
             className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg border border-slate-300 flex items-center gap-1.5 transition shadow-sm cursor-pointer"
             title="Open Editor in new tab"
           >
