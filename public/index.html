@@ -112,11 +112,15 @@
       hyphens: auto;
       -webkit-hyphens: auto;
       line-height: 1.38 !important;
-      margin-top: 0;
-      margin-bottom: 4px;
+      margin-top: 0 !important;
+      margin-bottom: 0px !important;
       display: block;
-      orphans: 2;
-      widows: 2;
+      orphans: 1 !important;
+      widows: 1 !important;
+    }
+
+    .story-paragraph + .story-paragraph {
+      text-indent: 1.2em;
     }
 
     .story-paragraph:last-child {
@@ -5715,7 +5719,37 @@
 
     // DYNAMIC BALANCER: INSERTS COLUMN 2 & 3 PHOTOS AT EXACT COLUMN TOPS PRESERVING EQUAL BOTTOM ALIGNMENT
     function balanceAllMultiColumnSections(rootEl = document) {
-      const containers = (rootEl || document).querySelectorAll('.multi-col-auto-flow');
+      const scope = rootEl || document;
+
+      // 1. BASELINE GRID ALIGNMENT FOR ALL COLUMN PHOTO BLOCKS
+      const multiColDivs = scope.querySelectorAll('.font-martel.columns-3, .font-martel.columns-2, .font-martel.columns-1, .columns-3, .columns-2, .multi-col-auto-flow');
+      multiColDivs.forEach(container => {
+        const photoBlocks = container.querySelectorAll('.col-top-photo-block');
+        if (!photoBlocks.length) return;
+
+        const sampleP = container.querySelector('.story-paragraph') || container;
+        const compStyle = window.getComputedStyle(sampleP);
+        const fontSize = parseFloat(compStyle.fontSize) || 11;
+        let lineHeight = parseFloat(compStyle.lineHeight);
+        if (isNaN(lineHeight) || lineHeight <= 0) {
+          lineHeight = fontSize * 1.38;
+        }
+
+        photoBlocks.forEach(block => {
+          block.style.marginBottom = '0px';
+          const rect = block.getBoundingClientRect();
+          const naturalH = rect.height;
+          if (naturalH <= 0) return;
+
+          const linesNeeded = Math.ceil(naturalH / lineHeight);
+          const targetH = linesNeeded * lineHeight;
+          const extraMargin = Math.max(0, targetH - naturalH);
+          block.style.marginBottom = extraMargin + 'px';
+        });
+      });
+
+      // 2. DYNAMIC COLUMN 2 & 3 PHOTO INSERTION
+      const containers = scope.querySelectorAll('.multi-col-auto-flow');
       containers.forEach(container => {
         const numCols = parseInt(container.dataset.numCols || '1', 10);
         if (numCols < 2) return;

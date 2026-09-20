@@ -102,6 +102,7 @@ export const SectionModalEditor = ({
     if (section && isOpen) {
       setLocalSection({ ...section });
       setActiveTarget('heading');
+      // Auto-fit zoom when modal opens
       const timer = setTimeout(() => {
         handleZoomFit();
       }, 60);
@@ -112,6 +113,38 @@ export const SectionModalEditor = ({
       setZoomScale(1.0);
     }
   }, [section, isOpen]);
+
+  // Dynamic baseline grid line-height alignment for per-column photo blocks
+  useEffect(() => {
+    if (paperWrapRef.current && localSection) {
+      const container = paperWrapRef.current;
+      const timer = setTimeout(() => {
+        const photoBlocks = container.querySelectorAll('.col-top-photo-block');
+        if (!photoBlocks.length) return;
+
+        const sampleP = container.querySelector('.story-paragraph') || container;
+        const compStyle = window.getComputedStyle(sampleP);
+        const fontSize = parseFloat(compStyle.fontSize) || 11;
+        let lineHeight = parseFloat(compStyle.lineHeight);
+        if (isNaN(lineHeight) || lineHeight <= 0) {
+          lineHeight = fontSize * 1.38;
+        }
+
+        photoBlocks.forEach((block) => {
+          block.style.marginBottom = '0px';
+          const rect = block.getBoundingClientRect();
+          const naturalH = rect.height;
+          if (naturalH <= 0) return;
+
+          const linesNeeded = Math.ceil(naturalH / lineHeight);
+          const targetH = linesNeeded * lineHeight;
+          const extraMargin = Math.max(0, targetH - naturalH);
+          block.style.marginBottom = `${extraMargin}px`;
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [localSection]);
 
   if (!isOpen || !localSection) return null;
 
