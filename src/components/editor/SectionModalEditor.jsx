@@ -755,6 +755,8 @@ export const SectionModalEditor = ({
                               title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                             >
                               {col1Photo}
+                              {col2Photo}
+                              {col3Photo}
                               {paragraphs.length > 0 ? (
                                 paragraphs.map((p, pIdx) => (
                                   <p key={pIdx} className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
@@ -773,8 +775,6 @@ export const SectionModalEditor = ({
                               ) : (
                                 <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
                               )}
-                              {col2Photo}
-                              {col3Photo}
                             </div>
                           </>
                         );

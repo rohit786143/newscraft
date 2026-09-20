@@ -5713,6 +5713,8 @@
              class="multi-col-auto-flow font-martel leading-relaxed my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}"
              title="${isModal ? 'क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें' : ''}">
           ${col1PhotoHTML}
+          ${col2PhotoHTML}
+          ${col3PhotoHTML}
           <div id="${isModal ? 'modal-preview-paragraphs' : ''}" style="display: contents;">
             ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
           </div>
