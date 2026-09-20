@@ -5485,16 +5485,17 @@
         return Array.from({ length: numCols }, () => []);
       }
 
-      // Line height in pixels (~15.2px for standard 11px broadsheet body text)
-      const lineH = 15.2;
-      const contentWithTokens = content.trim().replace(/\n/g, ' [[NEWLINE]] ');
-      const words = contentWithTokens.split(/\s+/).filter(Boolean);
+      const rawText = content.trim();
+      const words = rawText.split(/\s+/).filter(Boolean);
       const W = words.length;
       if (W === 0) return Array.from({ length: numCols }, () => []);
 
-      const wordsPerLine = 6.8;
-      const L = new Array(numCols).fill(0);
+      // Line height in pixels (~15.2px for 11px broadsheet text at 1.38 leading)
+      const lineH = 15.2;
+      // Average words per line in a standard broadsheet column (~180-220px)
+      const wordsPerLine = 6.0;
 
+      // Determine which column has Photo 1
       let targetCol1 = 1;
       if (sec.imageCol === 'all' || sec.layout === 'top-img') {
         targetCol1 = 0;
@@ -5513,50 +5514,72 @@
       const targetCol2 = sec.image2Col ? parseInt(sec.image2Col, 10) : 2;
       const targetCol3 = sec.image3Col ? parseInt(sec.image3Col, 10) : 3;
 
+      // Compute photo height (in lines) for each column
+      // For a single-column photo, effective height is calibrated (default 160px, max 220px)
+      // so text is evenly balanced across all columns
+      const photoLines = new Array(numCols).fill(0);
       for (let c = 0; c < numCols; c++) {
         const colNum = c + 1;
         let photoH = 0;
         if (sec.image && sec.layout !== 'text-only' && targetCol1 === colNum) {
-          photoH += (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
+          const imgH = Math.min(sec.imageHeight || 160, 220);
+          photoH += imgH + (sec.caption ? 24 : 6);
         }
         if (sec.image2 && targetCol2 === colNum) {
-          photoH += (sec.image2Height || 180) + (sec.caption2 ? 22 : 6);
+          const imgH = Math.min(sec.image2Height || 160, 220);
+          photoH += imgH + (sec.caption2 ? 24 : 6);
         }
         if (sec.image3 && targetCol3 === colNum) {
-          photoH += (sec.image3Height || 180) + (sec.caption3 ? 22 : 6);
+          const imgH = Math.min(sec.image3Height || 160, 220);
+          photoH += imgH + (sec.caption3 ? 24 : 6);
         }
-        L[c] = photoH / lineH;
+        photoLines[c] = photoH / lineH;
       }
 
       const totalTextLines = W / wordsPerLine;
-      const sumL = L.reduce((a, b) => a + b, 0);
-      const maxL = Math.max(...L);
-      const targetH = Math.max((sumL + totalTextLines) / numCols, maxL + 1);
+      const sumPhotoLines = photoLines.reduce((a, b) => a + b, 0);
+      const idealColumnLines = (totalTextLines + sumPhotoLines) / numCols;
 
-      const caps = L.map(l => Math.max(0.5, targetH - l));
-      const sumCaps = caps.reduce((a, b) => a + b, 0);
-      const proportions = caps.map(c => c / sumCaps);
+      // Calculate desired text lines for each column to make all columns equal height
+      // Ensure every column gets at least a minimum text floor (e.g. at least 3.5 lines or 18% of average)
+      const minTextLines = Math.max(3.5, (totalTextLines / numCols) * 0.18);
+      const desiredTextLines = photoLines.map(pLines => Math.max(minTextLines, idealColumnLines - pLines));
+      const sumDesired = desiredTextLines.reduce((a, b) => a + b, 0);
+      const proportions = desiredTextLines.map(d => d / sumDesired);
 
+      // Distribute words to columns using cumulative boundaries with sentence refinement
       const result = Array.from({ length: numCols }, () => []);
-      let startIdx = 0;
+      let prevEnd = 0;
+      let cumProp = 0;
+
       for (let c = 0; c < numCols; c++) {
-        if (c === numCols - 1) {
-          const slice = words.slice(startIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
-          if (slice) {
-            const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
-            result[c] = paras.length > 0 ? paras : [slice];
+        cumProp += proportions[c];
+        let endIdx = (c === numCols - 1) ? W : Math.round(W * cumProp);
+        endIdx = Math.max(prevEnd + 1, Math.min(W, endIdx));
+
+        // Refine endIdx to sentence boundary if punctuation is within +/- 3 words
+        if (c < numCols - 1 && endIdx < W) {
+          for (let offset = 0; offset <= 3; offset++) {
+            const checkPlus = endIdx + offset;
+            if (checkPlus < W && /[।.!?]$/.test(words[checkPlus - 1])) {
+              endIdx = checkPlus;
+              break;
+            }
+            const checkMinus = endIdx - offset;
+            if (checkMinus > prevEnd + 2 && /[।.!?]$/.test(words[checkMinus - 1])) {
+              endIdx = checkMinus;
+              break;
+            }
           }
-          break;
         }
 
-        const wordsForCol = Math.round(W * proportions[c]);
-        const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
-        const slice = words.slice(startIdx, endIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
-        if (slice) {
-          const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
-          result[c] = paras.length > 0 ? paras : [slice];
+        const colWords = words.slice(prevEnd, endIdx);
+        if (colWords.length > 0) {
+          result[c] = [colWords.join(' ')];
+        } else {
+          result[c] = [];
         }
-        startIdx = endIdx;
+        prevEnd = endIdx;
       }
 
       return result;
@@ -5629,9 +5652,10 @@
 
             let colPhotoHTML = '';
             if (sec.image && sec.layout !== 'text-only' && targetCol1 === colNum) {
+              const col1PhotoHeight = Math.min(sec.imageHeight || 160, 220);
               colPhotoHTML += `
-                <div class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-                  <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
+                <div class="col-top-photo-block mb-1.5 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+                  <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; height: ${col1PhotoHeight}px; max-height: ${col1PhotoHeight}px; object-fit: ${sec.imageFit || 'cover'}; display: block;">
                   ${sec.caption ? `
                     <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
                       ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
@@ -5649,9 +5673,10 @@
             }
 
             if (sec.image2 && targetCol2 === colNum) {
+              const col2PhotoHeight = Math.min(sec.image2Height || 160, 220);
               colPhotoHTML += `
-                <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
-                  <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover border border-black p-0.5 block" style="max-height: ${sec.image2Height || 180}px; object-fit: ${sec.image2Fit || 'cover'};">
+                <div id="${isModal ? 'modal-preview-photo2-block' : ''}" class="col-top-photo-block mb-1.5 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+                  <img id="${isModal ? 'modal-preview-image2-el' : ''}" src="${sec.image2}" alt="Photo 2" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; height: ${col2PhotoHeight}px; max-height: ${col2PhotoHeight}px; object-fit: ${sec.image2Fit || 'cover'}; display: block;">
                   ${sec.caption2 ? `
                     <div id="${isModal ? 'modal-preview-caption2' : ''}" class="pt-0.5" style="text-align: ${sec.caption2Align || sec.captionAlign || 'left'};">
                       <span class="block mt-0.5 leading-tight italic text-slate-700 text-[9.5px]">${sec.caption2}</span>
@@ -5662,9 +5687,10 @@
             }
 
             if (sec.image3 && targetCol3 === colNum) {
+              const col3PhotoHeight = Math.min(sec.image3Height || 160, 220);
               colPhotoHTML += `
-                <div id="${isModal ? 'modal-preview-photo3-block' : ''}" class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 3 एडिट करें"` : ''}>
-                  <img id="${isModal ? 'modal-preview-image3-el' : ''}" src="${sec.image3}" alt="Photo 3" class="w-full object-cover border border-black p-0.5 block" style="max-height: ${sec.image3Height || 180}px; object-fit: ${sec.image3Fit || 'cover'};">
+                <div id="${isModal ? 'modal-preview-photo3-block' : ''}" class="col-top-photo-block mb-1.5 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 3 एडिट करें"` : ''}>
+                  <img id="${isModal ? 'modal-preview-image3-el' : ''}" src="${sec.image3}" alt="Photo 3" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; height: ${col3PhotoHeight}px; max-height: ${col3PhotoHeight}px; object-fit: ${sec.image3Fit || 'cover'}; display: block;">
                   ${sec.caption3 ? `
                     <div id="${isModal ? 'modal-preview-caption3' : ''}" class="pt-0.5" style="text-align: ${sec.caption3Align || sec.captionAlign || 'left'};">
                       <span class="block mt-0.5 leading-tight italic text-slate-700 text-[9.5px]">${sec.caption3}</span>
@@ -7384,7 +7410,7 @@
                 { id: 'bottom-img', label: 'Bottom Image', icon: 'fa-image' },
                 { id: 'text-only', label: 'Text Only', icon: 'fa-font' }
               ].map(l => `
-                <button type="button" onclick="updateModalSectionField('layout', '${l.id}', true); ${l.id.startsWith('col') ? `updateModalSectionField('imageCol', ${l.id.charAt(3)}, true);` : (l.id === 'top-img' ? `updateModalSectionField('imageCol', 'all', true);` : '')}" class="py-1.5 px-2 rounded text-[10.5px] font-semibold flex items-center justify-center gap-1.5 transition ${ (sec.layout === l.id || (!sec.layout && l.id === 'top-img')) ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' }">
+                <button type="button" onclick="updateModalSectionField('layout', '${l.id}', true); ${l.id.startsWith('col') ? `updateModalSectionField('imageCol', ${l.id.charAt(3)}, true); if ((sec.imageHeight || 0) > 220) updateModalSectionField('imageHeight', 160, true);` : (l.id === 'top-img' ? `updateModalSectionField('imageCol', 'all', true);` : '')}" class="py-1.5 px-2 rounded text-[10.5px] font-semibold flex items-center justify-center gap-1.5 transition ${ (sec.layout === l.id || (!sec.layout && l.id === 'top-img')) ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' }">
                   <i class="fa-solid ${l.icon} text-[9.5px]"></i> ${l.label}
                 </button>
               `).join('')}
@@ -7403,13 +7429,13 @@
               <button type="button" onclick="updateModalSectionField('imageCol', 'all', true); updateModalSectionField('layout', 'top-img', true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol === 'all' || (!sec.imageCol && (!sec.layout || sec.layout === 'top-img'))) ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
                 पूरा स्पैन
               </button>
-              <button type="button" onclick="updateModalSectionField('imageCol', 1, true); updateModalSectionField('layout', 'col1-top', true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol == 1 || sec.layout === 'col1-top') ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
+              <button type="button" onclick="updateModalSectionField('imageCol', 1, true); updateModalSectionField('layout', 'col1-top', true); if ((sec.imageHeight || 0) > 220) updateModalSectionField('imageHeight', 160, true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol == 1 || sec.layout === 'col1-top') ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
                 1st कॉलम
               </button>
-              <button type="button" onclick="updateModalSectionField('imageCol', 2, true); updateModalSectionField('layout', 'col2-top', true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol == 2 || sec.layout === 'col2-top') ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
+              <button type="button" onclick="updateModalSectionField('imageCol', 2, true); updateModalSectionField('layout', 'col2-top', true); if ((sec.imageHeight || 0) > 220) updateModalSectionField('imageHeight', 160, true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol == 2 || sec.layout === 'col2-top') ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
                 2nd कॉलम
               </button>
-              <button type="button" onclick="updateModalSectionField('imageCol', 3, true); updateModalSectionField('layout', 'col3-top', true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol == 3 || sec.layout === 'col3-top') ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
+              <button type="button" onclick="updateModalSectionField('imageCol', 3, true); updateModalSectionField('layout', 'col3-top', true); if ((sec.imageHeight || 0) > 220) updateModalSectionField('imageHeight', 160, true);" class="py-1 px-1 rounded text-[10px] font-bold transition ${ (sec.imageCol == 3 || sec.layout === 'col3-top') ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' }">
                 3rd कॉलम
               </button>
             </div>
@@ -7431,11 +7457,19 @@
           <!-- Height & Fit Controls for Image 1 -->
           <div class="space-y-3 pt-2 border-t border-slate-800">
             <div>
-              <div class="flex justify-between items-center mb-1">
-                <label class="text-slate-400 text-[10px] font-semibold">फ़ोटो 1 ऊंचाई (Height):</label>
-                <span class="text-blue-400 font-mono font-bold text-[10px]">${sec.imageHeight || 240}px</span>
-              </div>
-              <input type="range" min="60" max="450" step="10" value="${sec.imageHeight || 240}" oninput="updateModalSectionField('imageHeight', parseInt(this.value, 10), true)" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
+              ${(() => {
+                const isColPhoto = sec.imageCol == 1 || sec.imageCol == 2 || sec.imageCol == 3 || sec.layout === 'col1-top' || sec.layout === 'col2-top' || sec.layout === 'col3-top';
+                const currentVal = isColPhoto ? Math.min(sec.imageHeight || 160, 240) : (sec.imageHeight || 240);
+                return `
+                  <div class="flex justify-between items-center mb-1">
+                    <label class="text-slate-400 text-[10px] font-semibold">
+                      ${isColPhoto ? 'कॉलम फ़ोटो 1 ऊंचाई (Height):' : 'फ़ोटो 1 ऊंचाई (Height):'}
+                    </label>
+                    <span class="text-blue-400 font-mono font-bold text-[10px]">${currentVal}px</span>
+                  </div>
+                  <input type="range" min="60" max="${isColPhoto ? 240 : 450}" step="${isColPhoto ? 5 : 10}" value="${currentVal}" oninput="updateModalSectionField('imageHeight', parseInt(this.value, 10), true)" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
+                `;
+              })()}
             </div>
 
             <div class="grid grid-cols-2 gap-2">

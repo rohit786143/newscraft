@@ -36,16 +36,17 @@ function splitStoryContent(content: string, numCols: number, sec: Partial<NewsSe
     return Array.from({ length: numCols }, () => []);
   }
 
-  // Line height in pixels (~15.2px for standard 11px broadsheet body text)
-  const lineH = 15.2;
-  const contentWithTokens = content.trim().replace(/\n/g, ' [[NEWLINE]] ');
-  const words = contentWithTokens.split(/\s+/).filter(Boolean);
+  const rawText = content.trim();
+  const words = rawText.split(/\s+/).filter(Boolean);
   const W = words.length;
   if (W === 0) return Array.from({ length: numCols }, () => []);
 
-  const wordsPerLine = 6.8;
-  const L = new Array(numCols).fill(0);
+  // Line height in pixels (~15.2px for 11px broadsheet text at 1.38 leading)
+  const lineH = 15.2;
+  // Average words per line in a standard broadsheet column (~180-220px)
+  const wordsPerLine = 6.0;
 
+  // Determine which column has Photo 1
   let targetCol1 = 1;
   if (sec.imageCol === 'all' || sec.layout === 'top-img') {
     targetCol1 = 0;
@@ -64,50 +65,72 @@ function splitStoryContent(content: string, numCols: number, sec: Partial<NewsSe
   const targetCol2 = sec.image2Col ? parseInt(String(sec.image2Col), 10) : 2;
   const targetCol3 = sec.image3Col ? parseInt(String(sec.image3Col), 10) : 3;
 
+  // Compute photo height (in lines) for each column
+  // For a single-column photo, effective height is calibrated (default 160px, max 220px)
+  // so text is evenly balanced across all columns
+  const photoLines = new Array(numCols).fill(0);
   for (let c = 0; c < numCols; c++) {
     const colNum = c + 1;
     let photoH = 0;
     if (sec.image && sec.layout !== 'text-only' && targetCol1 === colNum) {
-      photoH += (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
+      const imgH = Math.min(sec.imageHeight || 160, 220);
+      photoH += imgH + (sec.caption ? 24 : 6);
     }
     if (sec.image2 && targetCol2 === colNum) {
-      photoH += (sec.image2Height || 180) + (sec.caption2 ? 22 : 6);
+      const imgH = Math.min(sec.image2Height || 160, 220);
+      photoH += imgH + (sec.caption2 ? 24 : 6);
     }
     if (sec.image3 && targetCol3 === colNum) {
-      photoH += (sec.image3Height || 180) + (sec.caption3 ? 22 : 6);
+      const imgH = Math.min(sec.image3Height || 160, 220);
+      photoH += imgH + (sec.caption3 ? 24 : 6);
     }
-    L[c] = photoH / lineH;
+    photoLines[c] = photoH / lineH;
   }
 
   const totalTextLines = W / wordsPerLine;
-  const sumL = L.reduce((a, b) => a + b, 0);
-  const maxL = Math.max(...L);
-  const targetH = Math.max((sumL + totalTextLines) / numCols, maxL + 1);
+  const sumPhotoLines = photoLines.reduce((a, b) => a + b, 0);
+  const idealColumnLines = (totalTextLines + sumPhotoLines) / numCols;
 
-  const caps = L.map(l => Math.max(0.5, targetH - l));
-  const sumCaps = caps.reduce((a, b) => a + b, 0);
-  const proportions = caps.map(c => c / sumCaps);
+  // Calculate desired text lines for each column to make all columns equal height
+  // Ensure every column gets at least a minimum text floor (e.g. at least 3.5 lines or 15% of average)
+  const minTextLines = Math.max(3.5, (totalTextLines / numCols) * 0.18);
+  const desiredTextLines = photoLines.map(pLines => Math.max(minTextLines, idealColumnLines - pLines));
+  const sumDesired = desiredTextLines.reduce((a, b) => a + b, 0);
+  const proportions = desiredTextLines.map(d => d / sumDesired);
 
+  // Distribute words to columns using cumulative boundaries with sentence refinement
   const result: string[][] = Array.from({ length: numCols }, () => []);
-  let startIdx = 0;
+  let prevEnd = 0;
+  let cumProp = 0;
+
   for (let c = 0; c < numCols; c++) {
-    if (c === numCols - 1) {
-      const slice = words.slice(startIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
-      if (slice) {
-        const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
-        result[c] = paras.length > 0 ? paras : [slice];
+    cumProp += proportions[c];
+    let endIdx = (c === numCols - 1) ? W : Math.round(W * cumProp);
+    endIdx = Math.max(prevEnd + 1, Math.min(W, endIdx));
+
+    // Refine endIdx to sentence boundary if punctuation is within +/- 3 words
+    if (c < numCols - 1 && endIdx < W) {
+      for (let offset = 0; offset <= 3; offset++) {
+        const checkPlus = endIdx + offset;
+        if (checkPlus < W && /[।.!?]$/.test(words[checkPlus - 1])) {
+          endIdx = checkPlus;
+          break;
+        }
+        const checkMinus = endIdx - offset;
+        if (checkMinus > prevEnd + 2 && /[।.!?]$/.test(words[checkMinus - 1])) {
+          endIdx = checkMinus;
+          break;
+        }
       }
-      break;
     }
 
-    const wordsForCol = Math.round(W * proportions[c]);
-    const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
-    const slice = words.slice(startIdx, endIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
-    if (slice) {
-      const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
-      result[c] = paras.length > 0 ? paras : [slice];
+    const colWords = words.slice(prevEnd, endIdx);
+    if (colWords.length > 0) {
+      result[c] = [colWords.join(' ')];
+    } else {
+      result[c] = [];
     }
-    startIdx = endIdx;
+    prevEnd = endIdx;
   }
 
   return result;
@@ -662,13 +685,14 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                                 let colPhoto = null;
                                 if (localSection.image && localSection.layout !== 'text-only' && targetCol1 === colNum) {
+                                  const col1PhotoHeight = Math.min(localSection.imageHeight || 160, 220);
                                   colPhoto = (
                                     <div
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setActiveTarget('image');
                                       }}
-                                      className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
+                                      className={`col-top-photo-block mb-1.5 cursor-pointer transition rounded ${
                                         activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                       }`}
                                       style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
@@ -678,7 +702,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                         src={localSection.image}
                                         alt="Photo 1"
                                         className="w-full object-cover border border-black p-0.5 block"
-                                        style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: (localSection.imageFit as any) || 'cover' }}
+                                        style={{ width: '100%', height: `${col1PhotoHeight}px`, maxHeight: `${col1PhotoHeight}px`, objectFit: (localSection.imageFit as any) || 'cover', display: 'block' }}
                                       />
                                       {localSection.caption && (
                                         <div
@@ -707,13 +731,14 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                                 let col2Photo = null;
                                 if (localSection.image2 && targetCol2 === colNum) {
+                                  const col2PhotoHeight = Math.min(localSection.image2Height || 160, 220);
                                   col2Photo = (
                                     <div
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setActiveTarget('image');
                                       }}
-                                      className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
+                                      className={`col-top-photo-block mb-1.5 cursor-pointer transition rounded ${
                                         activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                       }`}
                                       style={{
@@ -727,7 +752,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                         src={localSection.image2}
                                         alt="Photo 2"
                                         className="w-full object-cover border border-black p-0.5 block"
-                                        style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: (localSection.image2Fit as any) || 'cover' }}
+                                        style={{ width: '100%', height: `${col2PhotoHeight}px`, maxHeight: `${col2PhotoHeight}px`, objectFit: (localSection.image2Fit as any) || 'cover', display: 'block' }}
                                       />
                                       {localSection.caption2 && (
                                         <div
@@ -743,13 +768,14 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                                 let col3Photo = null;
                                 if (localSection.image3 && targetCol3 === colNum) {
+                                  const col3PhotoHeight = Math.min(localSection.image3Height || 160, 220);
                                   col3Photo = (
                                     <div
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setActiveTarget('image');
                                       }}
-                                      className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
+                                      className={`col-top-photo-block mb-1.5 cursor-pointer transition rounded ${
                                         activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                                       }`}
                                       style={{
@@ -763,7 +789,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                                         src={localSection.image3}
                                         alt="Photo 3"
                                         className="w-full object-cover border border-black p-0.5 block"
-                                        style={{ maxHeight: `${localSection.image3Height || 180}px`, objectFit: (localSection.image3Fit as any) || 'cover' }}
+                                        style={{ width: '100%', height: `${col3PhotoHeight}px`, maxHeight: `${col3PhotoHeight}px`, objectFit: (localSection.image3Fit as any) || 'cover', display: 'block' }}
                                       />
                                       {localSection.caption3 && (
                                         <div
@@ -2256,6 +2282,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               const colNum = parseInt(l.id.charAt(3), 10);
                               updateField('layout', l.id as any);
                               updateField('imageCol', colNum);
+                              if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
                             } else if (l.id === 'top-img') {
                               updateField('layout', 'top-img');
                               updateField('imageCol', 'all');
@@ -2303,6 +2330,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         onClick={() => {
                           updateField('imageCol', 1);
                           updateField('layout', 'col1-top');
+                          if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
                         }}
                         className={`py-1 px-1 rounded text-[10px] font-bold transition ${
                           (localSection.imageCol === 1 || localSection.imageCol === '1' || localSection.layout === 'col1-top')
@@ -2317,6 +2345,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         onClick={() => {
                           updateField('imageCol', 2);
                           updateField('layout', 'col2-top');
+                          if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
                         }}
                         className={`py-1 px-1 rounded text-[10px] font-bold transition ${
                           (localSection.imageCol === 2 || localSection.imageCol === '2' || localSection.layout === 'col2-top')
@@ -2331,6 +2360,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         onClick={() => {
                           updateField('imageCol', 3);
                           updateField('layout', 'col3-top');
+                          if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
                         }}
                         className={`py-1 px-1 rounded text-[10px] font-bold transition ${
                           (localSection.imageCol === 3 || localSection.imageCol === '3' || localSection.layout === 'col3-top')
@@ -2369,19 +2399,29 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                   <div className="space-y-3 pt-2 border-t border-slate-800">
                     <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-slate-400 text-[10px] font-semibold">फ़ोटो 1 ऊंचाई (Height):</label>
-                        <span className="text-blue-400 font-mono font-bold text-[10px]">{localSection.imageHeight || 240}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="60"
-                        max="450"
-                        step="10"
-                        value={localSection.imageHeight || 240}
-                        onChange={(e) => updateField('imageHeight', parseInt(e.target.value, 10))}
-                        className="w-full accent-blue-500 h-1.5 rounded cursor-pointer"
-                      />
+                      {(() => {
+                        const isColPhoto = localSection.imageCol === 1 || localSection.imageCol === 2 || localSection.imageCol === 3 || localSection.layout === 'col1-top' || localSection.layout === 'col2-top' || localSection.layout === 'col3-top';
+                        const currentVal = isColPhoto ? Math.min(localSection.imageHeight || 160, 240) : (localSection.imageHeight || 240);
+                        return (
+                          <>
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="text-slate-400 text-[10px] font-semibold">
+                                {isColPhoto ? 'कॉलम फ़ोटो 1 ऊंचाई (Height):' : 'फ़ोटो 1 ऊंचाई (Height):'}
+                              </label>
+                              <span className="text-blue-400 font-mono font-bold text-[10px]">{currentVal}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="60"
+                              max={isColPhoto ? 240 : 450}
+                              step={isColPhoto ? 5 : 10}
+                              value={currentVal}
+                              onChange={(e) => updateField('imageHeight', parseInt(e.target.value, 10))}
+                              className="w-full accent-blue-500 h-1.5 rounded cursor-pointer"
+                            />
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
