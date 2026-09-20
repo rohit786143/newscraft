@@ -559,17 +559,9 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                     {/* LAYOUT VARIANTS */}
                     {(() => {
-                      const isDualPhoto = (localSection.colSpan || 6) > 6 && !!localSection.image2 && localSection.layout !== 'top-img';
-                      const effectiveCols = isDualPhoto
-                        ? Math.max(2, localSection.bodyCols || 3)
-                        : (localSection.bodyCols
-                        ? parseInt(localSection.bodyCols as any, 10)
-                        : (localSection.colSpan || 6) >= 7
-                        ? 3
-                        : (localSection.colSpan || 6) >= 4
-                        ? 2
-                        : 1);
-                      const colsClass = effectiveCols === 4 ? 'columns-4 gap-3' : effectiveCols === 3 ? 'columns-3 gap-3.5' : effectiveCols === 2 ? 'columns-2 gap-4' : 'columns-1';
+                      const isDualPhoto = (localSection.colSpan || 6) > 6 && !!localSection.image2;
+                      const effectiveCols = isDualPhoto ? Math.max(2, localSection.bodyCols || 3) : (localSection.bodyCols || 1);
+                      const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols === 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isDualPhoto) {
                         const colParas = splitStoryContent(localSection.content || '', effectiveCols, localSection);
@@ -1342,94 +1334,13 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                       }
 
                       // Default / top-img
-                      const imgH = localSection.imageHeight || 200;
-                      const topImgCols = localSection.bodyCols
-                        ? parseInt(localSection.bodyCols as any, 10)
-                        : (localSection.colSpan || 6) >= 7
-                        ? 3
-                        : (localSection.colSpan || 6) >= 4
-                        ? 2
-                        : 1;
-
-                      const topImgColsStyle: React.CSSProperties = {
-                        columnCount: topImgCols,
-                        columnGap: topImgCols >= 3 ? '14px' : '16px',
-                        columnRule: '1px solid #d4cebe',
-                        columnFill: 'balance',
-                        fontFamily: localSection.bodyFont || "'Martel', serif",
-                        fontSize: localSection.bodySize || '11px',
-                        textAlign: (localSection.bodyAlign as any) || 'justify',
-                        lineHeight: 1.38,
-                        backgroundColor: '#fcfbfa',
-                        color: '#111111',
-                        display: 'block',
-                        width: '100%',
-                        overflow: 'visible',
-                        boxSizing: 'border-box',
-                        marginTop: localSection.image ? '4px' : '0px',
-                      };
-
-                      return (
-                        <div
-                          className="top-img-flow-wrapper my-1 w-full"
-                          style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}
-                        >
-                          {localSection.image ? (
-                            <div
-                              onClick={() => setActiveTarget('image')}
-                              className={`top-img-media-container w-full cursor-pointer transition rounded ${
-                                activeTarget === 'image'
-                                  ? 'outline outline-2 outline-blue-500 bg-blue-500/10'
-                                  : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                              }`}
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                width: '100%',
-                                boxSizing: 'border-box',
-                                marginBottom: localSection.caption ? '4px' : '8px',
-                              }}
-                              title="क्लिक करके फोटो व लेआउट एडिट करें"
-                            >
-                              <img
-                                src={localSection.image}
-                                alt="Photo"
-                                className="w-full object-cover border border-black p-0.5 block"
-                                style={{
-                                  height: `${imgH}px`,
-                                  maxHeight: `${imgH}px`,
-                                  objectFit: (localSection.imageFit as any) || 'cover',
-                                  objectPosition: 'center',
-                                  width: '100%',
-                                  boxSizing: 'border-box',
-                                }}
-                              />
-                              {localSection.caption && (
-                                <div
-                                  className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                  style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
-                                >
-                                  {localSection.caption}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div
-                              onClick={() => setActiveTarget('image')}
-                              className="my-1 w-full py-3 border-2 border-dashed border-slate-300 rounded bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition cursor-pointer"
-                            >
-                              <span className="text-base mb-0.5">🖼️</span>
-                              <span className="text-[11px] font-bold">➕ फोटो जोड़ने के लिए क्लिक करें</span>
-                            </div>
-                          )}
-
+                      return isDualPhoto ? (
+                        <>
                           {bulletsList.length > 0 && (
                             <div
                               onClick={() => setActiveTarget('bullets')}
                               className={`my-1 cursor-pointer rounded transition ${
-                                activeTarget === 'bullets'
-                                  ? 'outline outline-2 outline-purple-500 bg-purple-500/10'
-                                  : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                                activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
                               }`}
                             >
                               <div
@@ -1445,30 +1356,51 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               </div>
                             </div>
                           )}
-
                           <div
                             onClick={() => setActiveTarget('body')}
-                            className={`top-img-columns-container font-martel leading-relaxed cursor-pointer rounded transition ${
-                              activeTarget === 'body'
-                                ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10'
-                                : 'hover:outline hover:outline-1 hover:outline-emerald-400'
+                            className={`font-martel leading-relaxed cursor-pointer rounded transition ${colsClass} ${
+                              activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
                             }`}
-                            style={topImgColsStyle}
-                            title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
+                            style={{
+                              fontFamily: localSection.bodyFont || "'Martel', serif",
+                              fontSize: localSection.bodySize || '11px',
+                              textAlign: (localSection.bodyAlign as any) || 'justify',
+                              lineHeight: 1.38,
+                              backgroundColor: '#fcfbfa',
+                              color: '#111111',
+                            }}
                           >
+                            {localSection.image && (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTarget('image');
+                                }}
+                                className={`mb-1 cursor-pointer transition rounded ${
+                                  activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                                }`}
+                                style={{ breakInside: 'avoid' }}
+                              >
+                                <img
+                                  src={localSection.image}
+                                  alt="Photo"
+                                  className="w-full object-cover border border-black p-0.5"
+                                  style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: (localSection.imageFit as any) || 'cover' }}
+                                />
+                                {localSection.caption && (
+                                  <div
+                                    className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                    style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
+                                  >
+                                    {localSection.caption}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             {paragraphs.length > 0 ? (
                               paragraphs.map((p, pIdx) => (
-                                <p
-                                  key={pIdx}
-                                  className="story-paragraph mb-1 text-[#111111]"
-                                  style={{
-                                    textAlign: 'justify',
-                                    textJustify: 'inter-word',
-                                    lineHeight: 1.38,
-                                    breakInside: 'avoid',
-                                    pageBreakInside: 'avoid',
-                                  }}
-                                >
+                                <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
                                   {pIdx === 0 && localSection.dropCap ? (
                                     <>
                                       <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
@@ -1485,7 +1417,86 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
                             )}
                           </div>
-                        </div>
+                        </>
+                      ) : (
+                        <>
+                          {localSection.image && (
+                            <div
+                              onClick={() => setActiveTarget('image')}
+                              className={`my-1 cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                            >
+                              <img
+                                src={localSection.image}
+                                alt="Photo"
+                                className="w-full object-cover border border-black p-0.5"
+                                style={{ maxHeight: `${localSection.imageHeight || 200}px` }}
+                              />
+                              {localSection.caption && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                  style={{ textAlign: (localSection.captionAlign as any) || 'left' }}
+                                >
+                                  {localSection.caption}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {bulletsList.length > 0 && (
+                            <div
+                              onClick={() => setActiveTarget('bullets')}
+                              className={`my-1 cursor-pointer rounded transition ${
+                                activeTarget === 'bullets' ? 'outline outline-2 outline-purple-500 bg-purple-500/10' : 'hover:outline hover:outline-1 hover:outline-purple-400'
+                              }`}
+                            >
+                              <div
+                                className="p-1.5 rounded border border-slate-300"
+                                style={{ backgroundColor: localSection.bulletBgColor || 'transparent' }}
+                              >
+                                {bulletsList.map((b, idx) => (
+                                  <div key={idx} className="flex items-start gap-1.5 text-[10.5px] leading-tight my-0.5">
+                                    <span style={{ color: localSection.bulletColor || '#dc2626' }}>■</span>
+                                    <span className="font-semibold text-slate-900">{b}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div
+                            onClick={() => setActiveTarget('body')}
+                            className={`font-martel leading-relaxed cursor-pointer rounded transition ${colsClass} ${
+                              activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
+                            }`}
+                            style={{
+                              fontFamily: localSection.bodyFont || "'Martel', serif",
+                              fontSize: localSection.bodySize || '11px',
+                              textAlign: (localSection.bodyAlign as any) || 'justify',
+                              lineHeight: 1.38,
+                              backgroundColor: '#fcfbfa',
+                              color: '#111111',
+                            }}
+                          >
+                            {paragraphs.length > 0 ? (
+                              paragraphs.map((p, pIdx) => (
+                                <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                  {pIdx === 0 && localSection.dropCap ? (
+                                    <>
+                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                        {p.charAt(0)}
+                                      </span>
+                                      {p.slice(1)}
+                                    </>
+                                  ) : (
+                                    p
+                                  )}
+                                </p>
+                              ))
+                            ) : (
+                              <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                            )}
+                          </div>
+                        </>
                       );
                     })()}
 
