@@ -614,6 +614,7 @@ export const SectionModalEditor = ({
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols >= 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isColTopLayout) {
+                        const h1Val = Math.min(localSection.imageHeight || 140, 160);
                         const col1Photo = (localSection.image && targetCol1 === 1) ? (
                           <div
                             onClick={(e) => {
@@ -630,12 +631,12 @@ export const SectionModalEditor = ({
                               src={localSection.image}
                               alt="Photo 1"
                               className="w-full object-cover border border-black p-0.5 block"
-                              style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: localSection.imageFit || 'cover' }}
+                              style={{ width: '100%', height: `${h1Val}px`, maxHeight: `${h1Val}px`, objectFit: localSection.imageFit || 'cover', display: 'block' }}
                             />
                             {localSection.caption && (
                               <div
-                                className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                style={{ textAlign: localSection.captionAlign || 'left' }}
+                                className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
+                                style={{ textAlign: localSection.captionAlign || 'left', height: '14px', lineHeight: '14px' }}
                               >
                                 {localSection.caption}
                               </div>
@@ -646,7 +647,8 @@ export const SectionModalEditor = ({
                         const hasCol2Photo = !!localSection.image2 || (targetCol1 === 2 && !!localSection.image);
                         const img2Src = localSection.image2 || (targetCol1 === 2 ? localSection.image : '');
                         const cap2Text = localSection.image2 ? (localSection.caption2 || '') : (targetCol1 === 2 ? (localSection.caption || '') : '');
-                        const h2Val = localSection.image2 ? (localSection.image2Height || 180) : (targetCol1 === 2 ? (localSection.imageHeight || 180) : 180);
+                        const h2Raw = localSection.image2 ? (localSection.image2Height || 140) : (targetCol1 === 2 ? (localSection.imageHeight || 140) : 140);
+                        const h2Val = Math.min(h2Raw, 160);
                         const fit2Val = localSection.image2 ? (localSection.image2Fit || 'cover') : (targetCol1 === 2 ? (localSection.imageFit || 'cover') : 'cover');
 
                         const col2Photo = (hasCol2Photo && img2Src && effectiveCols >= 2) ? (
@@ -665,12 +667,12 @@ export const SectionModalEditor = ({
                               src={img2Src}
                               alt="Photo 2"
                               className="w-full object-cover border border-black p-0.5 block"
-                              style={{ maxHeight: `${h2Val}px`, objectFit: fit2Val || 'cover' }}
+                              style={{ width: '100%', height: `${h2Val}px`, maxHeight: `${h2Val}px`, objectFit: fit2Val || 'cover', display: 'block' }}
                             />
                             {cap2Text && (
                               <div
-                                className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                style={{ textAlign: localSection.captionAlign || 'left' }}
+                                className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
+                                style={{ textAlign: localSection.captionAlign || 'left', height: '14px', lineHeight: '14px' }}
                               >
                                 {cap2Text}
                               </div>
@@ -681,7 +683,8 @@ export const SectionModalEditor = ({
                         const hasCol3Photo = !!localSection.image3 || (targetCol1 === 3 && !!localSection.image);
                         const img3Src = localSection.image3 || (targetCol1 === 3 ? localSection.image : '');
                         const cap3Text = localSection.image3 ? (localSection.caption3 || '') : (targetCol1 === 3 ? (localSection.caption || '') : '');
-                        const h3Val = localSection.image3 ? (localSection.image3Height || 180) : (targetCol1 === 3 ? (localSection.imageHeight || 180) : 180);
+                        const h3Raw = localSection.image3 ? (localSection.image3Height || 140) : (targetCol1 === 3 ? (localSection.imageHeight || 140) : 140);
+                        const h3Val = Math.min(h3Raw, 160);
                         const fit3Val = localSection.image3 ? (localSection.image3Fit || 'cover') : (targetCol1 === 3 ? (localSection.imageFit || 'cover') : 'cover');
 
                         const col3Photo = (hasCol3Photo && img3Src && effectiveCols >= 3) ? (
@@ -700,12 +703,12 @@ export const SectionModalEditor = ({
                               src={img3Src}
                               alt="Photo 3"
                               className="w-full object-cover border border-black p-0.5 block"
-                              style={{ maxHeight: `${h3Val}px`, objectFit: fit3Val || 'cover' }}
+                              style={{ width: '100%', height: `${h3Val}px`, maxHeight: `${h3Val}px`, objectFit: fit3Val || 'cover', display: 'block' }}
                             />
                             {cap3Text && (
                               <div
-                                className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                style={{ textAlign: localSection.captionAlign || 'left' }}
+                                className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
+                                style={{ textAlign: localSection.captionAlign || 'left', height: '14px', lineHeight: '14px' }}
                               >
                                 {cap3Text}
                               </div>

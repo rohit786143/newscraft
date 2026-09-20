@@ -5462,7 +5462,7 @@
       `;
     }
 
-    // RENDER PHOTO CAPTION HELPER
+    // RENDER PHOTO CAPTION HELPER (FIXED 1 LINE TRUNCATION)
     function renderCaptionHTML(sec, defaultAlign = 'left') {
       if (!sec || !sec.caption) return '';
       const font = sec.captionFont || "'Martel', serif";
@@ -5471,11 +5471,11 @@
       const align = sec.captionAlign || defaultAlign;
       const isBold = sec.captionBold === true;
       const isItalic = sec.captionItalic !== false;
-      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
-      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption}</span>`;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; height: 14px; line-height: 14px;`;
+      return `<span class="block mt-0.5 leading-tight truncate" style="${style}">${sec.caption}</span>`;
     }
 
-    // RENDER PHOTO 2 CAPTION HELPER (FOR GRID > 6 DUAL PHOTO)
+    // RENDER PHOTO 2 CAPTION HELPER (FIXED 1 LINE TRUNCATION)
     function renderCaption2HTML(sec, defaultAlign = 'center') {
       if (!sec || !sec.caption2) return '';
       const font = sec.captionFont || "'Martel', serif";
@@ -5484,11 +5484,11 @@
       const align = sec.captionAlign || defaultAlign;
       const isBold = sec.captionBold === true;
       const isItalic = sec.captionItalic !== false;
-      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
-      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption2}</span>`;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; height: 14px; line-height: 14px;`;
+      return `<span class="block mt-0.5 leading-tight truncate" style="${style}">${sec.caption2}</span>`;
     }
 
-    // RENDER PHOTO 3 CAPTION HELPER (FOR COLUMN 3 PHOTO)
+    // RENDER PHOTO 3 CAPTION HELPER (FIXED 1 LINE TRUNCATION)
     function renderCaption3HTML(sec, defaultAlign = 'center') {
       if (!sec || !sec.caption3) return '';
       const font = sec.captionFont || "'Martel', serif";
@@ -5497,8 +5497,8 @@
       const align = sec.captionAlign || defaultAlign;
       const isBold = sec.captionBold === true;
       const isItalic = sec.captionItalic !== false;
-      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'};`;
-      return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption3}</span>`;
+      const style = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; font-weight: ${isBold ? '700' : 'normal'}; font-style: ${isItalic ? 'italic' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; height: 14px; line-height: 14px;`;
+      return `<span class="block mt-0.5 leading-tight truncate" style="${style}">${sec.caption3}</span>`;
     }
 
     // NATIVE BROADSHEET MULTI-COLUMN & COLUMN-TOP PHOTO RENDERER
@@ -5646,12 +5646,13 @@
       else if (sec.layout === 'col3-top' || sec.imageCol == 3) targetCol1 = 3;
 
       let col1PhotoHTML = '';
+      const h1Val = sec.imageHeight ? Math.min(sec.imageHeight, 160) : 140;
       if (sec.image && targetCol1 === 1) {
         col1PhotoHTML = `
           <div class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="break-inside: avoid !important; -webkit-column-break-inside: avoid !important; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'}; display: block;">
+            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; height: ${h1Val}px; max-height: ${h1Val}px; object-fit: ${sec.imageFit || 'cover'}; display: block;">
             ${sec.caption ? `
-              <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
+              <div class="pt-0.5 overflow-hidden" style="text-align: ${sec.captionAlign || 'left'}; height: 14px; line-height: 14px;">
                 ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
               </div>
             ` : ''}
@@ -5663,16 +5664,17 @@
       const hasCol2Photo = !!sec.image2 || (sec.image && targetCol1 === 2);
       const img2Src = sec.image2 || (targetCol1 === 2 ? sec.image : '');
       const cap2Text = sec.image2 ? (sec.caption2 || '') : (targetCol1 === 2 ? (sec.caption || '') : '');
-      const h2Val = sec.image2 ? (sec.image2Height || 180) : (targetCol1 === 2 ? (sec.imageHeight || 180) : 180);
+      const h2Raw = sec.image2 ? (sec.image2Height || 140) : (targetCol1 === 2 ? (sec.imageHeight || 140) : 140);
+      const h2Val = Math.min(h2Raw, 160);
       const fit2Val = sec.image2 ? (sec.image2Fit || 'cover') : (targetCol1 === 2 ? (sec.imageFit || 'cover') : 'cover');
 
       if (hasCol2Photo && img2Src && effectiveCols >= 2) {
         col2PhotoHTML = `
           <div class="col-top-photo-block col-inserted-photo mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
-            <img src="${img2Src}" alt="Photo 2" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${h2Val}px; object-fit: ${fit2Val}; display: block;">
+            <img src="${img2Src}" alt="Photo 2" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; height: ${h2Val}px; max-height: ${h2Val}px; object-fit: ${fit2Val}; display: block;">
             ${cap2Text ? `
-              <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
-                <span class="block mt-0.5 leading-tight italic text-slate-700 text-[9.5px]">${cap2Text}</span>
+              <div class="pt-0.5 overflow-hidden" style="text-align: ${sec.captionAlign || 'left'}; height: 14px; line-height: 14px;">
+                <span class="block leading-tight italic text-slate-700 text-[9.5px] truncate whitespace-nowrap overflow-hidden text-ellipsis">${cap2Text}</span>
               </div>
             ` : ''}
           </div>
@@ -5683,16 +5685,17 @@
       const hasCol3Photo = !!sec.image3 || (sec.image && targetCol1 === 3);
       const img3Src = sec.image3 || (targetCol1 === 3 ? sec.image : '');
       const cap3Text = sec.image3 ? (sec.caption3 || '') : (targetCol1 === 3 ? (sec.caption || '') : '');
-      const h3Val = sec.image3 ? (sec.image3Height || 180) : (targetCol1 === 3 ? (sec.imageHeight || 180) : 180);
+      const h3Raw = sec.image3 ? (sec.image3Height || 140) : (targetCol1 === 3 ? (sec.imageHeight || 140) : 140);
+      const h3Val = Math.min(h3Raw, 160);
       const fit3Val = sec.image3 ? (sec.image3Fit || 'cover') : (targetCol1 === 3 ? (sec.imageFit || 'cover') : 'cover');
 
       if (hasCol3Photo && img3Src && effectiveCols >= 3) {
         col3PhotoHTML = `
           <div class="col-top-photo-block col-inserted-photo mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 3 एडिट करें"` : ''}>
-            <img src="${img3Src}" alt="Photo 3" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${h3Val}px; object-fit: ${fit3Val}; display: block;">
+            <img src="${img3Src}" alt="Photo 3" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; height: ${h3Val}px; max-height: ${h3Val}px; object-fit: ${fit3Val}; display: block;">
             ${cap3Text ? `
-              <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
-                <span class="block mt-0.5 leading-tight italic text-slate-700 text-[9.5px]">${cap3Text}</span>
+              <div class="pt-0.5 overflow-hidden" style="text-align: ${sec.captionAlign || 'left'}; height: 14px; line-height: 14px;">
+                <span class="block leading-tight italic text-slate-700 text-[9.5px] truncate whitespace-nowrap overflow-hidden text-ellipsis">${cap3Text}</span>
               </div>
             ` : ''}
           </div>
