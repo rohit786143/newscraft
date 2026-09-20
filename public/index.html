@@ -150,7 +150,7 @@
     .broadsheet-cols-2 {
       column-count: 2 !important;
       column-rule: 1px solid #d4cebe;
-      column-gap: 14px;
+      column-gap: 16px;
       column-fill: balance !important;
       -webkit-column-fill: balance !important;
       display: block;
@@ -162,6 +162,18 @@
     .broadsheet-cols-3 {
       column-count: 3 !important;
       column-rule: 1px solid #d4cebe;
+      column-gap: 14px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+      display: block;
+      width: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .broadsheet-cols-4 {
+      column-count: 4 !important;
+      column-rule: 1px solid #d4cebe;
       column-gap: 12px;
       column-fill: balance !important;
       -webkit-column-fill: balance !important;
@@ -169,6 +181,70 @@
       width: 100%;
       margin: 0 !important;
       padding: 0 !important;
+    }
+
+    /* Top Image Layout Multi-Column Architecture & Wrapper Flow */
+    .top-img-flow-wrapper {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .top-img-media-container {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .top-img-columns-container {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+    }
+
+    .top-img-columns-container.top-img-cols-1 {
+      column-count: 1 !important;
+      column-fill: auto !important;
+    }
+
+    .top-img-columns-container.top-img-cols-2 {
+      column-count: 2 !important;
+      column-rule: 1px solid #d4cebe;
+      column-gap: 16px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+    }
+
+    .top-img-columns-container.top-img-cols-3 {
+      column-count: 3 !important;
+      column-rule: 1px solid #d4cebe;
+      column-gap: 14px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+    }
+
+    .top-img-columns-container.top-img-cols-4 {
+      column-count: 4 !important;
+      column-rule: 1px solid #d4cebe;
+      column-gap: 12px;
+      column-fill: balance !important;
+      -webkit-column-fill: balance !important;
+    }
+
+    .top-img-columns-container .story-paragraph,
+    .broadsheet-cols-1 .story-paragraph,
+    .broadsheet-cols-2 .story-paragraph,
+    .broadsheet-cols-3 .story-paragraph,
+    .broadsheet-cols-4 .story-paragraph {
+      break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      margin-bottom: 4px;
     }
 
     /* Embedded Media Containers & Photo Blocks inside Multi-Column Flow */
@@ -5750,8 +5826,8 @@
         </span>
       ` : '';
 
-      // Check if DUAL PHOTO ENGINE applies for grid > 6
-      const isDualPhoto = (sec.colSpan || 6) > 6 && !!sec.image2;
+      // Check if DUAL PHOTO ENGINE applies for grid > 6 (unless specifically Top Image layout)
+      const isDualPhoto = (sec.colSpan || 6) > 6 && !!sec.image2 && sec.layout !== 'top-img';
 
       return `
         <div class="${sec.showBorderLine ? 'border-b border-slate-400 pb-1' : ''}" style="${boxContainerStyle}">
@@ -5866,17 +5942,29 @@
               `;
             }
 
-            // Standard 'top-img' or default
+            // Standard 'top-img' or default (Top Image flex-direction column flow & balanced columns)
+            const imgH = sec.imageHeight || 200;
+            const effectiveCols = sec.bodyCols ? parseInt(sec.bodyCols, 10) : ((sec.colSpan || 6) >= 7 ? 3 : ((sec.colSpan || 6) >= 4 ? 2 : 1));
+            const topImgColsClass = effectiveCols === 4 ? 'top-img-cols-4 broadsheet-cols-4' : (effectiveCols === 3 ? 'top-img-cols-3 broadsheet-cols-3' : (effectiveCols === 2 ? 'top-img-cols-2 broadsheet-cols-2' : 'top-img-cols-1 broadsheet-cols-1'));
+            const colGap = effectiveCols >= 3 ? '14px' : '16px';
+            const topClearance = sec.image ? (sec.caption ? '6px' : '8px') : '0px';
+
             return `
-              ${sec.image ? `
-                <div class="my-1">
-                  <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
-                  ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
+              <div class="top-img-flow-wrapper my-1" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
+                ${sec.image ? `
+                  <div class="top-img-media-container w-full" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box; margin-bottom: ${topClearance};">
+                    <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5 block" style="height: ${imgH}px; max-height: ${imgH}px; object-fit: ${sec.imageFit || 'cover'}; object-position: center; width: 100%; box-sizing: border-box;">
+                    ${sec.caption ? `
+                      <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
+                        ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
+                      </div>
+                    ` : ''}
+                  </div>
+                ` : ''}
+                ${renderBulletsHTML(sec)}
+                <div class="top-img-columns-container font-martel leading-relaxed ${topImgColsClass}" style="display: block; width: 100%; column-count: ${effectiveCols}; column-gap: ${colGap}; column-rule: 1px solid #d4cebe; column-fill: balance; -webkit-column-fill: balance; overflow: visible; box-sizing: border-box; margin-top: ${sec.image ? '2px' : '0px'};">
+                  ${renderParagraphsHTML(sec, true)}
                 </div>
-              ` : ''}
-              ${renderBulletsHTML(sec)}
-              <div class="font-martel leading-relaxed ${colsClass}">
-                ${renderParagraphsHTML(sec, true)}
               </div>
             `;
           })()}
@@ -6470,6 +6558,17 @@
       } else if (field === 'bullets' || field === 'bulletColor' || field === 'bulletBgColor' || field === 'bulletSize' || field === 'bulletFont') {
         const el = document.getElementById('modal-preview-bullets');
         if (el) el.innerHTML = renderBulletsHTML(sec);
+      } else if (field === 'imageHeight') {
+        const imgEl = document.getElementById('modal-preview-image-el');
+        if (imgEl) {
+          imgEl.style.height = val + 'px';
+          imgEl.style.maxHeight = val + 'px';
+        }
+        const valSpan = document.getElementById('modal-image-height-val');
+        if (valSpan) valSpan.textContent = val + 'px';
+      } else if (field === 'imageFit') {
+        const imgEl = document.getElementById('modal-preview-image-el');
+        if (imgEl) imgEl.style.objectFit = val;
       } else {
         renderSectionModalContent();
       }
@@ -6781,7 +6880,7 @@
 
       // Body Columns Class & Dual Photo Engine (Matches exact canvas columns)
       // Body Columns Class (Matches exact canvas columns)
-      const isDualPhoto = (sec.colSpan || 6) > 6 && !!sec.image2;
+      const isDualPhoto = (sec.colSpan || 6) > 6 && !!sec.image2 && sec.layout !== 'top-img';
       const effectiveModalCols = isDualPhoto ? Math.max(2, sec.bodyCols || 2) : (sec.bodyCols || 1);
       const bodyColsClass = effectiveModalCols == 2 ? 'broadsheet-cols-2' : (effectiveModalCols == 3 ? 'broadsheet-cols-3' : 'broadsheet-cols-1');
 
@@ -6859,13 +6958,35 @@
           </div>
         `;
       } else {
-        // Standard 'top-img' or default
+        // Standard 'top-img' or default (Top Image flex-direction column flow & balanced columns)
+        const imgH = sec.imageHeight || 200;
+        const effectiveCols = sec.bodyCols ? parseInt(sec.bodyCols, 10) : ((sec.colSpan || 6) >= 7 ? 3 : ((sec.colSpan || 6) >= 4 ? 2 : 1));
+        const topImgColsClass = effectiveCols === 4 ? 'top-img-cols-4 broadsheet-cols-4' : (effectiveCols === 3 ? 'top-img-cols-3 broadsheet-cols-3' : (effectiveCols === 2 ? 'top-img-cols-2 broadsheet-cols-2' : 'top-img-cols-1 broadsheet-cols-1'));
+        const colGap = effectiveCols >= 3 ? '14px' : '16px';
+        const topClearance = sec.image ? (sec.caption ? '6px' : '8px') : '0px';
+
         layoutInnerHTML = `
-          ${sec.image ? renderModalPhotoBlock("my-1", "w-full object-cover border border-black p-0.5", sec.captionAlign || 'left') : ''}
-          ${bulletsHTML}
-          <div onclick="setModalActiveTarget('body', event)" class="font-martel leading-relaxed cursor-pointer ${bodyColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें">
-            <div id="modal-preview-paragraphs" style="display: contents;">
-              ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+          <div class="top-img-flow-wrapper my-1" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
+            ${sec.image ? `
+              <div onclick="setModalActiveTarget('image', event)" id="modal-preview-photo-block" class="top-img-media-container w-full cursor-pointer transition rounded ${modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}" title="क्लिक करके फोटो व लेआउट एडिट करें" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box; margin-bottom: ${topClearance};">
+                <img id="modal-preview-image-el" src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5 block" style="height: ${imgH}px; max-height: ${imgH}px; object-fit: ${sec.imageFit || 'cover'}; object-position: center; width: 100%; box-sizing: border-box;">
+                ${sec.caption ? `
+                  <div id="modal-preview-caption" class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
+                    ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
+                  </div>
+                ` : ''}
+              </div>
+            ` : `
+              <div onclick="setModalActiveTarget('image', event)" class="my-1 w-full py-3 border-2 border-dashed border-slate-300 rounded bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition cursor-pointer">
+                <i class="fa-solid fa-image text-xl mb-0.5 text-slate-400"></i>
+                <span class="text-[11px] font-bold">➕ फोटो जोड़ने के लिए क्लिक करें</span>
+              </div>
+            `}
+            ${bulletsHTML}
+            <div id="modal-preview-text-columns-wrap" onclick="setModalActiveTarget('body', event)" class="top-img-columns-container font-martel leading-relaxed cursor-pointer ${topImgColsClass} ${modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'}" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें" style="display: block; width: 100%; column-count: ${effectiveCols}; column-gap: ${colGap}; column-rule: 1px solid #d4cebe; column-fill: balance; -webkit-column-fill: balance; overflow: visible; box-sizing: border-box; margin-top: ${sec.image ? '2px' : '0px'};">
+              <div id="modal-preview-paragraphs" style="display: block; width: 100%;">
+                ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+              </div>
             </div>
           </div>
         `;
@@ -7338,9 +7459,9 @@
             <div>
               <div class="flex justify-between items-center mb-1">
                 <label class="text-slate-400 text-[10px] font-semibold">फोटो ऊंचाई (Height):</label>
-                <span class="text-blue-400 font-mono font-bold text-[10px]">${sec.imageHeight || 240}px</span>
+                <span id="modal-image-height-val" class="text-blue-400 font-mono font-bold text-[10px]">${sec.imageHeight || 240}px</span>
               </div>
-              <input type="range" min="60" max="450" step="10" value="${sec.imageHeight || 240}" oninput="updateModalSectionField('imageHeight', parseInt(this.value, 10), true)" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
+              <input type="range" min="60" max="450" step="10" value="${sec.imageHeight || 240}" oninput="updateModalSectionField('imageHeight', parseInt(this.value, 10), false); const v = document.getElementById('modal-image-height-val'); if (v) v.textContent = this.value + 'px';" onchange="updateModalSectionField('imageHeight', parseInt(this.value, 10), true);" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
             </div>
 
             <div class="grid grid-cols-2 gap-2">
