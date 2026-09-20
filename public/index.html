@@ -5713,8 +5713,6 @@
              class="multi-col-auto-flow font-martel leading-relaxed my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}"
              title="${isModal ? 'क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें' : ''}">
           ${col1PhotoHTML}
-          ${col2PhotoHTML}
-          ${col3PhotoHTML}
           <div id="${isModal ? 'modal-preview-paragraphs' : ''}" style="display: contents;">
             ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
           </div>
@@ -5726,34 +5724,7 @@
     function balanceAllMultiColumnSections(rootEl = document) {
       const scope = rootEl || document;
 
-      // 1. BASELINE GRID ALIGNMENT FOR ALL COLUMN PHOTO BLOCKS
-      const multiColDivs = scope.querySelectorAll('.font-martel.columns-3, .font-martel.columns-2, .font-martel.columns-1, .columns-3, .columns-2, .multi-col-auto-flow');
-      multiColDivs.forEach(container => {
-        const photoBlocks = container.querySelectorAll('.col-top-photo-block');
-        if (!photoBlocks.length) return;
-
-        const sampleP = container.querySelector('.story-paragraph') || container;
-        const compStyle = window.getComputedStyle(sampleP);
-        const fontSize = parseFloat(compStyle.fontSize) || 11;
-        let lineHeight = parseFloat(compStyle.lineHeight);
-        if (isNaN(lineHeight) || lineHeight <= 0) {
-          lineHeight = fontSize * 1.38;
-        }
-
-        photoBlocks.forEach(block => {
-          block.style.marginBottom = '0px';
-          const rect = block.getBoundingClientRect();
-          const naturalH = rect.height;
-          if (naturalH <= 0) return;
-
-          const linesNeeded = Math.ceil(naturalH / lineHeight);
-          const targetH = linesNeeded * lineHeight;
-          const extraMargin = Math.max(0, targetH - naturalH);
-          block.style.marginBottom = extraMargin + 'px';
-        });
-      });
-
-      // 2. DYNAMIC COLUMN 2 & 3 PHOTO INSERTION
+      // 1. DYNAMIC COLUMN 2 & 3 PHOTO INSERTION AT EXACT COLUMN TOPS
       const containers = scope.querySelectorAll('.multi-col-auto-flow');
       containers.forEach(container => {
         const numCols = parseInt(container.dataset.numCols || '1', 10);
@@ -5764,10 +5735,10 @@
         const col2HTML = col2Raw ? decodeURIComponent(col2Raw).trim() : '';
         const col3HTML = col3Raw ? decodeURIComponent(col3Raw).trim() : '';
 
-        if (!col2HTML && !col3HTML) return;
-
         // Clean any previously inserted photos to avoid duplicates
         container.querySelectorAll('.col-inserted-photo').forEach(el => el.remove());
+
+        if (!col2HTML && !col3HTML) return;
 
         const baseRect = container.getBoundingClientRect();
         if (baseRect.width <= 0) return;
@@ -5800,6 +5771,33 @@
             }
           }
         }
+      });
+
+      // 2. BASELINE GRID ALIGNMENT FOR ALL COLUMN PHOTO BLOCKS
+      const multiColDivs = scope.querySelectorAll('.font-martel.columns-3, .font-martel.columns-2, .font-martel.columns-1, .columns-3, .columns-2, .multi-col-auto-flow');
+      multiColDivs.forEach(container => {
+        const photoBlocks = container.querySelectorAll('.col-top-photo-block');
+        if (!photoBlocks.length) return;
+
+        const sampleP = container.querySelector('.story-paragraph') || container;
+        const compStyle = window.getComputedStyle(sampleP);
+        const fontSize = parseFloat(compStyle.fontSize) || 11;
+        let lineHeight = parseFloat(compStyle.lineHeight);
+        if (isNaN(lineHeight) || lineHeight <= 0) {
+          lineHeight = fontSize * 1.38;
+        }
+
+        photoBlocks.forEach(block => {
+          block.style.marginBottom = '0px';
+          const rect = block.getBoundingClientRect();
+          const naturalH = rect.height;
+          if (naturalH <= 0) return;
+
+          const linesNeeded = Math.ceil(naturalH / lineHeight);
+          const targetH = linesNeeded * lineHeight;
+          const extraMargin = Math.max(0, targetH - naturalH);
+          block.style.marginBottom = extraMargin + 'px';
+        });
       });
     }
 
