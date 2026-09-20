@@ -31,66 +31,123 @@ const AVAILABLE_FONTS = [
   { value: "'Inter', sans-serif", label: "Inter (Modern Sans)" },
 ];
 
-function splitStoryContent(content: string, numCols: number, sec: Partial<NewsSection> = {}): string[][] {
-  if (!content || !content.trim()) {
-    return Array.from({ length: numCols }, () => []);
+function distributeBalancedColumns(
+  content: string,
+  numCols: number,
+  photoHeights: number[],
+  colWidth: number = 210,
+  fontOptions: {
+    fontFamily?: string;
+    fontSize?: string;
+    lineHeight?: number;
+    textAlign?: string;
+    dropCap?: boolean;
+  } = {}
+): string[] {
+  const bodyFont = fontOptions.fontFamily || "'Martel', serif";
+  const bodySize = fontOptions.fontSize || '11px';
+  const lineHeight = fontOptions.lineHeight || 1.38;
+  const textAlign = fontOptions.textAlign || 'justify';
+  const hasDropCap = fontOptions.dropCap !== false;
+
+  const rawTokens = (content || '').split(/(\s+)/).filter(t => t.length > 0);
+  if (rawTokens.length === 0) {
+    return Array(numCols).fill('<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>');
   }
 
-  // Line height in pixels (~15.2px for standard 11px broadsheet body text)
-  const lineH = 15.2;
-  const contentWithTokens = content.trim().replace(/\n/g, ' [[NEWLINE]] ');
-  const words = contentWithTokens.split(/\s+/).filter(Boolean);
-  const W = words.length;
-  if (W === 0) return Array.from({ length: numCols }, () => []);
-
-  const wordsPerLine = 6.8;
-  const L = new Array(numCols).fill(0);
-
-  // Column 1 has Photo 1 — floated at 44% width, so text wraps beside it.
-  // The float only displaces ~half the lines (text fills the other 56% beside the image)
-  if (sec.image && sec.layout !== 'text-only') {
-    const img1H = (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
-    // Float takes ~44% width, so effective line displacement is reduced
-    L[0] = (img1H / lineH) * 0.44;
+  let measure: HTMLElement | null = null;
+  if (typeof document !== 'undefined') {
+    measure = document.createElement('div');
+    measure.style.cssText = `position:absolute; left:-9999px; top:-9999px; width:${colWidth || 210}px; font-size:${bodySize}; line-height:${lineHeight}; font-family:${bodyFont}; text-align:${textAlign}; text-justify:inter-word; visibility:hidden; pointer-events:none;`;
+    document.body.appendChild(measure);
   }
 
-  // Column 2 has Photo 2 at the top (full width of col 2) — only when image2 actually exists
-  if (numCols >= 2 && !!sec.image2) {
-    const img2H = (sec.image2Height || 180) + (sec.caption2 ? 22 : 6);
-    L[1] = img2H / lineH;
-  }
-
-  const totalTextLines = W / wordsPerLine;
-  const sumL = L.reduce((a, b) => a + b, 0);
-  const targetH = Math.max((sumL + totalTextLines) / numCols, L[0] + 1, L[1] + 1);
-
-  const caps = L.map(l => Math.max(0.5, targetH - l));
-  const sumCaps = caps.reduce((a, b) => a + b, 0);
-  const proportions = caps.map(c => c / sumCaps);
-
-  const result: string[][] = Array.from({ length: numCols }, () => []);
-  let startIdx = 0;
-  for (let c = 0; c < numCols; c++) {
-    if (c === numCols - 1) {
-      const slice = words.slice(startIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
-      if (slice) {
-        const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
-        result[c] = paras.length > 0 ? paras : [slice];
+  function renderTokensHTML(tokens: string[], isCol1: boolean): string {
+    const str = tokens.join('');
+    const paras = str.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    if (paras.length === 0 && str.trim()) paras.push(str.trim());
+    return paras.map((p, idx) => {
+      if (idx === 0 && isCol1 && hasDropCap) {
+        return `<p class="story-paragraph mb-1 text-[#111111]" style="text-align:${textAlign}; text-justify:inter-word; line-height:${lineHeight}; font-size:${bodySize}; font-family:${bodyFont};"><span class="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">${p.charAt(0)}</span>${p.slice(1)}</p>`;
       }
-      break;
-    }
-
-    const wordsForCol = Math.round(W * proportions[c]);
-    const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
-    const slice = words.slice(startIdx, endIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
-    if (slice) {
-      const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
-      result[c] = paras.length > 0 ? paras : [slice];
-    }
-    startIdx = endIdx;
+      return `<p class="story-paragraph mb-1 text-[#111111]" style="text-align:${textAlign}; text-justify:inter-word; line-height:${lineHeight}; font-size:${bodySize}; font-family:${bodyFont};">${p}</p>`;
+    }).join('');
   }
 
-  return result;
+  function measureHeight(tokens: string[], isCol1: boolean): number {
+    if (!measure || !tokens || tokens.length === 0) return (tokens ? tokens.length * 2.5 : 0);
+    measure.innerHTML = renderTokensHTML(tokens, isCol1);
+    return measure.offsetHeight;
+  }
+
+  if (!measure) {
+    const totalAvail = photoHeights.reduce((acc, h) => acc + Math.max(20, 200 - (h || 0)), 0);
+    let cur = 0;
+    const splits: string[][] = [];
+    for (let c = 0; c < numCols; c++) {
+      const share = Math.max(20, 200 - (photoHeights[c] || 0)) / totalAvail;
+      const count = (c === numCols - 1) ? rawTokens.length - cur : Math.round(rawTokens.length * share);
+      splits.push(rawTokens.slice(cur, cur + count));
+      cur += count;
+    }
+    return splits.map((tokens, idx) => renderTokensHTML(tokens, idx === 0));
+  }
+
+  const maxPhotoH = Math.max(...photoHeights, 0);
+  let lowH = maxPhotoH + 20;
+  let highH = maxPhotoH + 2500;
+  let bestSplits: string[][] | null = null;
+
+  function testH(targetH: number): { success: boolean; splits: string[][] } {
+    let tokenIdx = 0;
+    const splits: string[][] = [];
+    for (let col = 0; col < numCols; col++) {
+      const availH = targetH - (photoHeights[col] || 0);
+      if (availH <= 15) {
+        splits.push([]);
+        continue;
+      }
+      let lowToken = tokenIdx;
+      let highToken = rawTokens.length;
+      let bestColEnd = tokenIdx;
+
+      while (lowToken <= highToken) {
+        const mid = Math.floor((lowToken + highToken) / 2);
+        const testSlice = rawTokens.slice(tokenIdx, mid);
+        const h = measureHeight(testSlice, col === 0);
+        if (h <= availH) {
+          bestColEnd = mid;
+          lowToken = mid + 1;
+        } else {
+          highToken = mid - 1;
+        }
+      }
+      splits.push(rawTokens.slice(tokenIdx, bestColEnd));
+      tokenIdx = bestColEnd;
+    }
+    return { success: tokenIdx >= rawTokens.length, splits };
+  }
+
+  for (let iter = 0; iter < 24; iter++) {
+    const midH = Math.floor((lowH + highH) / 2);
+    const res = testH(midH);
+    if (res.success) {
+      bestSplits = res.splits;
+      highH = midH - 1;
+    } else {
+      lowH = midH + 1;
+    }
+  }
+
+  if (!bestSplits) {
+    bestSplits = testH(highH).splits;
+  }
+
+  if (measure && measure.parentNode) {
+    measure.parentNode.removeChild(measure);
+  }
+
+  return bestSplits.map((tokens, idx) => renderTokensHTML(tokens, idx === 0));
 }
 
 export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
@@ -594,6 +651,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols >= 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isColTopLayout) {
+                        const h1Val = (localSection.image && targetCol1 === 1) ? (localSection.imageHeight || 180) : 0;
                         const col1Photo = (localSection.image && targetCol1 === 1) ? (
                           <div
                             onClick={(e) => {
@@ -603,14 +661,14 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
                               activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                             }`}
-                            style={{ breakInside: 'avoid', width: '100%', boxSizing: 'border-box' }}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
                             title="क्लिक करके फोटो 1 एडिट करें"
                           >
                             <img
                               src={localSection.image}
                               alt="Photo 1"
                               className="w-full object-cover border border-black p-0.5 block"
-                              style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: (localSection.imageFit as any) || 'cover' }}
+                              style={{ maxHeight: `${h1Val}px`, objectFit: (localSection.imageFit as any) || 'cover' }}
                             />
                             {localSection.caption && (
                               <div
@@ -626,7 +684,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         const hasCol2Photo = !!localSection.image2 || (targetCol1 === 2 && !!localSection.image);
                         const img2Src = localSection.image2 || (targetCol1 === 2 ? localSection.image : '');
                         const cap2Text = localSection.image2 ? (localSection.caption2 || '') : (targetCol1 === 2 ? (localSection.caption || '') : '');
-                        const h2Val = localSection.image2 ? (localSection.image2Height || 180) : (targetCol1 === 2 ? (localSection.imageHeight || 180) : 180);
+                        const h2Val = (hasCol2Photo && img2Src && effectiveCols >= 2) ? (localSection.image2 ? (localSection.image2Height || 180) : (targetCol1 === 2 ? (localSection.imageHeight || 180) : 180)) : 0;
                         const fit2Val = localSection.image2 ? (localSection.image2Fit || 'cover') : (targetCol1 === 2 ? (localSection.imageFit || 'cover') : 'cover');
 
                         const col2Photo = (hasCol2Photo && img2Src && effectiveCols >= 2) ? (
@@ -638,7 +696,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
                               activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                             }`}
-                            style={{ breakBefore: 'column', breakInside: 'avoid', width: '100%', boxSizing: 'border-box' }}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
                             title="क्लिक करके फोटो 2 एडिट करें"
                           >
                             <img
@@ -661,7 +719,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                         const hasCol3Photo = !!localSection.image3 || (targetCol1 === 3 && !!localSection.image);
                         const img3Src = localSection.image3 || (targetCol1 === 3 ? localSection.image : '');
                         const cap3Text = localSection.image3 ? (localSection.caption3 || '') : (targetCol1 === 3 ? (localSection.caption || '') : '');
-                        const h3Val = localSection.image3 ? (localSection.image3Height || 180) : (targetCol1 === 3 ? (localSection.imageHeight || 180) : 180);
+                        const h3Val = (hasCol3Photo && img3Src && effectiveCols >= 3) ? (localSection.image3 ? (localSection.image3Height || 180) : (targetCol1 === 3 ? (localSection.imageHeight || 180) : 180)) : 0;
                         const fit3Val = localSection.image3 ? (localSection.image3Fit || 'cover') : (targetCol1 === 3 ? (localSection.imageFit || 'cover') : 'cover');
 
                         const col3Photo = (hasCol3Photo && img3Src && effectiveCols >= 3) ? (
@@ -673,7 +731,7 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
                               activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                             }`}
-                            style={{ breakBefore: 'column', breakInside: 'avoid', width: '100%', boxSizing: 'border-box' }}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
                             title="क्लिक करके फोटो 3 एडिट करें"
                           >
                             <img
@@ -692,6 +750,23 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             )}
                           </div>
                         ) : null;
+
+                        const photoHeights = [h1Val, h2Val, h3Val].slice(0, effectiveCols);
+                        const colTexts = distributeBalancedColumns(
+                          localSection.content || '',
+                          effectiveCols,
+                          photoHeights,
+                          210,
+                          {
+                            fontFamily: localSection.bodyFont || "'Martel', serif",
+                            fontSize: localSection.bodySize || '11px',
+                            lineHeight: 1.38,
+                            textAlign: (localSection.bodyAlign as any) || 'justify',
+                            dropCap: localSection.dropCap !== false
+                          }
+                        );
+
+                        const photoBlocks = [col1Photo, col2Photo, col3Photo];
 
                         return (
                           <>
@@ -717,41 +792,32 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                             )}
                             <div
                               onClick={() => setActiveTarget('body')}
-                              className={`my-1 w-full cursor-pointer font-martel leading-relaxed ${colsClass} ${
+                              className={`my-1 w-full cursor-pointer font-martel leading-relaxed flex gap-3.5 items-stretch ${
                                 activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
                               }`}
                               style={{
-                                fontFamily: localSection.bodyFont || "'Martel', serif",
-                                fontSize: localSection.bodySize || '11px',
-                                textAlign: (localSection.bodyAlign as any) || 'justify',
-                                textJustify: 'inter-word',
-                                lineHeight: 1.38,
+                                display: 'flex',
+                                gap: '14px',
+                                alignItems: 'stretch',
+                                width: '100%',
                                 backgroundColor: '#fcfbfa',
-                                color: '#111111',
                               }}
                               title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                             >
-                              {col1Photo}
-                              {paragraphs.length > 0 ? (
-                                paragraphs.map((p, pIdx) => (
-                                  <p key={pIdx} className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
-                                    {pIdx === 0 && localSection.dropCap ? (
-                                      <>
-                                        <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                          {p.charAt(0)}
-                                        </span>
-                                        {p.slice(1)}
-                                      </>
-                                    ) : (
-                                      p
-                                    )}
-                                  </p>
-                                ))
-                              ) : (
-                                <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
-                              )}
-                              {col2Photo}
-                              {col3Photo}
+                              {colTexts.map((textHTML, cIdx) => (
+                                <div
+                                  key={cIdx}
+                                  className="flex-1 flex flex-col min-w-0"
+                                  style={{ flex: '1 1 0px', minWidth: 0, width: 0, display: 'flex', flexDirection: 'column' }}
+                                >
+                                  {photoBlocks[cIdx]}
+                                  <div
+                                    className="col-text-flow flex-1"
+                                    style={{ flex: '1 1 auto' }}
+                                    dangerouslySetInnerHTML={{ __html: textHTML }}
+                                  />
+                                </div>
+                              ))}
                             </div>
                           </>
                         );
