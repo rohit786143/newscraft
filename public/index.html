@@ -5497,114 +5497,6 @@
       return `<span class="block mt-0.5 leading-tight" style="${style}">${sec.caption3}</span>`;
     }
 
-    // ACCURATE EQUAL-BOTTOM COLUMN TEXT DISTRIBUTOR
-    function distributeBalancedColumns(content, numCols, photoHeights, colWidth, fontOptions = {}) {
-      const bodyFont = fontOptions.fontFamily || "'Martel', serif";
-      const bodySize = fontOptions.fontSize || '11px';
-      const lineHeight = fontOptions.lineHeight || 1.38;
-      const textAlign = fontOptions.textAlign || 'justify';
-      const hasDropCap = fontOptions.dropCap !== false;
-
-      const rawTokens = (content || '').split(/(\s+)/).filter(t => t.length > 0);
-      if (rawTokens.length === 0) {
-        return Array(numCols).fill('<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>');
-      }
-
-      let measure = null;
-      if (typeof document !== 'undefined') {
-        measure = document.createElement('div');
-        measure.style.cssText = `position:absolute; left:-9999px; top:-9999px; width:${colWidth || 210}px; font-size:${bodySize}; line-height:${lineHeight}; font-family:${bodyFont}; text-align:${textAlign}; text-justify:inter-word; visibility:hidden; pointer-events:none;`;
-        document.body.appendChild(measure);
-      }
-
-      function renderTokensHTML(tokens, isCol1) {
-        const str = tokens.join('');
-        const paras = str.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-        if (paras.length === 0 && str.trim()) paras.push(str.trim());
-        return paras.map((p, idx) => {
-          if (idx === 0 && isCol1 && hasDropCap) {
-            return `<p class="story-paragraph mb-1 text-[#111111]" style="text-align:${textAlign}; text-justify:inter-word; line-height:${lineHeight}; font-size:${bodySize}; font-family:${bodyFont};"><span class="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">${p.charAt(0)}</span>${p.slice(1)}</p>`;
-          }
-          return `<p class="story-paragraph mb-1 text-[#111111]" style="text-align:${textAlign}; text-justify:inter-word; line-height:${lineHeight}; font-size:${bodySize}; font-family:${bodyFont};">${p}</p>`;
-        }).join('');
-      }
-
-      function measureHeight(tokens, isCol1) {
-        if (!measure || !tokens || tokens.length === 0) return (tokens ? tokens.length * 2.5 : 0);
-        measure.innerHTML = renderTokensHTML(tokens, isCol1);
-        return measure.offsetHeight;
-      }
-
-      if (!measure) {
-        const totalAvail = photoHeights.reduce((acc, h) => acc + Math.max(20, 200 - (h || 0)), 0);
-        let cur = 0;
-        const splits = [];
-        for (let c = 0; c < numCols; c++) {
-          const share = Math.max(20, 200 - (photoHeights[c] || 0)) / totalAvail;
-          const count = (c === numCols - 1) ? rawTokens.length - cur : Math.round(rawTokens.length * share);
-          splits.push(rawTokens.slice(cur, cur + count));
-          cur += count;
-        }
-        return splits.map((tokens, idx) => renderTokensHTML(tokens, idx === 0));
-      }
-
-      const maxPhotoH = Math.max(...photoHeights, 0);
-      let lowH = maxPhotoH + 20;
-      let highH = maxPhotoH + 2500;
-      let bestSplits = null;
-
-      function testH(targetH) {
-        let tokenIdx = 0;
-        const splits = [];
-        for (let col = 0; col < numCols; col++) {
-          const availH = targetH - (photoHeights[col] || 0);
-          if (availH <= 15) {
-            splits.push([]);
-            continue;
-          }
-          let lowToken = tokenIdx;
-          let highToken = rawTokens.length;
-          let bestColEnd = tokenIdx;
-
-          while (lowToken <= highToken) {
-            const mid = Math.floor((lowToken + highToken) / 2);
-            const testSlice = rawTokens.slice(tokenIdx, mid);
-            const h = measureHeight(testSlice, col === 0);
-            if (h <= availH) {
-              bestColEnd = mid;
-              lowToken = mid + 1;
-            } else {
-              highToken = mid - 1;
-            }
-          }
-          splits.push(rawTokens.slice(tokenIdx, bestColEnd));
-          tokenIdx = bestColEnd;
-        }
-        return { success: tokenIdx >= rawTokens.length, splits };
-      }
-
-      for (let iter = 0; iter < 24; iter++) {
-        const midH = Math.floor((lowH + highH) / 2);
-        const res = testH(midH);
-        if (res.success) {
-          bestSplits = res.splits;
-          highH = midH - 1;
-        } else {
-          lowH = midH + 1;
-        }
-      }
-
-      if (!bestSplits) {
-        bestSplits = testH(highH).splits;
-      }
-
-      if (measure && measure.parentNode) {
-        measure.parentNode.removeChild(measure);
-      }
-
-      return bestSplits.map((tokens, idx) => renderTokensHTML(tokens, idx === 0));
-    }
-
     // NATIVE BROADSHEET MULTI-COLUMN & COLUMN-TOP PHOTO RENDERER
     // Preserves 100% natural CSS column flow and perfectly balances all column bottoms
     function renderSectionStoryAndPhotosHTML(sec, isModal = false) {
@@ -5744,18 +5636,16 @@
       }
 
       // 8. COLUMN TOP PHOTO FLOW (Col 1, Col 2, Col 3 Top Photos)
-      // Supports photos on top of ANY column with 100% equal column breadth and balanced bottom alignment!
+      // Supports photos on top of ANY column with 100% balanced text columns & identical bottom alignment!
       let targetCol1 = 1;
       if (sec.layout === 'col2-top' || sec.imageCol == 2) targetCol1 = 2;
       else if (sec.layout === 'col3-top' || sec.imageCol == 3) targetCol1 = 3;
 
       let col1PhotoHTML = '';
-      let h1Val = 0;
       if (sec.image && targetCol1 === 1) {
-        h1Val = sec.imageHeight || 180;
         col1PhotoHTML = `
-          <div class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
-            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${h1Val}px; object-fit: ${sec.imageFit || 'cover'}; display: block;">
+          <div class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="break-inside: avoid !important; -webkit-column-break-inside: avoid !important; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 1 एडिट करें"` : ''}>
+            <img src="${sec.image}" alt="Photo 1" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'}; display: block;">
             ${sec.caption ? `
               <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
                 ${renderCaptionHTML(sec, sec.captionAlign || 'left')}
@@ -5766,16 +5656,15 @@
       }
 
       let col2PhotoHTML = '';
-      let h2Val = 0;
       const hasCol2Photo = !!sec.image2 || (sec.image && targetCol1 === 2);
       const img2Src = sec.image2 || (targetCol1 === 2 ? sec.image : '');
       const cap2Text = sec.image2 ? (sec.caption2 || '') : (targetCol1 === 2 ? (sec.caption || '') : '');
+      const h2Val = sec.image2 ? (sec.image2Height || 180) : (targetCol1 === 2 ? (sec.imageHeight || 180) : 180);
       const fit2Val = sec.image2 ? (sec.image2Fit || 'cover') : (targetCol1 === 2 ? (sec.imageFit || 'cover') : 'cover');
 
       if (hasCol2Photo && img2Src && effectiveCols >= 2) {
-        h2Val = sec.image2 ? (sec.image2Height || 180) : (targetCol1 === 2 ? (sec.imageHeight || 180) : 180);
         col2PhotoHTML = `
-          <div class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
+          <div class="col-top-photo-block col-inserted-photo mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 2 एडिट करें"` : ''}>
             <img src="${img2Src}" alt="Photo 2" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${h2Val}px; object-fit: ${fit2Val}; display: block;">
             ${cap2Text ? `
               <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
@@ -5787,16 +5676,15 @@
       }
 
       let col3PhotoHTML = '';
-      let h3Val = 0;
       const hasCol3Photo = !!sec.image3 || (sec.image && targetCol1 === 3);
       const img3Src = sec.image3 || (targetCol1 === 3 ? sec.image : '');
       const cap3Text = sec.image3 ? (sec.caption3 || '') : (targetCol1 === 3 ? (sec.caption || '') : '');
+      const h3Val = sec.image3 ? (sec.image3Height || 180) : (targetCol1 === 3 ? (sec.imageHeight || 180) : 180);
       const fit3Val = sec.image3 ? (sec.image3Fit || 'cover') : (targetCol1 === 3 ? (sec.imageFit || 'cover') : 'cover');
 
       if (hasCol3Photo && img3Src && effectiveCols >= 3) {
-        h3Val = sec.image3 ? (sec.image3Height || 180) : (targetCol1 === 3 ? (sec.imageHeight || 180) : 180);
         col3PhotoHTML = `
-          <div class="col-top-photo-block mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 3 एडिट करें"` : ''}>
+          <div class="col-top-photo-block col-inserted-photo mb-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}" style="break-before: column !important; -webkit-column-break-before: always !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; display: block; width: 100%; box-sizing: border-box;" ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो 3 एडिट करें"` : ''}>
             <img src="${img3Src}" alt="Photo 3" class="w-full object-cover border border-black p-0.5 block" style="width: 100%; max-height: ${h3Val}px; object-fit: ${fit3Val}; display: block;">
             ${cap3Text ? `
               <div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">
@@ -5807,45 +5695,73 @@
         `;
       }
 
-      const photoHeights = [h1Val, h2Val, h3Val].slice(0, effectiveCols);
-      const colTexts = distributeBalancedColumns(
-        sec.content || '',
-        effectiveCols,
-        photoHeights,
-        210,
-        {
-          fontFamily: sec.bodyFont || "'Martel', serif",
-          fontSize: sec.bodySize || '11px',
-          lineHeight: 1.38,
-          textAlign: sec.bodyAlign || 'justify',
-          dropCap: sec.dropCap !== false
-        }
-      );
-
-      const photoBlocks = [col1PhotoHTML, col2PhotoHTML, col3PhotoHTML];
-
       return `
         ${bulletsHTML}
         <div id="${isModal ? 'modal-preview-columns-container' : `news-columns-${sec.id}`}" 
+             data-sec-id="${sec.id}"
+             data-num-cols="${effectiveCols}"
+             data-col2-photo="${encodeURIComponent(col2PhotoHTML)}"
+             data-col3-photo="${encodeURIComponent(col3PhotoHTML)}"
              ${isModal ? `onclick="setModalActiveTarget('body', event)"` : ''}
-             class="font-martel leading-relaxed my-1 flex gap-3.5 items-stretch w-full ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}"
-             title="${isModal ? 'क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें' : ''}"
-             style="display: flex; gap: 14px; align-items: stretch; width: 100%;">
-          ${colTexts.map((textHTML, cIdx) => `
-            <div class="flex-1 flex flex-col min-w-0" style="flex: 1 1 0px; min-width: 0; width: 0; display: flex; flex-direction: column;">
-              ${photoBlocks[cIdx] || ''}
-              <div class="col-text-flow flex-1" style="flex: 1 1 auto;">
-                ${textHTML}
-              </div>
-            </div>
-          `).join('')}
+             class="multi-col-auto-flow font-martel leading-relaxed my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}"
+             title="${isModal ? 'क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें' : ''}">
+          ${col1PhotoHTML}
+          <div id="${isModal ? 'modal-preview-paragraphs' : ''}" style="display: contents;">
+            ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+          </div>
         </div>
       `;
     }
 
     // DYNAMIC BALANCER: INSERTS COLUMN 2 & 3 PHOTOS AT EXACT COLUMN TOPS PRESERVING EQUAL BOTTOM ALIGNMENT
     function balanceAllMultiColumnSections(rootEl = document) {
-      // Maintained as safe no-op since columns are balanced during layout generation
+      const containers = (rootEl || document).querySelectorAll('.multi-col-auto-flow');
+      containers.forEach(container => {
+        const numCols = parseInt(container.dataset.numCols || '1', 10);
+        if (numCols < 2) return;
+
+        const col2Raw = container.dataset.col2Photo;
+        const col3Raw = container.dataset.col3Photo;
+        const col2HTML = col2Raw ? decodeURIComponent(col2Raw).trim() : '';
+        const col3HTML = col3Raw ? decodeURIComponent(col3Raw).trim() : '';
+
+        if (!col2HTML && !col3HTML) return;
+
+        // Clean any previously inserted photos to avoid duplicates
+        container.querySelectorAll('.col-inserted-photo').forEach(el => el.remove());
+
+        const baseRect = container.getBoundingClientRect();
+        if (baseRect.width <= 0) return;
+        const colWidth = (baseRect.width - (numCols - 1) * 12) / numCols;
+
+        if (col2HTML) {
+          const x2 = baseRect.left + colWidth + 14;
+          const y2 = baseRect.top + 8;
+          const range2 = document.caretRangeFromPoint ? document.caretRangeFromPoint(x2, y2) : null;
+          if (range2) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = col2HTML;
+            const photoEl = tempDiv.firstElementChild;
+            if (photoEl) {
+              range2.insertNode(photoEl);
+            }
+          }
+        }
+
+        if (col3HTML && numCols >= 3) {
+          const x3 = baseRect.left + (colWidth + 12) * 2 + 14;
+          const y3 = baseRect.top + 8;
+          const range3 = document.caretRangeFromPoint ? document.caretRangeFromPoint(x3, y3) : null;
+          if (range3) {
+            const tempDiv3 = document.createElement('div');
+            tempDiv3.innerHTML = col3HTML;
+            const photoEl3 = tempDiv3.firstElementChild;
+            if (photoEl3) {
+              range3.insertNode(photoEl3);
+            }
+          }
+        }
+      });
     }
 
     // Retain alias for any legacy callers
