@@ -25,101 +25,58 @@ function splitStoryContent(content, numCols, sec = {}) {
     return Array.from({ length: numCols }, () => []);
   }
 
-  const rawText = content.trim();
-  const words = rawText.split(/\s+/).filter(Boolean);
+  // Line height in pixels (~15.2px for standard 11px broadsheet body text)
+  const lineH = 15.2;
+  const contentWithTokens = content.trim().replace(/\n/g, ' [[NEWLINE]] ');
+  const words = contentWithTokens.split(/\s+/).filter(Boolean);
   const W = words.length;
   if (W === 0) return Array.from({ length: numCols }, () => []);
 
-  // Line height in pixels (~15.2px for 11px broadsheet text at 1.38 leading)
-  const lineH = 15.2;
-  // Average words per line in a standard broadsheet column (~180-220px)
-  const wordsPerLine = 6.0;
+  const wordsPerLine = 6.8;
+  const L = new Array(numCols).fill(0);
 
-  // Determine which column has Photo 1
-  let targetCol1 = 1;
-  if (sec.imageCol === 'all' || sec.layout === 'top-img') {
-    targetCol1 = 0;
-  } else if (sec.imageCol) {
-    targetCol1 = parseInt(String(sec.imageCol), 10);
-  } else if (sec.layout === 'col1-top') {
-    targetCol1 = 1;
-  } else if (sec.layout === 'col2-top') {
-    targetCol1 = 2;
-  } else if (sec.layout === 'col3-top') {
-    targetCol1 = 3;
-  } else if (sec.image2 || sec.image3) {
-    targetCol1 = 1;
+  // Column 1 has Photo 1 — floated at 44% width, so text wraps beside it.
+  // The float only displaces ~half the lines (text fills the other 56% beside the image)
+  if (sec.image && sec.layout !== 'text-only') {
+    const img1H = (sec.imageHeight || 180) + (sec.caption ? 22 : 6);
+    // Float takes ~44% width, so effective line displacement is reduced
+    L[0] = (img1H / lineH) * 0.44;
   }
 
-  const targetCol2 = sec.image2Col ? parseInt(String(sec.image2Col), 10) : 2;
-  const targetCol3 = sec.image3Col ? parseInt(String(sec.image3Col), 10) : 3;
-
-  // Compute photo height (in lines) for each column
-  // For a single-column photo, effective height is calibrated (default 160px, max 220px)
-  // so text is evenly balanced across all columns
-  const photoLines = new Array(numCols).fill(0);
-  for (let c = 0; c < numCols; c++) {
-    const colNum = c + 1;
-    let photoH = 0;
-    if (sec.image && sec.layout !== 'text-only' && targetCol1 === colNum) {
-      const imgH = Math.min(sec.imageHeight || 160, 220);
-      photoH += imgH + (sec.caption ? 24 : 6);
-    }
-    if (sec.image2 && targetCol2 === colNum) {
-      const imgH = Math.min(sec.image2Height || 160, 220);
-      photoH += imgH + (sec.caption2 ? 24 : 6);
-    }
-    if (sec.image3 && targetCol3 === colNum) {
-      const imgH = Math.min(sec.image3Height || 160, 220);
-      photoH += imgH + (sec.caption3 ? 24 : 6);
-    }
-    photoLines[c] = photoH / lineH;
+  // Column 2 has Photo 2 at the top (full width of col 2) — only when image2 actually exists
+  if (numCols >= 2 && !!sec.image2) {
+    const img2H = (sec.image2Height || 180) + (sec.caption2 ? 22 : 6);
+    L[1] = img2H / lineH;
   }
 
   const totalTextLines = W / wordsPerLine;
-  const sumPhotoLines = photoLines.reduce((a, b) => a + b, 0);
-  const idealColumnLines = (totalTextLines + sumPhotoLines) / numCols;
+  const sumL = L.reduce((a, b) => a + b, 0);
+  const targetH = Math.max((sumL + totalTextLines) / numCols, L[0] + 1, L[1] + 1);
 
-  // Calculate desired text lines for each column to make all columns equal height
-  // Ensure every column gets at least a minimum text floor (e.g. at least 3.5 lines or 18% of average)
-  const minTextLines = Math.max(3.5, (totalTextLines / numCols) * 0.18);
-  const desiredTextLines = photoLines.map(pLines => Math.max(minTextLines, idealColumnLines - pLines));
-  const sumDesired = desiredTextLines.reduce((a, b) => a + b, 0);
-  const proportions = desiredTextLines.map(d => d / sumDesired);
+  const caps = L.map(l => Math.max(0.5, targetH - l));
+  const sumCaps = caps.reduce((a, b) => a + b, 0);
+  const proportions = caps.map(c => c / sumCaps);
 
-  // Distribute words to columns using cumulative boundaries with sentence refinement
   const result = Array.from({ length: numCols }, () => []);
-  let prevEnd = 0;
-  let cumProp = 0;
-
+  let startIdx = 0;
   for (let c = 0; c < numCols; c++) {
-    cumProp += proportions[c];
-    let endIdx = (c === numCols - 1) ? W : Math.round(W * cumProp);
-    endIdx = Math.max(prevEnd + 1, Math.min(W, endIdx));
-
-    // Refine endIdx to sentence boundary if punctuation is within +/- 3 words
-    if (c < numCols - 1 && endIdx < W) {
-      for (let offset = 0; offset <= 3; offset++) {
-        const checkPlus = endIdx + offset;
-        if (checkPlus < W && /[।.!?]$/.test(words[checkPlus - 1])) {
-          endIdx = checkPlus;
-          break;
-        }
-        const checkMinus = endIdx - offset;
-        if (checkMinus > prevEnd + 2 && /[।.!?]$/.test(words[checkMinus - 1])) {
-          endIdx = checkMinus;
-          break;
-        }
+    if (c === numCols - 1) {
+      const slice = words.slice(startIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+      if (slice) {
+        const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
+        result[c] = paras.length > 0 ? paras : [slice];
       }
+      break;
     }
 
-    const colWords = words.slice(prevEnd, endIdx);
-    if (colWords.length > 0) {
-      result[c] = [colWords.join(' ')];
-    } else {
-      result[c] = [];
+    const wordsForCol = Math.round(W * proportions[c]);
+    const endIdx = Math.min(W, startIdx + Math.max(1, wordsForCol));
+    const slice = words.slice(startIdx, endIdx).join(' ').replace(/ \[\[NEWLINE\]\] /g, '\n').replace(/\[\[NEWLINE\]\]/g, '\n');
+    if (slice) {
+      const paras = slice.split(/\n+/).map(p => p.trim()).filter(Boolean);
+      result[c] = paras.length > 0 ? paras : [slice];
     }
-    prevEnd = endIdx;
+    startIdx = endIdx;
   }
 
   return result;
@@ -137,7 +94,6 @@ export const SectionModalEditor = ({
   const [zoomScale, setZoomScale] = useState(1.0);
   const fileInputRef = useRef(null);
   const fileInput2Ref = useRef(null);
-  const fileInput3Ref = useRef(null);
   const previewContainerRef = useRef(null);
   const paperWrapRef = useRef(null);
 
@@ -206,19 +162,6 @@ export const SectionModalEditor = ({
   const handleRemoveImage2 = () => {
     updateField('image2', '');
     updateField('caption2', '');
-  };
-
-  const handleImage3FileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      updateField('image3', objectUrl);
-    }
-  };
-
-  const handleRemoveImage3 = () => {
-    updateField('image3', '');
-    updateField('caption3', '');
   };
 
   const handlePasteContent = async () => {
@@ -603,31 +546,91 @@ export const SectionModalEditor = ({
 
                     {/* LAYOUT VARIANTS */}
                     {(() => {
-                      const isColPhoto = (localSection.imageCol === 1 || localSection.imageCol === 2 || localSection.imageCol === 3 || localSection.imageCol === '1' || localSection.imageCol === '2' || localSection.imageCol === '3' || localSection.layout === 'col1-top' || localSection.layout === 'col2-top' || localSection.layout === 'col3-top' || !!localSection.image2 || !!localSection.image3);
-                      const isDualPhoto = isColPhoto || ((localSection.colSpan || 6) > 6 && !!localSection.image2);
-                      const effectiveCols = isDualPhoto ? Math.max(2, localSection.bodyCols || ((localSection.colSpan || 6) >= 7 ? 3 : 2)) : (localSection.bodyCols || 1);
+                      const isDualPhoto = (localSection.colSpan || 6) > 6 && !!localSection.image2;
+                      const effectiveCols = isDualPhoto ? Math.max(2, localSection.bodyCols || 3) : (localSection.bodyCols || 1);
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols === 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isDualPhoto) {
                         const colParas = splitStoryContent(localSection.content || '', effectiveCols, localSection);
 
-                        let targetCol1 = 1;
-                        if (localSection.imageCol === 'all' || localSection.layout === 'top-img') {
-                          targetCol1 = 0;
-                        } else if (localSection.imageCol) {
-                          targetCol1 = parseInt(String(localSection.imageCol), 10);
-                        } else if (localSection.layout === 'col1-top') {
-                          targetCol1 = 1;
-                        } else if (localSection.layout === 'col2-top') {
-                          targetCol1 = 2;
-                        } else if (localSection.layout === 'col3-top') {
-                          targetCol1 = 3;
-                        } else if (localSection.image2 || localSection.image3) {
-                          targetCol1 = 1;
+                        // Determine photo 1 float direction from layout setting
+                        const photo1Float = localSection.layout === 'right-img' ? 'right' : 'left';
+                        const photo1MarginSide = photo1Float === 'right' ? 'marginLeft' : 'marginRight';
+
+                        let col1Photo = null;
+                        if (localSection.image && localSection.layout !== 'text-only') {
+                          col1Photo = (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col1-float-photo mb-1 cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                float: photo1Float,
+                                width: '44%',
+                                maxWidth: '220px',
+                                [photo1MarginSide]: '8px',
+                                marginBottom: '4px',
+                                boxSizing: 'border-box',
+                              }}
+                              title="क्लिक करके फोटो 1 एडिट करें"
+                            >
+                              <img
+                                src={localSection.image}
+                                alt="Photo 1"
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ maxHeight: `${localSection.imageHeight || 180}px`, objectFit: localSection.imageFit || 'cover' }}
+                              />
+                              {localSection.caption && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                  style={{ textAlign: localSection.captionAlign || 'left' }}
+                                >
+                                  {localSection.caption}
+                                </div>
+                              )}
+                            </div>
+                          );
                         }
 
-                        const targetCol2 = localSection.image2Col ? parseInt(String(localSection.image2Col), 10) : 2;
-                        const targetCol3 = localSection.image3Col ? parseInt(String(localSection.image3Col), 10) : 3;
+                        let col2Photo = null;
+                        if (localSection.image2) {
+                          col2Photo = (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col2-top-photo-block mb-1 cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                              }}
+                              title="क्लिक करके फोटो 2 एडिट करें"
+                            >
+                              <img
+                                src={localSection.image2}
+                                alt="Photo 2"
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ maxHeight: `${localSection.image2Height || 180}px`, objectFit: localSection.image2Fit || 'cover' }}
+                              />
+                              {localSection.caption2 && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5"
+                                  style={{ textAlign: localSection.caption2Align || localSection.captionAlign || 'left' }}
+                                >
+                                  {localSection.caption2}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
 
                         return (
                           <>
@@ -664,136 +667,16 @@ export const SectionModalEditor = ({
                               title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                             >
                               {Array.from({ length: effectiveCols }).map((_, colIdx) => {
-                                const colNum = colIdx + 1;
                                 const isFirst = colIdx === 0;
+                                const isSecond = colIdx === 1;
                                 const isLast = colIdx === effectiveCols - 1;
                                 const borderStyle = !isLast ? { borderRight: '1px solid #d4cebe', paddingRight: '12px' } : {};
                                 const pList = colParas[colIdx] || [];
 
-                                let colPhoto = null;
-                                if (localSection.image && localSection.layout !== 'text-only' && targetCol1 === colNum) {
-                                  const col1PhotoHeight = Math.min(localSection.imageHeight || 160, 220);
-                                  colPhoto = (
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveTarget('image');
-                                      }}
-                                      className={`col-top-photo-block mb-1.5 cursor-pointer transition rounded ${
-                                        activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                      }`}
-                                      style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
-                                      title="क्लिक करके फोटो 1 एडिट करें"
-                                    >
-                                      <img
-                                        src={localSection.image}
-                                        alt="Photo 1"
-                                        className="w-full object-cover border border-black p-0.5 block"
-                                        style={{ width: '100%', height: `${col1PhotoHeight}px`, maxHeight: `${col1PhotoHeight}px`, objectFit: localSection.imageFit || 'cover', display: 'block' }}
-                                      />
-                                      {localSection.caption && (
-                                        <div
-                                          className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                          style={{ textAlign: localSection.captionAlign || 'left' }}
-                                        >
-                                          {localSection.caption}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                } else if (!localSection.image && targetCol1 === colNum) {
-                                  colPhoto = (
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveTarget('image');
-                                      }}
-                                      className="mb-1 w-full py-2.5 border-2 border-dashed border-slate-300 rounded bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 transition cursor-pointer"
-                                    >
-                                      <span className="text-xs mb-0.5">🖼️</span>
-                                      <span className="text-[9.5px] font-bold">➕ कॉलम {colNum} फोटो जोड़ें</span>
-                                    </div>
-                                  );
-                                }
-
-                                let col2Photo = null;
-                                if (localSection.image2 && targetCol2 === colNum) {
-                                  const col2PhotoHeight = Math.min(localSection.image2Height || 160, 220);
-                                  col2Photo = (
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveTarget('image');
-                                      }}
-                                      className={`col-top-photo-block mb-1.5 cursor-pointer transition rounded ${
-                                        activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                      }`}
-                                      style={{
-                                        display: 'block',
-                                        width: '100%',
-                                        boxSizing: 'border-box',
-                                      }}
-                                      title="क्लिक करके फोटो 2 एडिट करें"
-                                    >
-                                      <img
-                                        src={localSection.image2}
-                                        alt="Photo 2"
-                                        className="w-full object-cover border border-black p-0.5 block"
-                                        style={{ width: '100%', height: `${col2PhotoHeight}px`, maxHeight: `${col2PhotoHeight}px`, objectFit: localSection.image2Fit || 'cover', display: 'block' }}
-                                      />
-                                      {localSection.caption2 && (
-                                        <div
-                                          className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                          style={{ textAlign: localSection.caption2Align || localSection.captionAlign || 'left' }}
-                                        >
-                                          {localSection.caption2}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
-                                let col3Photo = null;
-                                if (localSection.image3 && targetCol3 === colNum) {
-                                  const col3PhotoHeight = Math.min(localSection.image3Height || 160, 220);
-                                  col3Photo = (
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveTarget('image');
-                                      }}
-                                      className={`col-top-photo-block mb-1.5 cursor-pointer transition rounded ${
-                                        activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                                      }`}
-                                      style={{
-                                        display: 'block',
-                                        width: '100%',
-                                        boxSizing: 'border-box',
-                                      }}
-                                      title="क्लिक करके फोटो 3 एडिट करें"
-                                    >
-                                      <img
-                                        src={localSection.image3}
-                                        alt="Photo 3"
-                                        className="w-full object-cover border border-black p-0.5 block"
-                                        style={{ width: '100%', height: `${col3PhotoHeight}px`, maxHeight: `${col3PhotoHeight}px`, objectFit: localSection.image3Fit || 'cover', display: 'block' }}
-                                      />
-                                      {localSection.caption3 && (
-                                        <div
-                                          className="text-[9.5px] italic text-slate-700 pt-0.5"
-                                          style={{ textAlign: localSection.caption3Align || localSection.captionAlign || 'left' }}
-                                        >
-                                          {localSection.caption3}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
                                 return (
                                   <div
                                     key={colIdx}
-                                    className={`dual-col dual-col-${colNum} flex-1 font-martel leading-relaxed`}
+                                    className={`dual-col dual-col-${colIdx + 1} flex-1 font-martel leading-relaxed`}
                                     style={{
                                       flex: '1 1 0%',
                                       minWidth: 0,
@@ -809,9 +692,8 @@ export const SectionModalEditor = ({
                                       color: '#111111',
                                     }}
                                   >
-                                    {colPhoto}
-                                    {col2Photo}
-                                    {col3Photo}
+                                    {isFirst && col1Photo}
+                                    {isSecond && col2Photo}
                                     {pList.length > 0 ? (
                                       pList.map((p, pIdx) => (
                                         <p key={pIdx} className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
@@ -828,7 +710,7 @@ export const SectionModalEditor = ({
                                         </p>
                                       ))
                                     ) : (
-                                      <p className="text-slate-400 italic text-xs">[कॉलम {colNum}...]</p>
+                                      <p className="text-slate-400 italic text-xs">[कॉलम {colIdx + 1}...]</p>
                                     )}
                                   </div>
                                 );
@@ -2212,13 +2094,10 @@ export const SectionModalEditor = ({
                   </div>
 
                   <div>
-                    <label className="text-slate-400 text-[10px] block mb-1 font-semibold">फोटो लेआउट पोजीशन (Photo Placement):</label>
+                    <label className="text-slate-400 text-[10px] block mb-1 font-semibold">फोटो लेआउट पोजीशन:</label>
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
-                        { id: 'top-img', label: 'Top Full' },
-                        { id: 'col1-top', label: '1st Col Top' },
-                        { id: 'col2-top', label: '2nd Col Top' },
-                        { id: 'col3-top', label: '3rd Col Top' },
+                        { id: 'top-img', label: 'Top Image' },
                         { id: 'left-img', label: 'Left Float' },
                         { id: 'right-img', label: 'Right Float' },
                         { id: 'hero-split', label: 'Hero Feature' },
@@ -2228,19 +2107,7 @@ export const SectionModalEditor = ({
                         <button
                           key={l.id}
                           type="button"
-                          onClick={() => {
-                            if (l.id.startsWith('col')) {
-                              const colNum = parseInt(l.id.charAt(3), 10);
-                              updateField('layout', l.id);
-                              updateField('imageCol', colNum);
-                              if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
-                            } else if (l.id === 'top-img') {
-                              updateField('layout', 'top-img');
-                              updateField('imageCol', 'all');
-                            } else {
-                              updateField('layout', l.id);
-                            }
-                          }}
+                          onClick={() => updateField('layout', l.id)}
                           className={`py-1.5 px-2 rounded text-[10.5px] font-semibold flex items-center justify-center gap-1.5 transition ${
                             (localSection.layout === l.id || (!localSection.layout && l.id === 'top-img'))
                               ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400'
@@ -2253,80 +2120,9 @@ export const SectionModalEditor = ({
                     </div>
                   </div>
 
-                  {/* Dedicated Photo Column Placement Pill */}
-                  <div className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-blue-300 text-[10.5px] font-bold flex items-center gap-1">
-                        <span>📌 मुख्य फोटो किस कॉलम पर रखें:</span>
-                      </label>
-                      <span className="text-[9.5px] font-mono text-slate-400">Target Column</span>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateField('imageCol', 'all');
-                          updateField('layout', 'top-img');
-                        }}
-                        className={`py-1 px-1 rounded text-[10px] font-bold transition ${
-                          (localSection.imageCol === 'all' || (!localSection.imageCol && (!localSection.layout || localSection.layout === 'top-img')))
-                            ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow'
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        पूरा स्पैन
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateField('imageCol', 1);
-                          updateField('layout', 'col1-top');
-                          if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
-                        }}
-                        className={`py-1 px-1 rounded text-[10px] font-bold transition ${
-                          (localSection.imageCol === 1 || localSection.imageCol === '1' || localSection.layout === 'col1-top')
-                            ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow'
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        1st कॉलम
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateField('imageCol', 2);
-                          updateField('layout', 'col2-top');
-                          if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
-                        }}
-                        className={`py-1 px-1 rounded text-[10px] font-bold transition ${
-                          (localSection.imageCol === 2 || localSection.imageCol === '2' || localSection.layout === 'col2-top')
-                            ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow'
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        2nd कॉलम
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateField('imageCol', 3);
-                          updateField('layout', 'col3-top');
-                          if ((localSection.imageHeight || 0) > 220) updateField('imageHeight', 160);
-                        }}
-                        className={`py-1 px-1 rounded text-[10px] font-bold transition ${
-                          (localSection.imageCol === 3 || localSection.imageCol === '3' || localSection.layout === 'col3-top')
-                            ? 'bg-blue-600 text-white ring-1 ring-blue-400 shadow'
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        3rd कॉलम
-                      </button>
-                    </div>
-                  </div>
-
                   <div className="space-y-3 pt-2 border-t border-slate-800">
                     <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 1 वेब लिंक (URL):</label>
+                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फोटो वेब लिंक (URL):</label>
                       <input
                         type="text"
                         value={localSection.image || ''}
@@ -2337,7 +2133,7 @@ export const SectionModalEditor = ({
                     </div>
 
                     <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 1 कैप्शन:</label>
+                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फोटो कैप्शन:</label>
                       <input
                         type="text"
                         value={localSection.caption || ''}
@@ -2350,29 +2146,19 @@ export const SectionModalEditor = ({
 
                   <div className="space-y-3 pt-2 border-t border-slate-800">
                     <div>
-                      {(() => {
-                        const isColPhoto = localSection.imageCol === 1 || localSection.imageCol === 2 || localSection.imageCol === 3 || localSection.layout === 'col1-top' || localSection.layout === 'col2-top' || localSection.layout === 'col3-top';
-                        const currentVal = isColPhoto ? Math.min(localSection.imageHeight || 160, 240) : (localSection.imageHeight || 240);
-                        return (
-                          <>
-                            <div className="flex justify-between items-center mb-1">
-                              <label className="text-slate-400 text-[10px] font-semibold">
-                                {isColPhoto ? 'कॉलम फ़ोटो 1 ऊंचाई (Height):' : 'फ़ोटो 1 ऊंचाई (Height):'}
-                              </label>
-                              <span className="text-blue-400 font-mono font-bold text-[10px]">{currentVal}px</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="60"
-                              max={isColPhoto ? 240 : 450}
-                              step={isColPhoto ? 5 : 10}
-                              value={currentVal}
-                              onChange={(e) => updateField('imageHeight', parseInt(e.target.value, 10))}
-                              className="w-full accent-blue-500 h-1.5 rounded cursor-pointer"
-                            />
-                          </>
-                        );
-                      })()}
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-slate-400 text-[10px] font-semibold">फोटो ऊंचाई (Height):</label>
+                        <span className="text-blue-400 font-mono font-bold text-[10px]">{localSection.imageHeight || 240}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="60"
+                        max="450"
+                        step="10"
+                        value={localSection.imageHeight || 240}
+                        onChange={(e) => updateField('imageHeight', parseInt(e.target.value, 10))}
+                        className="w-full accent-blue-500 h-1.5 rounded cursor-pointer"
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
@@ -2418,160 +2204,93 @@ export const SectionModalEditor = ({
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* COLUMN 2 PHOTO SECTION */}
-                  <div className="mt-4 pt-3 border-t-2 border-indigo-500/40 bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                        <span className="font-bold text-indigo-400 text-xs">📸 दूसरी फ़ोटो (कॉलम 2 के ऊपर)</span>
+                    {/* DUAL PHOTO (2ND PHOTO) SECTION FOR GRID > 6 */}
+                    {(localSection.colSpan || 6) > 6 ? (
+                      <div className="mt-4 pt-3 border-t-2 border-indigo-500/40 bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                            <span className="font-bold text-indigo-400 text-xs">📸 दूसरी फ़ोटो (कॉलम 2 टॉप फ़ोटो)</span>
+                            <span className="text-[9px] bg-indigo-950 text-indigo-300 font-mono px-1.5 py-0.2 rounded border border-indigo-700">
+                              Grid {localSection.colSpan || 6} Col
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="file"
+                              ref={fileInput2Ref}
+                              accept="image/*"
+                              onChange={handleImage2FileChange}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => fileInput2Ref.current?.click()}
+                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[11px] shadow transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>📁 फ़ोटो 2 अपलोड</span>
+                            </button>
+                            {localSection.image2 ? (
+                              <button
+                                type="button"
+                                onClick={handleRemoveImage2}
+                                className="px-2 py-1 bg-red-950/80 hover:bg-red-800 text-red-300 hover:text-white rounded text-[10.5px] border border-red-800 transition cursor-pointer"
+                                title="फ़ोटो 2 हटाएं"
+                              >
+                                ✕ हटाएं
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* Image 2 URL */}
+                        <div>
+                          <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 2 वेब लिंक (Image 2 URL):</label>
+                          <input
+                            type="text"
+                            value={localSection.image2 || ''}
+                            onChange={(e) => updateField('image2', e.target.value)}
+                            placeholder="https://..."
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:border-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        {/* Caption 2 */}
+                        <div>
+                          <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 2 कैप्शन (Caption 2):</label>
+                          <input
+                            type="text"
+                            value={localSection.caption2 || ''}
+                            onChange={(e) => updateField('caption2', e.target.value)}
+                            placeholder="फोटो 2: विवरण व संदर्भ..."
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-medium text-xs focus:border-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        {/* Height for Image 2 */}
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="text-slate-400 text-[10px] font-semibold">फ़ोटो 2 ऊंचाई (Height):</label>
+                            <span className="text-indigo-400 font-mono font-bold text-[10px]">{localSection.image2Height || 180}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="60"
+                            max="400"
+                            step="10"
+                            value={localSection.image2Height || 180}
+                            onChange={(e) => updateField('image2Height', parseInt(e.target.value, 10))}
+                            className="w-full accent-indigo-500 h-1.5 rounded cursor-pointer"
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="file"
-                          ref={fileInput2Ref}
-                          accept="image/*"
-                          onChange={handleImage2FileChange}
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInput2Ref.current?.click()}
-                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[11px] shadow transition flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>📁 फ़ोटो 2 अपलोड</span>
-                        </button>
-                        {localSection.image2 ? (
-                          <button
-                            type="button"
-                            onClick={handleRemoveImage2}
-                            className="px-2 py-1 bg-red-950/80 hover:bg-red-800 text-red-300 hover:text-white rounded text-[10.5px] border border-red-800 transition cursor-pointer"
-                            title="फ़ोटो 2 हटाएं"
-                          >
-                            ✕ हटाएं
-                          </button>
-                        ) : null}
+                    ) : (
+                      <div className="mt-3 p-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-[10px] text-slate-400 flex items-start gap-2">
+                        <span className="text-amber-400 font-bold shrink-0">💡</span>
+                        <span><b>2 फ़ोटो अपलोड विकल्प:</b> 7 से 12 कॉलम (Grid &gt; 6) वाले बड़े न्यूज़ सेक्शन्स में उपलब्ध है। दूसरी फ़ोटो कॉलम 2 के टॉप पर सेट होगी।</span>
                       </div>
-                    </div>
-
-                    {/* Image 2 URL */}
-                    <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 2 वेब लिंक (Image 2 URL):</label>
-                      <input
-                        type="text"
-                        value={localSection.image2 || ''}
-                        onChange={(e) => updateField('image2', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:border-indigo-500 outline-none"
-                      />
-                    </div>
-
-                    {/* Caption 2 */}
-                    <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 2 कैप्शन (Caption 2):</label>
-                      <input
-                        type="text"
-                        value={localSection.caption2 || ''}
-                        onChange={(e) => updateField('caption2', e.target.value)}
-                        placeholder="फोटो 2: विवरण व संदर्भ..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-medium text-xs focus:border-indigo-500 outline-none"
-                      />
-                    </div>
-
-                    {/* Height for Image 2 */}
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-slate-400 text-[10px] font-semibold">फ़ोटो 2 ऊंचाई (Height):</label>
-                        <span className="text-indigo-400 font-mono font-bold text-[10px]">{localSection.image2Height || 180}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="60"
-                        max="400"
-                        step="10"
-                        value={localSection.image2Height || 180}
-                        onChange={(e) => updateField('image2Height', parseInt(e.target.value, 10))}
-                        className="w-full accent-indigo-500 h-1.5 rounded cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  {/* COLUMN 3 PHOTO SECTION */}
-                  <div className="mt-3 pt-3 border-t-2 border-purple-500/40 bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                        <span className="font-bold text-purple-400 text-xs">📸 तीसरी फ़ोटो (कॉलम 3 के ऊपर)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="file"
-                          ref={fileInput3Ref}
-                          accept="image/*"
-                          onChange={handleImage3FileChange}
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInput3Ref.current?.click()}
-                          className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded text-[11px] shadow transition flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>📁 फ़ोटो 3 अपलोड</span>
-                        </button>
-                        {localSection.image3 ? (
-                          <button
-                            type="button"
-                            onClick={handleRemoveImage3}
-                            className="px-2 py-1 bg-red-950/80 hover:bg-red-800 text-red-300 hover:text-white rounded text-[10.5px] border border-red-800 transition cursor-pointer"
-                            title="फ़ोटो 3 हटाएं"
-                          >
-                            ✕ हटाएं
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {/* Image 3 URL */}
-                    <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 3 वेब लिंक (Image 3 URL):</label>
-                      <input
-                        type="text"
-                        value={localSection.image3 || ''}
-                        onChange={(e) => updateField('image3', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:border-purple-500 outline-none"
-                      />
-                    </div>
-
-                    {/* Caption 3 */}
-                    <div>
-                      <label className="text-slate-300 text-[10.5px] font-semibold block mb-1">फ़ोटो 3 कैप्शन (Caption 3):</label>
-                      <input
-                        type="text"
-                        value={localSection.caption3 || ''}
-                        onChange={(e) => updateField('caption3', e.target.value)}
-                        placeholder="फोटो 3: विवरण व संदर्भ..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-medium text-xs focus:border-purple-500 outline-none"
-                      />
-                    </div>
-
-                    {/* Height for Image 3 */}
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-slate-400 text-[10px] font-semibold">फ़ोटो 3 ऊंचाई (Height):</label>
-                        <span className="text-purple-400 font-mono font-bold text-[10px]">{localSection.image3Height || 180}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="60"
-                        max="400"
-                        step="10"
-                        value={localSection.image3Height || 180}
-                        onChange={(e) => updateField('image3Height', parseInt(e.target.value, 10))}
-                        className="w-full accent-purple-500 h-1.5 rounded cursor-pointer"
-                      />
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
