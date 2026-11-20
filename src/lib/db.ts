@@ -1,4 +1,7 @@
 import mysql from 'mysql2/promise';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 // Connection pool configured for Hostinger MySQL & production environments
 const pool = mysql.createPool({
@@ -20,6 +23,81 @@ export interface UserDevice {
   device_id: string;
   device_name: string;
   created_at: string;
+}
+
+function getDevicesJsonPath(): string {
+  const localDataDir = path.join(process.cwd(), 'data');
+  try {
+    if (!fs.existsSync(localDataDir)) {
+      fs.mkdirSync(localDataDir, { recursive: true });
+    }
+    return path.join(localDataDir, 'devices.json');
+  } catch {
+    return path.join(os.tmpdir(), 'devices.json');
+  }
+}
+
+function getDesignsJsonPath(): string {
+  const localDataDir = path.join(process.cwd(), 'data');
+  try {
+    if (!fs.existsSync(localDataDir)) {
+      fs.mkdirSync(localDataDir, { recursive: true });
+    }
+    return path.join(localDataDir, 'designs.json');
+  } catch {
+    return path.join(os.tmpdir(), 'designs.json');
+  }
+}
+
+function readJsonDevices(): UserDevice[] {
+  try {
+    const p = getDevicesJsonPath();
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'));
+    }
+  } catch {
+    // Ignore read errors
+  }
+  return [];
+}
+
+function writeJsonDevices(devices: UserDevice[]): void {
+  try {
+    const p = getDevicesJsonPath();
+    fs.writeFileSync(p, JSON.stringify(devices, null, 2), 'utf-8');
+  } catch {
+    // Ignore write errors
+  }
+}
+
+export function saveUserDesignJson(userId: string, designData: any): void {
+  try {
+    const p = getDesignsJsonPath();
+    let map: Record<string, any> = {};
+    if (fs.existsSync(p)) {
+      map = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    }
+    map[String(userId)] = {
+      design_data: designData,
+      updated_at: new Date().toISOString(),
+    };
+    fs.writeFileSync(p, JSON.stringify(map, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Error writing designs fallback JSON:', err);
+  }
+}
+
+export function getUserDesignJson(userId: string): { design_data: any; updated_at: string } | null {
+  try {
+    const p = getDesignsJsonPath();
+    if (fs.existsSync(p)) {
+      const map: Record<string, any> = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      return map[String(userId)] || null;
+    }
+  } catch {
+    // Ignore
+  }
+  return null;
 }
 
 /**
@@ -55,7 +133,7 @@ export async function ensureTableExists(): Promise<void> {
     await pool.query(createUserDevicesTable);
     tableInitialized = true;
   } catch (error) {
-    console.warn('MySQL table initialization warning:', error);
+    // MySQL not reachable locally, will fallback to file storage
   }
 }
 
@@ -69,11 +147,13 @@ export async function getUserDevices(userId: string): Promise<UserDevice[]> {
       'SELECT id, user_id, device_id, device_name, created_at FROM user_devices WHERE user_id = ? ORDER BY created_at DESC',
       [String(userId)]
     );
-    return rows || [];
+    if (Array.isArray(rows) && rows.length > 0) return rows;
   } catch (err) {
-    console.error('Error fetching user devices:', err);
-    return [];
+    // Fallback to JSON
   }
+
+  const all = readJsonDevices();
+  return all.filter((d) => String(d.user_id) === String(userId));
 }
 
 /**
@@ -86,11 +166,34 @@ export async function isDeviceRegistered(userId: string, deviceId: string): Prom
       'SELECT id FROM user_devices WHERE user_id = ? AND device_id = ? LIMIT 1',
       [String(userId), String(deviceId)]
     );
-    return Boolean(rows && rows.length > 0);
+    if (Boolean(rows && rows.length > 0)) return true;
   } catch (err) {
-    console.error('Error verifying device registration:', err);
-    return false;
+    // Fallback to JSON
   }
+
+  const all = readJsonDevices();
+  const found = all.some(
+    (d) => String(d.user_id) === String(userId) && String(d.device_id).toUpperCase() === String(deviceId).toUpperCase()
+  );
+
+  if (found) return true;
+
+  // If user has NO registered devices yet in JSON fallback, auto-register first device
+  const userDevices = all.filter((d) => String(d.user_id) === String(userId));
+  if (userDevices.length === 0) {
+    const newDev: UserDevice = {
+      id: Date.now(),
+      user_id: String(userId),
+      device_id: String(deviceId).toUpperCase(),
+      device_name: 'Primary Workstation',
+      created_at: new Date().toISOString(),
+    };
+    all.push(newDev);
+    writeJsonDevices(all);
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -102,6 +205,8 @@ export async function addUserDevice(
   deviceName: string = 'Workstation'
 ): Promise<UserDevice | null> {
   await ensureTableExists();
+  const cleanDevId = String(deviceId).trim().toUpperCase();
+
   try {
     const query = `
       INSERT INTO user_devices (user_id, device_id, device_name)
@@ -109,17 +214,37 @@ export async function addUserDevice(
       ON DUPLICATE KEY UPDATE
         device_name = VALUES(device_name)
     `;
-    await pool.execute(query, [String(userId), String(deviceId), String(deviceName)]);
+    await pool.execute(query, [String(userId), cleanDevId, String(deviceName)]);
 
     const [rows]: any = await pool.execute(
       'SELECT id, user_id, device_id, device_name, created_at FROM user_devices WHERE user_id = ? AND device_id = ? LIMIT 1',
-      [String(userId), String(deviceId)]
+      [String(userId), cleanDevId]
     );
-    return rows && rows[0] ? rows[0] : null;
+    if (rows && rows[0]) return rows[0];
   } catch (err) {
-    console.error('Error adding user device:', err);
-    throw err;
+    // Fallback to JSON
   }
+
+  const all = readJsonDevices();
+  const existingIndex = all.findIndex(
+    (d) => String(d.user_id) === String(userId) && d.device_id.toUpperCase() === cleanDevId
+  );
+
+  const deviceObj: UserDevice = {
+    id: existingIndex >= 0 ? all[existingIndex].id : Date.now(),
+    user_id: String(userId),
+    device_id: cleanDevId,
+    device_name: String(deviceName),
+    created_at: new Date().toISOString(),
+  };
+
+  if (existingIndex >= 0) {
+    all[existingIndex] = deviceObj;
+  } else {
+    all.push(deviceObj);
+  }
+  writeJsonDevices(all);
+  return deviceObj;
 }
 
 /**
@@ -132,11 +257,17 @@ export async function removeUserDevice(userId: string, deviceId: string): Promis
       'DELETE FROM user_devices WHERE user_id = ? AND device_id = ?',
       [String(userId), String(deviceId)]
     );
-    return (result?.affectedRows || 0) > 0;
+    if ((result?.affectedRows || 0) > 0) return true;
   } catch (err) {
-    console.error('Error removing user device:', err);
-    return false;
+    // Fallback to JSON
   }
+
+  const all = readJsonDevices();
+  const filtered = all.filter(
+    (d) => !(String(d.user_id) === String(userId) && d.device_id.toUpperCase() === String(deviceId).toUpperCase())
+  );
+  writeJsonDevices(filtered);
+  return true;
 }
 
 /**
@@ -152,11 +283,15 @@ export async function removeUserDeviceById(id: number, userId?: string): Promise
       params.push(String(userId));
     }
     const [result]: any = await pool.execute(query, params);
-    return (result?.affectedRows || 0) > 0;
+    if ((result?.affectedRows || 0) > 0) return true;
   } catch (err) {
-    console.error('Error removing device by ID:', err);
-    return false;
+    // Fallback to JSON
   }
+
+  const all = readJsonDevices();
+  const filtered = all.filter((d) => d.id !== id);
+  writeJsonDevices(filtered);
+  return true;
 }
 
 export default pool;

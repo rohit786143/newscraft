@@ -17,7 +17,10 @@ next-env.d.ts
 .env*.local
 .env
 
-# OS Metadata & Logs
+# Local data cache
+/data/designs.json
+/data/devices.json
+
 .DS_Store
 Thumbs.db
 npm-debug.log*

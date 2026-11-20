@@ -114,42 +114,196 @@ export const SectionModalEditor = ({
     }
   }, [section, isOpen]);
 
-  // Dynamic baseline grid line-height alignment for per-column photo blocks
+  // Dynamic multi-column bottom baseline alignment & balancing for news columns & photos
   useEffect(() => {
     if (paperWrapRef.current && localSection) {
       const container = paperWrapRef.current;
       const timer = setTimeout(() => {
-        const photoBlocks = container.querySelectorAll('.col-top-photo-block');
-        if (!photoBlocks.length) return;
+        const multiColContainers = container.querySelectorAll(
+          '.broadsheet-cols-2, .broadsheet-cols-3, [class*="columns-"], [id^="news-columns-"], #modal-preview-columns-container'
+        );
 
-        const sampleP = container.querySelector('.story-paragraph') || container;
-        const compStyle = window.getComputedStyle(sampleP);
-        const fontSize = parseFloat(compStyle.fontSize) || 11;
-        let lineHeight = parseFloat(compStyle.lineHeight);
-        if (isNaN(lineHeight) || lineHeight <= 0) {
-          lineHeight = fontSize * 1.38;
-        }
+        multiColContainers.forEach((colContainer) => {
+          const compStyle = window.getComputedStyle(colContainer);
+          let colCount = parseInt(compStyle.columnCount) || 0;
+          if (!colCount) {
+            if (colContainer.classList.contains('broadsheet-cols-3') || (colContainer.className && colContainer.className.includes('columns-3'))) colCount = 3;
+            else if (colContainer.classList.contains('broadsheet-cols-2') || (colContainer.className && colContainer.className.includes('columns-2'))) colCount = 2;
+            else colCount = 1;
+          }
+          if (colCount < 2) return;
 
-        photoBlocks.forEach((block) => {
-          block.style.marginBottom = '0px';
-          const rect = block.getBoundingClientRect();
-          const naturalH = rect.height;
-          if (naturalH <= 0) return;
+          const fontSize = parseFloat(compStyle.fontSize) || 11;
+          const lineHeight = parseFloat(compStyle.lineHeight) || (fontSize * 1.38);
+          const colR = colContainer.getBoundingClientRect();
+          if (colR.width <= 0) return;
 
-          const linesNeeded = Math.ceil(naturalH / lineHeight);
-          const targetH = linesNeeded * lineHeight;
-          const extraMargin = Math.max(0, targetH - naturalH);
-          block.style.marginBottom = `${extraMargin}px`;
+          const gutter = parseFloat(compStyle.columnGap) || 14;
+          const colW = (colR.width - (colCount - 1) * gutter) / colCount;
+
+          const paras = Array.from(colContainer.querySelectorAll('.story-paragraph'));
+          if (paras.length === 0) return;
+
+          const pBlock = colContainer.querySelector('.col-top-photo-block');
+          const img = pBlock ? pBlock.querySelector('img') : null;
+          const capEl = pBlock ? pBlock.querySelector('div') : null;
+
+          function measureColBottoms() {
+            const bottoms = new Array(colCount).fill(0);
+            paras.forEach((p) => {
+              const range = document.createRange();
+              range.selectNodeContents(p);
+              const rects = Array.from(range.getClientRects());
+              rects.forEach((r) => {
+                if (r.width <= 0 || r.height <= 0) return;
+                const xOffset = r.left - colR.left;
+                let colIdx = Math.floor(xOffset / (colW + gutter * 0.5));
+                colIdx = Math.max(0, Math.min(colCount - 1, colIdx));
+                if (r.bottom > bottoms[colIdx]) {
+                  bottoms[colIdx] = r.bottom;
+                }
+              });
+            });
+            return bottoms;
+          }
+
+          if (pBlock && img) {
+            const capH = capEl ? (capEl.offsetHeight || 15) : 0;
+            const initialH = parseFloat(img.getAttribute('data-base-height') || '') || parseFloat(img.style.height) || Math.round(colW * (10 / 16));
+            if (!img.getAttribute('data-base-height')) {
+              img.setAttribute('data-base-height', String(initialH));
+            }
+
+            let bestH = initialH;
+            let bestMargin = 0;
+            let minDiff = 999;
+
+            // Test fine-tuning around initial photo height to find equal bottom lines
+            for (let delta = -25; delta <= 30; delta++) {
+              const testH = Math.max(50, Math.round(initialH + delta));
+              img.style.height = `${testH}px`;
+              img.style.maxHeight = `${testH}px`;
+
+              const totalRaw = testH + capH;
+              const targetLines = Math.round(totalRaw / lineHeight);
+              const extraMargin = Math.max(0, (targetLines * lineHeight) - totalRaw);
+              pBlock.style.marginBottom = `${extraMargin}px`;
+
+              const b = measureColBottoms();
+              const active = b.filter((val) => val > 0);
+              if (active.length >= 2) {
+                const diff = Math.max(...active) - Math.min(...active);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  bestH = testH;
+                  bestMargin = extraMargin;
+                  if (diff <= 0.8) break; // Sub-pixel equal baseline achieved!
+                }
+              }
+            }
+
+            img.style.height = `${bestH}px`;
+            img.style.maxHeight = `${bestH}px`;
+            pBlock.style.marginBottom = `${bestMargin}px`;
+          }
+
+          // Micro-balance remaining discrepancy across columns if diff > 1.5px
+          const finalBottoms = measureColBottoms();
+          const activeFinal = finalBottoms.filter((val) => val > 0);
+          if (activeFinal.length >= 2) {
+            const maxBottom = Math.max(...activeFinal);
+            const minBottom = Math.min(...activeFinal);
+            const finalDiff = maxBottom - minBottom;
+            if (finalDiff >= 2 && finalDiff <= (lineHeight * 1.5) && paras.length > 1) {
+              paras.forEach((p) => {
+                const r = p.getBoundingClientRect();
+                const colIdx = Math.max(0, Math.min(colCount - 1, Math.floor((r.left - colR.left) / (colW + gutter * 0.5))));
+                const colBottom = finalBottoms[colIdx];
+                const shortage = maxBottom - colBottom;
+                if (shortage >= 2 && shortage <= 25) {
+                  p.style.marginBottom = `${Math.min(8, 4 + shortage / Math.max(1, paras.length - 1))}px`;
+                }
+              });
+            }
+          }
+        });
+
+        // Also balance .broadsheet-columns-grid if present
+        const grids = container.querySelectorAll('.broadsheet-columns-grid');
+        grids.forEach((grid) => {
+          const cols = Array.from(grid.querySelectorAll('.broadsheet-col'));
+          if (cols.length < 2) return;
+          cols.forEach((col) => {
+            const paras = col.querySelectorAll('.story-paragraph');
+            paras.forEach((p) => {
+              p.style.lineHeight = '';
+              p.style.marginBottom = '';
+            });
+          });
+          let maxBottom = 0;
+          const colData = cols.map((col) => {
+            const paras = Array.from(col.querySelectorAll('.story-paragraph'));
+            let bottom = 0;
+            if (paras.length > 0) {
+              bottom = paras[paras.length - 1].getBoundingClientRect().bottom;
+            } else {
+              bottom = col.getBoundingClientRect().bottom;
+            }
+            if (bottom > maxBottom) maxBottom = bottom;
+            return { col, paras, bottom };
+          });
+          if (maxBottom <= 0) return;
+          colData.forEach((d) => {
+            if (!d.paras || d.paras.length === 0) return;
+            const diff = maxBottom - d.bottom;
+            if (diff >= 2 && diff <= 35) {
+              const pCount = d.paras.length;
+              if (pCount > 1) {
+                const extraMargin = diff / (pCount - 1);
+                d.paras.forEach((p, idx) => {
+                  if (idx < pCount - 1) {
+                    p.style.marginBottom = `${Math.min(10, 4 + extraMargin)}px`;
+                  }
+                });
+              } else if (pCount === 1) {
+                const p = d.paras[0];
+                const lines = Math.max(1, Math.round(p.offsetHeight / 15.2));
+                if (lines > 1) {
+                  const extraPerLine = Math.min(2.5, diff / lines);
+                  p.style.lineHeight = `${(15.2 + extraPerLine) / 11}`;
+                }
+              }
+            }
+          });
         });
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [localSection]);
+  }, [localSection, zoomScale]);
 
   if (!isOpen || !localSection) return null;
 
   const updateField = (field, value) => {
     const updated = { ...localSection, [field]: value };
+    if (field === 'layout') {
+      if (value === 'col1-top') {
+        updated.imageCol = 1;
+        if (!updated.imageHeight || updated.imageHeight > 130) {
+          updated.imageHeight = 110;
+        }
+        if (!updated.imageFit) updated.imageFit = 'cover';
+      } else if (value === 'col2-top') {
+        updated.imageCol = 2;
+        if (!updated.bodyCols || updated.bodyCols < 2) updated.bodyCols = 2;
+      } else if (value === 'col3-top') {
+        updated.imageCol = 3;
+        if (!updated.bodyCols || updated.bodyCols < 3) updated.bodyCols = 3;
+      }
+    } else if (field === 'imageCol') {
+      updated.layout = `col${value}-top`;
+      if (Number(value) === 2 && (!updated.bodyCols || updated.bodyCols < 2)) updated.bodyCols = 2;
+      if (Number(value) === 3 && (!updated.bodyCols || updated.bodyCols < 3)) updated.bodyCols = 3;
+    }
     setLocalSection(updated);
     if (onChange) {
       onChange(updated);
@@ -614,107 +768,319 @@ export const SectionModalEditor = ({
                       const colsClass = effectiveCols === 2 ? 'columns-2 gap-3.5' : effectiveCols >= 3 ? 'columns-3 gap-3.5' : 'columns-1';
 
                       if (isColTopLayout) {
-                        const h1Val = Math.min(localSection.imageHeight || 140, 160);
-                        const col1Photo = (localSection.image && targetCol1 === 1) ? (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTarget('image');
-                            }}
-                            className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
-                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                            }`}
-                            style={{ breakInside: 'avoid', width: '100%', boxSizing: 'border-box' }}
-                            title="क्लिक करके फोटो 1 एडिट करें"
-                          >
-                            <img
-                              src={localSection.image}
-                              alt="Photo 1"
-                              className="w-full object-cover border border-black p-0.5 block"
-                              style={{ width: '100%', height: `${h1Val}px`, maxHeight: `${h1Val}px`, objectFit: localSection.imageFit || 'cover', display: 'block' }}
-                            />
-                            {localSection.caption && (
-                              <div
-                                className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
-                                style={{ textAlign: localSection.captionAlign || 'left', height: '14px', lineHeight: '14px' }}
-                              >
-                                {localSection.caption}
-                              </div>
-                            )}
-                          </div>
+                        const defaultH1 = 110;
+                        const h1Val = Math.min(Math.max(localSection.imageHeight ? Math.min(localSection.imageHeight, 125) : defaultH1, 65), 130);
+                        const hasCol1Photo = targetCol1 === 1 && !!localSection.image;
+                        const col1Photo = (targetCol1 === 1) ? (
+                          localSection.image ? (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col-top-photo-block cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                marginBottom: localSection.caption ? '2px' : '4px'
+                              }}
+                              title="क्लिक करके फोटो 1 एडिट करें"
+                            >
+                              <img
+                                src={localSection.image}
+                                alt="Photo 1"
+                                data-base-height={h1Val}
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ width: '100%', aspectRatio: '16 / 10', height: `${h1Val}px`, maxHeight: `${h1Val}px`, objectFit: localSection.imageFit || 'cover', display: 'block' }}
+                              />
+                              {localSection.caption && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
+                                  style={{
+                                    fontFamily: localSection.captionFont || "'Martel', serif",
+                                    fontSize: localSection.captionSize || '9.5px',
+                                    color: localSection.captionColor || '#334155',
+                                    textAlign: localSection.captionAlign || 'left',
+                                    height: '15px',
+                                    lineHeight: '15px',
+                                    marginTop: '2px'
+                                  }}
+                                >
+                                  {localSection.caption}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col-top-photo-block cursor-pointer transition rounded mb-1.5 p-2 border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              title="क्लिक करके कॉलम 1 फोटो जोड़ें"
+                            >
+                              <span className="text-[10px] font-bold">➕ कॉलम 1 फोटो</span>
+                            </div>
+                          )
                         ) : null;
 
                         const hasCol2Photo = !!localSection.image2 || (targetCol1 === 2 && !!localSection.image);
                         const img2Src = localSection.image2 || (targetCol1 === 2 ? localSection.image : '');
                         const cap2Text = localSection.image2 ? (localSection.caption2 || '') : (targetCol1 === 2 ? (localSection.caption || '') : '');
-                        const h2Raw = localSection.image2 ? (localSection.image2Height || 140) : (targetCol1 === 2 ? (localSection.imageHeight || 140) : 140);
-                        const h2Val = Math.min(h2Raw, 160);
+                        const defaultH2 = cap2Text ? 114 : 114;
+                        const h2Raw = localSection.image2 ? (localSection.image2Height || defaultH2) : (targetCol1 === 2 ? (localSection.imageHeight || defaultH2) : defaultH2);
+                        const h2Val = Math.min(Math.max(h2Raw, 70), 300);
                         const fit2Val = localSection.image2 ? (localSection.image2Fit || 'cover') : (targetCol1 === 2 ? (localSection.imageFit || 'cover') : 'cover');
 
-                        const col2Photo = (hasCol2Photo && img2Src && effectiveCols >= 2) ? (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTarget('image');
-                            }}
-                            className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
-                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                            }`}
-                            style={{ breakBefore: 'column', breakInside: 'avoid', width: '100%', boxSizing: 'border-box' }}
-                            title="क्लिक करके फोटो 2 एडिट करें"
-                          >
-                            <img
-                              src={img2Src}
-                              alt="Photo 2"
-                              className="w-full object-cover border border-black p-0.5 block"
-                              style={{ width: '100%', height: `${h2Val}px`, maxHeight: `${h2Val}px`, objectFit: fit2Val || 'cover', display: 'block' }}
-                            />
-                            {cap2Text && (
-                              <div
-                                className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
-                                style={{ textAlign: localSection.captionAlign || 'left', height: '14px', lineHeight: '14px' }}
-                              >
-                                {cap2Text}
-                              </div>
-                            )}
-                          </div>
+                        const col2Photo = (effectiveCols >= 2 && (hasCol2Photo || targetCol1 === 2)) ? (
+                          img2Src ? (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col-top-photo-block cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                breakBefore: 'column',
+                                WebkitColumnBreakBefore: 'always',
+                                breakInside: 'avoid',
+                                WebkitColumnBreakInside: 'avoid',
+                                marginBottom: cap2Text ? '2px' : '4px'
+                              }}
+                              title="क्लिक करके फोटो 2 एडिट करें"
+                            >
+                              <img
+                                src={img2Src}
+                                alt="Photo 2"
+                                data-base-height={h2Val}
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ width: '100%', height: `${h2Val}px`, maxHeight: `${h2Val}px`, objectFit: fit2Val || 'cover', display: 'block' }}
+                              />
+                              {cap2Text && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
+                                  style={{
+                                    fontFamily: localSection.captionFont || "'Martel', serif",
+                                    fontSize: localSection.captionSize || '9.5px',
+                                    color: localSection.captionColor || '#334155',
+                                    textAlign: localSection.captionAlign || 'left',
+                                    height: '15px',
+                                    lineHeight: '15px',
+                                    marginTop: '2px'
+                                  }}
+                                >
+                                  {cap2Text}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col-top-photo-block cursor-pointer transition rounded mb-1.5 p-2 border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              title="क्लिक करके कॉलम 2 फोटो जोड़ें"
+                            >
+                              <span className="text-[10px] font-bold">➕ कॉलम 2 फोटो</span>
+                            </div>
+                          )
                         ) : null;
 
                         const hasCol3Photo = !!localSection.image3 || (targetCol1 === 3 && !!localSection.image);
                         const img3Src = localSection.image3 || (targetCol1 === 3 ? localSection.image : '');
                         const cap3Text = localSection.image3 ? (localSection.caption3 || '') : (targetCol1 === 3 ? (localSection.caption || '') : '');
-                        const h3Raw = localSection.image3 ? (localSection.image3Height || 140) : (targetCol1 === 3 ? (localSection.imageHeight || 140) : 140);
-                        const h3Val = Math.min(h3Raw, 160);
+                        const defaultH3 = cap3Text ? 114 : 114;
+                        const h3Raw = localSection.image3 ? (localSection.image3Height || defaultH3) : (targetCol1 === 3 ? (localSection.imageHeight || defaultH3) : defaultH3);
+                        const h3Val = Math.min(Math.max(h3Raw, 70), 300);
                         const fit3Val = localSection.image3 ? (localSection.image3Fit || 'cover') : (targetCol1 === 3 ? (localSection.imageFit || 'cover') : 'cover');
 
-                        const col3Photo = (hasCol3Photo && img3Src && effectiveCols >= 3) ? (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTarget('image');
-                            }}
-                            className={`col-top-photo-block mb-1 cursor-pointer transition rounded ${
-                              activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
-                            }`}
-                            style={{ breakBefore: 'column', breakInside: 'avoid', width: '100%', boxSizing: 'border-box' }}
-                            title="क्लिक करके फोटो 3 एडिट करें"
-                          >
-                            <img
-                              src={img3Src}
-                              alt="Photo 3"
-                              className="w-full object-cover border border-black p-0.5 block"
-                              style={{ width: '100%', height: `${h3Val}px`, maxHeight: `${h3Val}px`, objectFit: fit3Val || 'cover', display: 'block' }}
-                            />
-                            {cap3Text && (
-                              <div
-                                className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
-                                style={{ textAlign: localSection.captionAlign || 'left', height: '14px', lineHeight: '14px' }}
-                              >
-                                {cap3Text}
-                              </div>
-                            )}
-                          </div>
+                        const col3Photo = (effectiveCols >= 3 && (hasCol3Photo || targetCol1 === 3)) ? (
+                          img3Src ? (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col-top-photo-block cursor-pointer transition rounded ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              style={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                breakBefore: 'column',
+                                WebkitColumnBreakBefore: 'always',
+                                breakInside: 'avoid',
+                                WebkitColumnBreakInside: 'avoid',
+                                marginBottom: cap3Text ? '2px' : '4px'
+                              }}
+                              title="क्लिक करके फोटो 3 एडिट करें"
+                            >
+                              <img
+                                src={img3Src}
+                                alt="Photo 3"
+                                data-base-height={h3Val}
+                                className="w-full object-cover border border-black p-0.5 block"
+                                style={{ width: '100%', height: `${h3Val}px`, maxHeight: `${h3Val}px`, objectFit: fit3Val || 'cover', display: 'block' }}
+                              />
+                              {cap3Text && (
+                                <div
+                                  className="text-[9.5px] italic text-slate-700 pt-0.5 truncate whitespace-nowrap overflow-hidden text-ellipsis block max-w-full"
+                                  style={{
+                                    fontFamily: localSection.captionFont || "'Martel', serif",
+                                    fontSize: localSection.captionSize || '9.5px',
+                                    color: localSection.captionColor || '#334155',
+                                    textAlign: localSection.captionAlign || 'left',
+                                    height: '15px',
+                                    lineHeight: '15px',
+                                    marginTop: '2px'
+                                  }}
+                                >
+                                  {cap3Text}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTarget('image');
+                              }}
+                              className={`col-top-photo-block cursor-pointer transition rounded mb-1.5 p-2 border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 ${
+                                activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
+                              }`}
+                              title="क्लिक करके कॉलम 3 फोटो जोड़ें"
+                            >
+                              <span className="text-[10px] font-bold">➕ कॉलम 3 फोटो</span>
+                            </div>
+                          )
                         ) : null;
+
+                        // Balance text across columns based on which column has photos
+                        let splitRatio = 0.5;
+                        if (effectiveCols === 2) {
+                          if (targetCol1 === 2 || hasCol2Photo) {
+                            splitRatio = 0.58; // Column 1 gets more text because Column 2 has photo
+                          } else if (targetCol1 === 1 || hasCol1Photo) {
+                            splitRatio = 0.42; // Column 1 gets less text because Column 1 has photo
+                          }
+                        }
+
+                        const splitParagraphsForCols = (list, cols, ratio) => {
+                          if (cols <= 1) return [list];
+                          if (!list || list.length === 0) return Array.from({ length: cols }, () => []);
+
+                          const fullText = list.join('\n\n');
+                          if (cols === 2) {
+                            if (list.length >= 2) {
+                              const totalLen = fullText.length;
+                              let accum = 0;
+                              let bestIdx = 1;
+                              let minDiff = Infinity;
+                              for (let i = 0; i < list.length - 1; i++) {
+                                accum += list[i].length + 2;
+                                const r = accum / totalLen;
+                                const diff = Math.abs(r - ratio);
+                                if (diff < minDiff) {
+                                  minDiff = diff;
+                                  bestIdx = i + 1;
+                                }
+                              }
+                              return [list.slice(0, bestIdx), list.slice(bestIdx)];
+                            }
+
+                            // Single paragraph
+                            const p = list[0];
+                            const sentences = p.split(/([।\.\!\?]\s+)/);
+                            if (sentences.length > 2) {
+                              const targetChars = p.length * ratio;
+                              let p1 = '';
+                              let p2 = '';
+                              let cur = '';
+                              for (let i = 0; i < sentences.length; i++) {
+                                cur += sentences[i];
+                                if (!p1 && cur.length >= targetChars) {
+                                  p1 = cur.trim();
+                                  cur = '';
+                                }
+                              }
+                              p2 = cur.trim();
+                              if (p1 && p2) return [[p1], [p2]];
+                            }
+
+                            const words = p.split(/\s+/);
+                            const cutWord = Math.max(1, Math.min(words.length - 1, Math.round(words.length * ratio)));
+                            return [
+                              [words.slice(0, cutWord).join(' ')],
+                              [words.slice(cutWord).join(' ')]
+                            ];
+                          }
+
+                          // 3 columns: balance text according to column photos so bottom baselines match
+                          if (cols >= 3) {
+                            const words = fullText.split(/\s+/).filter(Boolean);
+                            if (words.length <= 6) return [list, [], []];
+
+                            let r1 = 0.33;
+                            let r2 = 0.66;
+                            if (hasCol1Photo && !hasCol2Photo && !hasCol3Photo) {
+                              r1 = 0.16; // Col 1 gets text under photo
+                              r2 = 0.58; // Col 2 gets 42%, Col 3 gets 42%
+                            } else if (hasCol2Photo && !hasCol1Photo && !hasCol3Photo) {
+                              r1 = 0.42;
+                              r2 = 0.58;
+                            } else if (hasCol3Photo && !hasCol1Photo && !hasCol2Photo) {
+                              r1 = 0.42;
+                              r2 = 0.84;
+                            }
+
+                            const targetW1 = Math.round(words.length * r1);
+                            const targetW2 = Math.round(words.length * r2);
+
+                            const findBestBreak = (targetIdx, windowSize = 8) => {
+                              let bestIdx = targetIdx;
+                              let bestScore = Infinity;
+                              const minIdx = Math.max(4, targetIdx - windowSize);
+                              const maxIdx = Math.min(words.length - 4, targetIdx + windowSize);
+                              for (let i = minIdx; i <= maxIdx; i++) {
+                                const dist = Math.abs(i - targetIdx);
+                                const prevW = words[i - 1];
+                                let score = dist;
+                                if (prevW.includes('।') || prevW.endsWith('.')) {
+                                  score -= 10;
+                                } else if (prevW.includes(',') || prevW.includes(';') || prevW.includes('-')) {
+                                  score -= 3;
+                                }
+                                if (score < bestScore) {
+                                  bestScore = score;
+                                  bestIdx = i;
+                                }
+                              }
+                              return bestIdx;
+                            };
+
+                            const w1 = findBestBreak(targetW1, 8);
+                            const w2 = findBestBreak(targetW2, 12);
+                            return [
+                              [words.slice(0, w1).join(' ')],
+                              [words.slice(w1, w2).join(' ')],
+                              [words.slice(w2).join(' ')]
+                            ];
+                          }
+                          return [list];
+                        };
+
+                        const colChunks = splitParagraphsForCols(paragraphs, effectiveCols, splitRatio);
 
                         return (
                           <>
@@ -739,6 +1105,7 @@ export const SectionModalEditor = ({
                               </div>
                             )}
                             <div
+                              id="modal-preview-columns-container"
                               onClick={() => setActiveTarget('body')}
                               className={`my-1 w-full cursor-pointer font-martel leading-relaxed ${colsClass} ${
                                 activeTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : 'hover:outline hover:outline-1 hover:outline-emerald-400'
@@ -754,12 +1121,12 @@ export const SectionModalEditor = ({
                               }}
                               title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                             >
-                              {col1Photo}
-                              {col2Photo}
-                              {col3Photo}
+                              {targetCol1 === 1 && col1Photo}
+                              {targetCol1 === 2 && col2Photo}
+                              {targetCol1 === 3 && col3Photo}
                               {paragraphs.length > 0 ? (
                                 paragraphs.map((p, pIdx) => (
-                                  <p key={pIdx} className="story-paragraph mb-1 text-[#111111]" style={{ textAlign: 'justify', textJustify: 'inter-word', lineHeight: 1.38 }}>
+                                  <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
                                     {pIdx === 0 && localSection.dropCap ? (
                                       <>
                                         <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">

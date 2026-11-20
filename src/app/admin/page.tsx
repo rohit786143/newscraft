@@ -43,6 +43,13 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired' | 'blocked'>('all');
 
+  // Admin Auth State
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean | null>(null);
+  const [adminLoginUsername, setAdminLoginUsername] = useState('admin');
+  const [adminLoginPassword, setAdminLoginPassword] = useState('admin123');
+  const [adminLoginError, setAdminLoginError] = useState('');
+  const [adminLoginSubmitting, setAdminLoginSubmitting] = useState(false);
+
   // Add User Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
@@ -89,9 +96,11 @@ export default function AdminDashboardPage() {
       const meRes = await fetch('/api/auth/me');
       const meData = await meRes.json();
       if (!meData.authenticated || meData.user?.role !== 'admin') {
-        router.push('/login');
+        setIsAdminAuthenticated(false);
+        setLoading(false);
         return;
       }
+      setIsAdminAuthenticated(true);
 
       // 2. Fetch users list
       const usersRes = await fetch('/api/admin/users');
@@ -129,9 +138,45 @@ export default function AdminDashboardPage() {
     fetchDashboardData();
   }, []);
 
+  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminLoginUsername || !adminLoginPassword) {
+      setAdminLoginError('Username and Password are required.');
+      return;
+    }
+    setAdminLoginSubmitting(true);
+    setAdminLoginError('');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usernameOrEmail: adminLoginUsername.trim(),
+          password: adminLoginPassword.trim(),
+          deviceId: 'ADMIN-CONTROL-CENTER',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAdminLoginError(data.error || 'Invalid Admin Credentials');
+        return;
+      }
+      if (data.user?.role !== 'admin') {
+        setAdminLoginError('This account does not have Admin access privileges.');
+        return;
+      }
+      setIsAdminAuthenticated(true);
+      fetchDashboardData();
+    } catch (err: any) {
+      setAdminLoginError(err.message || 'Login failed.');
+    } finally {
+      setAdminLoginSubmitting(false);
+    }
+  };
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    setIsAdminAuthenticated(false);
   };
 
   // Add User Submission
@@ -407,6 +452,106 @@ export default function AdminDashboardPage() {
     if (filterStatus === 'blocked') return u.status === 'blocked';
     return true;
   });
+  if (loading && isAdminAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4 font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-medium text-slate-400">Verifying Admin Access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdminAuthenticated === false) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 font-sans antialiased">
+        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 backdrop-blur-xl p-8 rounded-3xl shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-500 mx-auto flex items-center justify-center text-white font-serif text-3xl font-black shadow-lg shadow-red-500/30">
+              P
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white font-serif">
+              PressCraft <span className="text-red-500">Admin Portal</span>
+            </h1>
+            <p className="text-xs text-slate-400 font-medium">
+              Super Admin Control Panel Authentication
+            </p>
+          </div>
+
+          {adminLoginError && (
+            <div className="p-3 bg-red-950/70 border border-red-800/80 rounded-xl text-red-300 text-xs font-semibold flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{adminLoginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Admin Username or Email
+              </label>
+              <input
+                type="text"
+                value={adminLoginUsername}
+                onChange={(e) => setAdminLoginUsername(e.target.value)}
+                placeholder="admin"
+                className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Admin Password
+              </label>
+              <input
+                type="password"
+                value={adminLoginPassword}
+                onChange={(e) => setAdminLoginPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition"
+                required
+              />
+            </div>
+
+            <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl text-xs text-slate-400 flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-slate-300">Default Admin:</span> <code className="text-red-400 font-mono">admin</code> / <code className="text-red-400 font-mono">admin123</code>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminLoginUsername('admin');
+                  setAdminLoginPassword('admin123');
+                }}
+                className="text-[11px] font-semibold text-red-400 hover:text-red-300 underline cursor-pointer"
+              >
+                Auto-fill
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={adminLoginSubmitting}
+              className="w-full py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-red-600/30 transition duration-200 cursor-pointer disabled:opacity-50"
+            >
+              {adminLoginSubmitting ? 'Authenticating Admin...' : 'Log In to Admin Dashboard →'}
+            </button>
+          </form>
+
+          <div className="pt-2 text-center border-t border-slate-800">
+            <button
+              onClick={() => router.push('/')}
+              className="text-xs font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            >
+              ← Back to Main PressCraft Studio App
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col antialiased">

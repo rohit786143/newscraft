@@ -35,21 +35,38 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await ensureTableExists();
+    let rawData: any = null;
+    let updatedAt: string = new Date().toISOString();
 
-    const [rows]: any = await pool.execute(
-      'SELECT design_data, updated_at FROM user_designs WHERE user_id = ? LIMIT 1',
-      [String(userId)]
-    );
+    try {
+      await ensureTableExists();
 
-    if (!rows || rows.length === 0) {
+      const [rows]: any = await pool.execute(
+        'SELECT design_data, updated_at FROM user_designs WHERE user_id = ? LIMIT 1',
+        [String(userId)]
+      );
+
+      if (rows && rows.length > 0) {
+        rawData = rows[0].design_data;
+        updatedAt = rows[0].updated_at;
+      }
+    } catch (dbErr) {
+      console.warn('MySQL unavailable, loading design from JSON fallback:', dbErr);
+      const { getUserDesignJson } = await import('@/lib/db');
+      const fallback = getUserDesignJson(String(userId));
+      if (fallback) {
+        rawData = fallback.design_data;
+        updatedAt = fallback.updated_at;
+      }
+    }
+
+    if (!rawData) {
       return NextResponse.json(
         { success: true, designData: null },
         { headers: noCacheHeaders }
       );
     }
 
-    const rawData = rows[0].design_data;
     let parsedData = null;
     try {
       parsedData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
@@ -61,20 +78,18 @@ export async function GET(req: NextRequest) {
       {
         success: true,
         designData: parsedData,
-        updatedAt: rows[0].updated_at
+        updatedAt: updatedAt
       },
       {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        },
+        headers: noCacheHeaders,
       }
     );
   } catch (error: any) {
-    console.error('Error loading design from MySQL:', error);
+    console.error('Error loading design:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to load design from database',
+        error: error.message || 'Failed to load design',
         designData: null
       },
       { status: 500, headers: noCacheHeaders }

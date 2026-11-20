@@ -93,19 +93,25 @@ export async function POST(req: NextRequest) {
       pagesCount = pages.length;
     }
 
-    await ensureTableExists();
+    try {
+      await ensureTableExists();
 
-    const serializedData = typeof designData === 'string' ? designData : JSON.stringify(designData);
+      const serializedData = typeof designData === 'string' ? designData : JSON.stringify(designData);
 
-    const query = `
-      INSERT INTO user_designs (user_id, design_data)
-      VALUES (?, ?)
-      ON DUPLICATE KEY UPDATE
-        design_data = VALUES(design_data),
-        updated_at = CURRENT_TIMESTAMP
-    `;
+      const query = `
+        INSERT INTO user_designs (user_id, design_data)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE
+          design_data = VALUES(design_data),
+          updated_at = CURRENT_TIMESTAMP
+      `;
 
-    await pool.execute(query, [String(userId), serializedData]);
+      await pool.execute(query, [String(userId), serializedData]);
+    } catch (dbErr) {
+      console.warn('MySQL unavailable, saving design to JSON storage fallback:', dbErr);
+      const { saveUserDesignJson } = await import('@/lib/db');
+      saveUserDesignJson(String(userId), designData);
+    }
 
     return NextResponse.json({
       success: true,
@@ -114,11 +120,11 @@ export async function POST(req: NextRequest) {
       articlesCount: totalArticles
     });
   } catch (error: any) {
-    console.error('Error saving design to MySQL:', error);
+    console.error('Error saving design:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to save design to database'
+        error: error.message || 'Failed to save design'
       },
       { status: 500 }
     );
