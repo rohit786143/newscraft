@@ -6115,17 +6115,38 @@
       const col2PhotoHTML = (targetCol1 === 2 && effectiveCols >= 2) ? (col2Photo ? renderBroadsheetColumnPhotoBlock(col2Photo, isModal, modalActiveTarget, colW, true) : (isModal ? renderBroadsheetColumnPhotoPlaceholder(2, isModal, modalActiveTarget, true) : '')) : '';
       const col3PhotoHTML = (targetCol1 === 3 && effectiveCols >= 3) ? (col3Photo ? renderBroadsheetColumnPhotoBlock(col3Photo, isModal, modalActiveTarget, colW, true) : (isModal ? renderBroadsheetColumnPhotoPlaceholder(3, isModal, modalActiveTarget, true) : '')) : '';
 
+      let bodyInnerHTML = '';
+      if (targetCol1 === 2 && effectiveCols >= 2) {
+        const colContent = splitBroadsheetContentForColumns(sec, effectiveCols, 0, col2PhotoH, 0, colW, isModal);
+        bodyInnerHTML = `
+          ${colContent.col1}
+          ${col2PhotoHTML}
+          ${colContent.col2}
+          ${colContent.col3}
+        `;
+      } else if (targetCol1 === 3 && effectiveCols >= 3) {
+        const colContent = splitBroadsheetContentForColumns(sec, effectiveCols, 0, 0, col3PhotoH, colW, isModal);
+        bodyInnerHTML = `
+          ${colContent.col1}
+          ${colContent.col2}
+          ${col3PhotoHTML}
+          ${colContent.col3}
+        `;
+      } else {
+        bodyInnerHTML = `
+          ${col1PhotoHTML}
+          ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+        `;
+      }
+
       return `
         ${bulletsHTML}
         <div id="${isModal ? 'modal-preview-columns-container' : `news-columns-${sec.id}`}"
              class="font-martel leading-relaxed my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10 rounded' : ''}"
              style="font-family: ${sec.bodyFont || "'Martel', serif"}; font-size: ${sec.bodySize || '11px'}; color: ${sec.bodyColor || '#111'}; text-align: ${sec.bodyAlign || 'justify'}; text-justify: inter-word; line-height: 1.38;"
              ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
-          ${col1PhotoHTML}
-          ${col2PhotoHTML}
-          ${col3PhotoHTML}
           <div id="${isModal ? 'modal-preview-paragraphs' : ''}" style="display: contents;">
-            ${renderParagraphsHTML(sec, sec.dropCap !== false) || '<p class="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>'}
+            ${bodyInnerHTML}
           </div>
         </div>
       `;

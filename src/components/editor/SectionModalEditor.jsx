@@ -831,9 +831,9 @@ export const SectionModalEditor = ({
                         const hasCol2Photo = !!localSection.image2 || (targetCol1 === 2 && !!localSection.image);
                         const img2Src = localSection.image2 || (targetCol1 === 2 ? localSection.image : '');
                         const cap2Text = localSection.image2 ? (localSection.caption2 || '') : (targetCol1 === 2 ? (localSection.caption || '') : '');
-                        const defaultH2 = cap2Text ? 114 : 114;
+                        const defaultH2 = 110;
                         const h2Raw = localSection.image2 ? (localSection.image2Height || defaultH2) : (targetCol1 === 2 ? (localSection.imageHeight || defaultH2) : defaultH2);
-                        const h2Val = Math.min(Math.max(h2Raw, 70), 300);
+                        const h2Val = Math.min(Math.max(h2Raw ? Math.min(h2Raw, 125) : defaultH2, 65), 130);
                         const fit2Val = localSection.image2 ? (localSection.image2Fit || 'cover') : (targetCol1 === 2 ? (localSection.imageFit || 'cover') : 'cover');
 
                         const col2Photo = (effectiveCols >= 2 && (hasCol2Photo || targetCol1 === 2)) ? (
@@ -850,9 +850,7 @@ export const SectionModalEditor = ({
                                 width: '100%',
                                 boxSizing: 'border-box',
                                 breakBefore: 'column',
-                                WebkitColumnBreakBefore: 'always',
                                 breakInside: 'avoid',
-                                WebkitColumnBreakInside: 'avoid',
                                 marginBottom: cap2Text ? '2px' : '4px'
                               }}
                               title="क्लिक करके फोटो 2 एडिट करें"
@@ -862,7 +860,7 @@ export const SectionModalEditor = ({
                                 alt="Photo 2"
                                 data-base-height={h2Val}
                                 className="w-full object-cover border border-black p-0.5 block"
-                                style={{ width: '100%', height: `${h2Val}px`, maxHeight: `${h2Val}px`, objectFit: fit2Val || 'cover', display: 'block' }}
+                                style={{ width: '100%', aspectRatio: '16 / 10', height: `${h2Val}px`, maxHeight: `${h2Val}px`, objectFit: fit2Val || 'cover', display: 'block' }}
                               />
                               {cap2Text && (
                                 <div
@@ -900,9 +898,9 @@ export const SectionModalEditor = ({
                         const hasCol3Photo = !!localSection.image3 || (targetCol1 === 3 && !!localSection.image);
                         const img3Src = localSection.image3 || (targetCol1 === 3 ? localSection.image : '');
                         const cap3Text = localSection.image3 ? (localSection.caption3 || '') : (targetCol1 === 3 ? (localSection.caption || '') : '');
-                        const defaultH3 = cap3Text ? 114 : 114;
+                        const defaultH3 = 110;
                         const h3Raw = localSection.image3 ? (localSection.image3Height || defaultH3) : (targetCol1 === 3 ? (localSection.imageHeight || defaultH3) : defaultH3);
-                        const h3Val = Math.min(Math.max(h3Raw, 70), 300);
+                        const h3Val = Math.min(Math.max(h3Raw ? Math.min(h3Raw, 125) : defaultH3, 65), 130);
                         const fit3Val = localSection.image3 ? (localSection.image3Fit || 'cover') : (targetCol1 === 3 ? (localSection.imageFit || 'cover') : 'cover');
 
                         const col3Photo = (effectiveCols >= 3 && (hasCol3Photo || targetCol1 === 3)) ? (
@@ -919,9 +917,7 @@ export const SectionModalEditor = ({
                                 width: '100%',
                                 boxSizing: 'border-box',
                                 breakBefore: 'column',
-                                WebkitColumnBreakBefore: 'always',
                                 breakInside: 'avoid',
-                                WebkitColumnBreakInside: 'avoid',
                                 marginBottom: cap3Text ? '2px' : '4px'
                               }}
                               title="क्लिक करके फोटो 3 एडिट करें"
@@ -931,7 +927,7 @@ export const SectionModalEditor = ({
                                 alt="Photo 3"
                                 data-base-height={h3Val}
                                 className="w-full object-cover border border-black p-0.5 block"
-                                style={{ width: '100%', height: `${h3Val}px`, maxHeight: `${h3Val}px`, objectFit: fit3Val || 'cover', display: 'block' }}
+                                style={{ width: '100%', aspectRatio: '16 / 10', height: `${h3Val}px`, maxHeight: `${h3Val}px`, objectFit: fit3Val || 'cover', display: 'block' }}
                               />
                               {cap3Text && (
                                 <div
@@ -1121,26 +1117,78 @@ export const SectionModalEditor = ({
                               }}
                               title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"
                             >
-                              {targetCol1 === 1 && col1Photo}
-                              {targetCol1 === 2 && col2Photo}
-                              {targetCol1 === 3 && col3Photo}
-                              {paragraphs.length > 0 ? (
-                                paragraphs.map((p, pIdx) => (
-                                  <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
-                                    {pIdx === 0 && localSection.dropCap ? (
-                                      <>
-                                        <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                          {p.charAt(0)}
-                                        </span>
-                                        {p.slice(1)}
-                                      </>
-                                    ) : (
-                                      p
-                                    )}
-                                  </p>
-                                ))
-                              ) : (
-                                <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                              {targetCol1 === 1 && (
+                                <>
+                                  {col1Photo}
+                                  {paragraphs.length > 0 ? (
+                                    paragraphs.map((p, pIdx) => (
+                                      <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
+                                        {pIdx === 0 && localSection.dropCap ? (
+                                          <>
+                                            <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                              {p.charAt(0)}
+                                            </span>
+                                            {p.slice(1)}
+                                          </>
+                                        ) : (
+                                          p
+                                        )}
+                                      </p>
+                                    ))
+                                  ) : (
+                                    <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
+                                  )}
+                                </>
+                              )}
+
+                              {targetCol1 === 2 && (
+                                <>
+                                  {(colChunks[0] || []).map((p, pIdx) => (
+                                    <p key={`c1-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
+                                      {pIdx === 0 && localSection.dropCap ? (
+                                        <>
+                                          <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                            {p.charAt(0)}
+                                          </span>
+                                          {p.slice(1)}
+                                        </>
+                                      ) : (
+                                        p
+                                      )}
+                                    </p>
+                                  ))}
+                                  {col2Photo}
+                                  {[...(colChunks[1] || []), ...(colChunks[2] || [])].map((p, pIdx) => (
+                                    <p key={`c23-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
+                                      {p}
+                                    </p>
+                                  ))}
+                                </>
+                              )}
+
+                              {targetCol1 === 3 && (
+                                <>
+                                  {[...(colChunks[0] || []), ...(colChunks[1] || [])].map((p, pIdx) => (
+                                    <p key={`c12-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
+                                      {pIdx === 0 && localSection.dropCap ? (
+                                        <>
+                                          <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                            {p.charAt(0)}
+                                          </span>
+                                          {p.slice(1)}
+                                        </>
+                                      ) : (
+                                        p
+                                      )}
+                                    </p>
+                                  ))}
+                                  {col3Photo}
+                                  {(colChunks[2] || []).map((p, pIdx) => (
+                                    <p key={`c3-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
+                                      {p}
+                                    </p>
+                                  ))}
+                                </>
                               )}
                             </div>
                           </>
@@ -2574,7 +2622,6 @@ export const SectionModalEditor = ({
                               key={cNum}
                               type="button"
                               onClick={() => {
-                                updateField('imageCol', cNum);
                                 updateField('layout', `col${cNum}-top`);
                               }}
                               className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
