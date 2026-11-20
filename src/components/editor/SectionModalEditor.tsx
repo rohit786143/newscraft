@@ -901,6 +901,12 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               className={`col-top-photo-block cursor-pointer transition rounded mb-1.5 p-2 border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 ${
                                 activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                               }`}
+                              style={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                breakBefore: 'column',
+                                breakInside: 'avoid'
+                              }}
                               title="क्लिक करके कॉलम 2 फोटो जोड़ें"
                             >
                               <span className="text-[10px] font-bold">➕ कॉलम 2 फोटो</span>
@@ -968,6 +974,12 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               className={`col-top-photo-block cursor-pointer transition rounded mb-1.5 p-2 border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 ${
                                 activeTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'
                               }`}
+                              style={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                breakBefore: 'column',
+                                breakInside: 'avoid'
+                              }}
                               title="क्लिक करके कॉलम 3 फोटो जोड़ें"
                             >
                               <span className="text-[10px] font-bold">➕ कॉलम 3 फोटो</span>
@@ -975,121 +987,133 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                           )
                         ) : null;
 
-                        // Balance text across columns based on which column has photos
-                        let splitRatio = 0.5;
-                        if (effectiveCols === 2) {
-                          if (targetCol1 === 2 || hasCol2Photo) {
-                            splitRatio = 0.58; // Column 1 gets more text because Column 2 has photo
-                          } else if (targetCol1 === 1 || hasCol1Photo) {
-                            splitRatio = 0.42; // Column 1 gets less text because Column 1 has photo
+                        // Exact broadsheet column width
+                        const gutter = 14;
+                        const colW = Math.max(120, Math.floor((previewSlotWidthPx - (effectiveCols - 1) * gutter) / effectiveCols));
+
+                        // Build structured word list preserving original paragraph breaks
+                        interface StoryWord {
+                          text: string;
+                          isParaEnd: boolean;
+                        }
+                        const rawParas = (localSection.content || '').split(/\n+/).map((p: string) => p.trim()).filter(Boolean);
+                        const allStoryWords: StoryWord[] = [];
+                        rawParas.forEach((para: string, pIdx: number) => {
+                          const wList = para.split(/\s+/).filter(Boolean);
+                          wList.forEach((w: string, wIdx: number) => {
+                            allStoryWords.push({
+                              text: w,
+                              isParaEnd: (wIdx === wList.length - 1 && pIdx < rawParas.length - 1)
+                            });
+                          });
+                        });
+
+                        // Measure line end word indices using DOM sandbox
+                        let lineEnds: number[] = [];
+                        if (typeof document !== 'undefined' && allStoryWords.length > 0) {
+                          let sandbox = document.getElementById('broadsheetColSandbox');
+                          if (!sandbox) {
+                            sandbox = document.createElement('div');
+                            sandbox.id = 'broadsheetColSandbox';
+                            sandbox.style.cssText = 'position: fixed; left: -99999px; top: -99999px; visibility: hidden; pointer-events: none; z-index: -999;';
+                            document.body.appendChild(sandbox);
+                          }
+                          sandbox.style.width = `${colW}px`;
+                          sandbox.innerHTML = `<div style="width: ${colW}px; font-family: ${localSection.bodyFont || "'Martel', serif"}; font-size: ${localSection.bodySize || '11px'}; line-height: 1.38; text-align: justify; text-justify: inter-word; box-sizing: border-box;">${allStoryWords.map((w, idx) => `<span data-idx="${idx}">${w.text}</span>`).join(' ')}</div>`;
+                          const spans = sandbox.querySelectorAll('span[data-idx]');
+                          if (spans.length > 0) {
+                            let lastTop = (spans[0] as HTMLElement).offsetTop;
+                            for (let i = 1; i < spans.length; i++) {
+                              const top = (spans[i] as HTMLElement).offsetTop;
+                              if (top > lastTop + 4) {
+                                lineEnds.push(i);
+                                lastTop = top;
+                              }
+                            }
+                            lineEnds.push(allStoryWords.length);
                           }
                         }
 
-                        const splitParagraphsForCols = (list: string[], cols: number, ratio: number) => {
-                          if (cols <= 1) return [list];
-                          if (!list || list.length === 0) return Array.from({ length: cols }, () => []);
-
-                          const fullText = list.join('\n\n');
-                          if (cols === 2) {
-                            if (list.length >= 2) {
-                              const totalLen = fullText.length;
-                              let accum = 0;
-                              let bestIdx = 1;
-                              let minDiff = Infinity;
-                              for (let i = 0; i < list.length - 1; i++) {
-                                accum += list[i].length + 2;
-                                const r = accum / totalLen;
-                                const diff = Math.abs(r - ratio);
-                                if (diff < minDiff) {
-                                  minDiff = diff;
-                                  bestIdx = i + 1;
-                                }
-                              }
-                              return [list.slice(0, bestIdx), list.slice(bestIdx)];
-                            }
-
-                            // Single paragraph
-                            const p = list[0];
-                            const sentences = p.split(/([।\.\!\?]\s+)/);
-                            if (sentences.length > 2) {
-                              const targetChars = p.length * ratio;
-                              let p1 = '';
-                              let p2 = '';
-                              let cur = '';
-                              for (let i = 0; i < sentences.length; i++) {
-                                cur += sentences[i];
-                                if (!p1 && cur.length >= targetChars) {
-                                  p1 = cur.trim();
-                                  cur = '';
-                                }
-                              }
-                              p2 = cur.trim();
-                              if (p1 && p2) return [[p1], [p2]];
-                            }
-
-                            const words = p.split(/\s+/);
-                            const cutWord = Math.max(1, Math.min(words.length - 1, Math.round(words.length * ratio)));
-                            return [
-                              [words.slice(0, cutWord).join(' ')],
-                              [words.slice(cutWord).join(' ')]
-                            ];
+                        // Fallback line estimation if sandbox not yet rendered
+                        if (lineEnds.length === 0 && allStoryWords.length > 0) {
+                          const approxWordsPerLine = Math.max(4, Math.round(colW / 24));
+                          const estLines = Math.ceil(allStoryWords.length / approxWordsPerLine);
+                          for (let l = 1; l <= estLines; l++) {
+                            lineEnds.push(Math.min(allStoryWords.length, l * approxWordsPerLine));
                           }
+                        }
 
-                          // 3 columns: balance text according to column photos so bottom baselines match
-                          if (cols >= 3) {
-                            const words = fullText.split(/\s+/).filter(Boolean);
-                            if (words.length <= 6) return [list, [], []];
+                        const totalLines = Math.max(1, lineEnds.length);
+                        const approxLineH = Math.max(12, Math.round(parseFloat(localSection.bodySize || '11') * 1.38));
+                        const p1Lines = (hasCol1Photo || (targetCol1 === 1 && !!localSection.image)) ? Math.round((h1Val + (localSection.caption ? 18 : 6)) / approxLineH) : 0;
+                        const p2Lines = (hasCol2Photo || (targetCol1 === 2 && !!localSection.image)) ? Math.round((h2Val + ((targetCol1 === 2 ? localSection.caption : localSection.caption2) ? 18 : 6)) / approxLineH) : 0;
+                        const p3Lines = (hasCol3Photo || (targetCol1 === 3 && !!localSection.image)) ? Math.round((h3Val + ((targetCol1 === 3 ? localSection.caption : localSection.caption3) ? 18 : 6)) / approxLineH) : 0;
 
-                            let r1 = 0.33;
-                            let r2 = 0.66;
-                            if (hasCol1Photo && !hasCol2Photo && !hasCol3Photo) {
-                              r1 = 0.16; // Col 1 gets text under photo
-                              r2 = 0.58; // Col 2 gets 42%, Col 3 gets 42%
-                            } else if (hasCol2Photo && !hasCol1Photo && !hasCol3Photo) {
-                              r1 = 0.42;
-                              r2 = 0.58;
-                            } else if (hasCol3Photo && !hasCol1Photo && !hasCol2Photo) {
-                              r1 = 0.42;
-                              r2 = 0.84;
-                            }
+                        // Calculate split indices
+                        let split1 = allStoryWords.length;
+                        let split2 = allStoryWords.length;
 
-                            const targetW1 = Math.round(words.length * r1);
-                            const targetW2 = Math.round(words.length * r2);
-
-                            const findBestBreak = (targetIdx: number, windowSize: number = 8) => {
-                              let bestIdx = targetIdx;
-                              let bestScore = Infinity;
-                              const minIdx = Math.max(4, targetIdx - windowSize);
-                              const maxIdx = Math.min(words.length - 4, targetIdx + windowSize);
-                              for (let i = minIdx; i <= maxIdx; i++) {
-                                const dist = Math.abs(i - targetIdx);
-                                const prevW = words[i - 1];
-                                let score = dist;
-                                if (prevW.includes('।') || prevW.endsWith('.')) {
-                                  score -= 10;
-                                } else if (prevW.includes(',') || prevW.includes(';') || prevW.includes('-')) {
-                                  score -= 3;
-                                }
-                                if (score < bestScore) {
-                                  bestScore = score;
-                                  bestIdx = i;
-                                }
-                              }
-                              return bestIdx;
-                            };
-
-                            const w1 = findBestBreak(targetW1, 8);
-                            const w2 = findBestBreak(targetW2, 12);
-                            return [
-                              [words.slice(0, w1).join(' ')],
-                              [words.slice(w1, w2).join(' ')],
-                              [words.slice(w2).join(' ')]
-                            ];
+                        if (effectiveCols === 2) {
+                          const totalVirtual = totalLines + p1Lines + p2Lines;
+                          const targetH = Math.round(totalVirtual / 2);
+                          const targetL1 = Math.max(2, targetH - p1Lines);
+                          split1 = lineEnds[Math.min(targetL1 - 1, lineEnds.length - 1)] || allStoryWords.length;
+                        } else if (effectiveCols >= 3) {
+                          const totalVirtual = totalLines + p1Lines + p2Lines + p3Lines;
+                          const targetH = Math.round(totalVirtual / 3);
+                          let l1 = Math.max(2, targetH - p1Lines);
+                          let l2 = Math.max(2, targetH - p2Lines);
+                          let l3 = totalLines - l1 - l2;
+                          if (l3 < 2) {
+                            if (l2 > l1) l2 -= (2 - l3);
+                            else l1 -= (2 - l3);
+                            l3 = 2;
                           }
-                          return [list];
+                          split1 = lineEnds[Math.min(l1 - 1, lineEnds.length - 1)] || Math.round(allStoryWords.length / 3);
+                          split2 = lineEnds[Math.min(l1 + l2 - 1, lineEnds.length - 1)] || Math.round((allStoryWords.length * 2) / 3);
+                        }
+
+                        // Helper to render slice into paragraph blocks with drop cap and inter-column justification
+                        const renderStorySlice = (wordsSlice: StoryWord[], isFirstCol: boolean, isLastCol: boolean, keyPrefix: string) => {
+                          if (!wordsSlice || wordsSlice.length === 0) return null;
+                          const elements: JSX.Element[] = [];
+                          let curWords: string[] = [];
+
+                          for (let i = 0; i < wordsSlice.length; i++) {
+                            curWords.push(wordsSlice[i].text);
+                            const isAtSliceEnd = (i === wordsSlice.length - 1);
+                            if (wordsSlice[i].isParaEnd || isAtSliceEnd) {
+                              const pText = curWords.join(' ');
+                              const isContinuingInterCol = (!isLastCol && isAtSliceEnd);
+                              const isFirstParagraph = elements.length === 0 && isFirstCol;
+
+                              elements.push(
+                                <p
+                                  key={`${keyPrefix}-${elements.length}`}
+                                  className="story-paragraph text-[#111111]"
+                                  style={{
+                                    textAlignLast: isContinuingInterCol ? 'justify' : (isLastCol && isAtSliceEnd ? 'left' : ((localSection.bodyAlign as any) || 'justify')),
+                                    marginBottom: isContinuingInterCol ? 0 : 4,
+                                    lineHeight: 1.38
+                                  }}
+                                >
+                                  {isFirstParagraph && localSection.dropCap ? (
+                                    <>
+                                      <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
+                                        {pText.charAt(0)}
+                                      </span>
+                                      {pText.slice(1)}
+                                    </>
+                                  ) : (
+                                    pText
+                                  )}
+                                </p>
+                              );
+                              curWords = [];
+                            }
+                          }
+                          return elements;
                         };
-
-                        const colChunks = splitParagraphsForCols(paragraphs, effectiveCols, splitRatio);
 
                         return (
                           <>
@@ -1133,21 +1157,8 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
                               {targetCol1 === 1 && (
                                 <>
                                   {col1Photo}
-                                  {paragraphs.length > 0 ? (
-                                    paragraphs.map((p, pIdx) => (
-                                      <p key={pIdx} className="story-paragraph mb-1 text-[#111111]">
-                                        {pIdx === 0 && localSection.dropCap ? (
-                                          <>
-                                            <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                              {p.charAt(0)}
-                                            </span>
-                                            {p.slice(1)}
-                                          </>
-                                        ) : (
-                                          p
-                                        )}
-                                      </p>
-                                    ))
+                                  {allStoryWords.length > 0 ? (
+                                    renderStorySlice(allStoryWords, true, true, 'c1-full')
                                   ) : (
                                     <p className="text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>
                                   )}
@@ -1156,51 +1167,17 @@ export const SectionModalEditor: React.FC<SectionModalEditorProps> = ({
 
                               {targetCol1 === 2 && (
                                 <>
-                                  {(colChunks[0] || []).map((p, pIdx) => (
-                                    <p key={`c1-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
-                                      {pIdx === 0 && localSection.dropCap ? (
-                                        <>
-                                          <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                            {p.charAt(0)}
-                                          </span>
-                                          {p.slice(1)}
-                                        </>
-                                      ) : (
-                                        p
-                                      )}
-                                    </p>
-                                  ))}
+                                  {renderStorySlice(allStoryWords.slice(0, split1), true, false, 'c1')}
                                   {col2Photo}
-                                  {[...(colChunks[1] || []), ...(colChunks[2] || [])].map((p, pIdx) => (
-                                    <p key={`c23-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
-                                      {p}
-                                    </p>
-                                  ))}
+                                  {renderStorySlice(allStoryWords.slice(split1), false, true, 'c23')}
                                 </>
                               )}
 
                               {targetCol1 === 3 && (
                                 <>
-                                  {[...(colChunks[0] || []), ...(colChunks[1] || [])].map((p, pIdx) => (
-                                    <p key={`c12-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
-                                      {pIdx === 0 && localSection.dropCap ? (
-                                        <>
-                                          <span className="float-left text-3xl font-bold font-serif leading-none pr-1.5 text-slate-900">
-                                            {p.charAt(0)}
-                                          </span>
-                                          {p.slice(1)}
-                                        </>
-                                      ) : (
-                                        p
-                                      )}
-                                    </p>
-                                  ))}
+                                  {renderStorySlice(allStoryWords.slice(0, split2), true, false, 'c12')}
                                   {col3Photo}
-                                  {(colChunks[2] || []).map((p, pIdx) => (
-                                    <p key={`c3-${pIdx}`} className="story-paragraph mb-1 text-[#111111]">
-                                      {p}
-                                    </p>
-                                  ))}
+                                  {renderStorySlice(allStoryWords.slice(split2), false, true, 'c3')}
                                 </>
                               )}
                             </div>

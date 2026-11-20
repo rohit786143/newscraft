@@ -5807,7 +5807,7 @@
           const isAtSliceEnd = (i === wordsSlice.length - 1);
           if (wordsSlice[i].isParaEnd || isAtSliceEnd) {
             const pText = curParaWords.join(' ');
-            const isContinuingInterCol = (!isLastCol && isAtSliceEnd && !wordsSlice[i].isParaEnd);
+            const isContinuingInterCol = (!isLastCol && isAtSliceEnd);
             const pStyle = isContinuingInterCol
               ? `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: justify; line-height: 1.38; margin-bottom: 0px;`
               : styleStr;
@@ -5879,7 +5879,9 @@
           return {
             col1: formatColHTML(allWords, true, true),
             col2: '',
-            col3: ''
+            col3: '',
+            col12: formatColHTML(allWords, true, true),
+            col23: ''
           };
         }
 
@@ -5891,7 +5893,9 @@
         return {
           col1: formatColHTML(allWords.slice(0, split1), true, false),
           col2: formatColHTML(allWords.slice(split1), false, true),
-          col3: ''
+          col3: '',
+          col12: formatColHTML(allWords.slice(0, split1), true, false),
+          col23: formatColHTML(allWords.slice(split1), false, true)
         };
       }
 
@@ -5900,7 +5904,9 @@
           return {
             col1: formatColHTML(allWords, true, true),
             col2: '',
-            col3: ''
+            col3: '',
+            col12: formatColHTML(allWords, true, true),
+            col23: ''
           };
         }
 
@@ -5922,14 +5928,18 @@
         return {
           col1: formatColHTML(allWords.slice(0, split1), true, false),
           col2: formatColHTML(allWords.slice(split1, split2), false, false),
-          col3: formatColHTML(allWords.slice(split2), false, true)
+          col3: formatColHTML(allWords.slice(split2), false, true),
+          col12: formatColHTML(allWords.slice(0, split2), true, false),
+          col23: formatColHTML(allWords.slice(split1), false, true)
         };
       }
 
       return {
         col1: formatColHTML(allWords, true, true),
         col2: '',
-        col3: ''
+        col3: '',
+        col12: formatColHTML(allWords, true, true),
+        col23: ''
       };
     }
 
@@ -6121,14 +6131,12 @@
         bodyInnerHTML = `
           ${colContent.col1}
           ${col2PhotoHTML}
-          ${colContent.col2}
-          ${colContent.col3}
+          ${colContent.col23 || (colContent.col2 + colContent.col3)}
         `;
       } else if (targetCol1 === 3 && effectiveCols >= 3) {
         const colContent = splitBroadsheetContentForColumns(sec, effectiveCols, 0, 0, col3PhotoH, colW, isModal);
         bodyInnerHTML = `
-          ${colContent.col1}
-          ${colContent.col2}
+          ${colContent.col12 || (colContent.col1 + colContent.col2)}
           ${col3PhotoHTML}
           ${colContent.col3}
         `;
