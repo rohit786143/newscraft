@@ -1,7 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
+
+function findSystemChromeExecutable(): string | undefined {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  const candidates = [
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/snap/bin/chromium',
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch { }
+  }
+  return undefined;
+}
 
 export async function POST(req: NextRequest) {
   let browser = null;
@@ -19,17 +39,24 @@ export async function POST(req: NextRequest) {
     const widthPx = pageSize.widthPx || Math.round((pageSize.widthInches || 11) * 96);
     const heightPx = pageSize.heightPx || Math.round((pageSize.heightInches || 17) * 96);
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--font-render-hinting=max',
-        '--enable-font-antialiasing'
-      ]
-    });
+    const baseArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--font-render-hinting=max',
+      '--enable-font-antialiasing'
+    ];
+    try {
+      browser = await puppeteer.launch({ headless: true, args: baseArgs });
+    } catch {
+      const sysExec = findSystemChromeExecutable();
+      browser = await puppeteer.launch({
+        headless: true,
+        executablePath: sysExec,
+        args: [...baseArgs, '--no-zygote', '--single-process']
+      });
+    }
 
     const page = await browser.newPage();
 
