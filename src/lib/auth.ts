@@ -23,7 +23,7 @@ const SEED_USERS: User[] = [
     id: "usr-admin",
     name: "Super Admin",
     username: "admin",
-    email: "admin@presscraft.com",
+    email: "rohitsagarksg@gmail.com",
     password: "admin123",
     role: "admin",
     newspaperName: "PressCraft Network",
@@ -160,7 +160,10 @@ export function findUserByCredentials(usernameOrEmail: string): User | null {
   const users = getAllUsers();
   const lower = usernameOrEmail.trim().toLowerCase();
   return users.find(
-    (u) => u.username.toLowerCase() === lower || u.email.toLowerCase() === lower
+    (u) =>
+      u.username.toLowerCase() === lower ||
+      u.email.toLowerCase() === lower ||
+      (u.id === 'usr-admin' && (lower === 'admin' || lower === 'rohitsagarksg@gmail.com' || lower === 'admin@presscraft.com'))
   ) || null;
 }
 
