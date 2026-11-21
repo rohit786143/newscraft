@@ -8286,7 +8286,6 @@
                 <input type="color" value="${sec.bulletColor || '#dc2626'}" onchange="updateModalSectionField('bulletColor', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0">
                 <button type="button" onclick="updateModalSectionField('bulletColor', '#dc2626')" class="w-5 h-5 rounded-full bg-red-600 border border-slate-600"></button>
                 <button type="button" onclick="updateModalSectionField('bulletColor', '#0369a1')" class="w-5 h-5 rounded-full bg-sky-600 border border-slate-600"></button>
-                <button type="button" onclick="updateModalSectionField('bulletColor', '#15803d')" class="w-5 h-5 rounded-full bg-emerald-600 border border-slate-600"></button>
                 <button type="button" onclick="updateModalSectionField('bulletColor', '#111111')" class="w-5 h-5 rounded-full bg-black border border-slate-600"></button>
               </div>
             </div>
@@ -10734,7 +10733,10 @@
     // USER AUTH & SUBSCRIPTION UI SYNC
     async function checkUserSessionAndSyncUI() {
       try {
-        const res = await fetch('/api/auth/me', {
+        let localDevId = '';
+        try { localDevId = localStorage.getItem('presscraft_device_id') || ''; } catch (e) { }
+        const meUrl = localDevId ? `/api/auth/me?deviceId=${encodeURIComponent(localDevId)}` : '/api/auth/me';
+        const res = await fetch(meUrl, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -10776,6 +10778,11 @@
           await loadDesignFromCloud();
         } else {
           hasCloudSyncCompleted = true;
+          if (data && (data.code === 'DEVICE_NOT_REGISTERED' || data.code === 'BLOCKED' || data.code === 'EXPIRED')) {
+            if (window.top && window.top !== window) {
+              window.top.location.href = '/';
+            }
+          }
         }
       } catch (e) {
         console.warn('Session check warning:', e);

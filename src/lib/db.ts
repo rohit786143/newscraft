@@ -53,7 +53,18 @@ function readJsonDevices(): UserDevice[] {
   try {
     const p = getDevicesJsonPath();
     if (fs.existsSync(p)) {
-      return JSON.parse(fs.readFileSync(p, 'utf-8'));
+      const parsed: UserDevice[] = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      if (!Array.isArray(parsed)) return [];
+      // Purge any legacy auto-registered devices ('Primary Workstation') that were not approved by Admin
+      const valid = parsed.filter((d) => d && d.device_name !== 'Primary Workstation');
+      if (valid.length !== parsed.length) {
+        try {
+          fs.writeFileSync(p, JSON.stringify(valid, null, 2), 'utf-8');
+        } catch {
+          // Ignore write errors
+        }
+      }
+      return valid;
     }
   } catch {
     // Ignore read errors
@@ -138,6 +149,22 @@ export async function ensureTableExists(): Promise<void> {
 }
 
 /**
+ * Fetch all registered devices across all users
+ */
+export async function getAllDevices(): Promise<UserDevice[]> {
+  await ensureTableExists();
+  try {
+    const [rows]: any = await pool.execute(
+      'SELECT id, user_id, device_id, device_name, created_at FROM user_devices ORDER BY created_at DESC'
+    );
+    return Array.isArray(rows) ? rows : [];
+  } catch (err) {
+    // Fallback to JSON when MySQL is unavailable
+    return readJsonDevices();
+  }
+}
+
+/**
  * Fetch all registered devices for a user
  */
 export async function getUserDevices(userId: string): Promise<UserDevice[]> {
@@ -147,9 +174,9 @@ export async function getUserDevices(userId: string): Promise<UserDevice[]> {
       'SELECT id, user_id, device_id, device_name, created_at FROM user_devices WHERE user_id = ? ORDER BY created_at DESC',
       [String(userId)]
     );
-    if (Array.isArray(rows) && rows.length > 0) return rows;
+    return Array.isArray(rows) ? rows : [];
   } catch (err) {
-    // Fallback to JSON
+    // Fallback to JSON when MySQL is unavailable
   }
 
   const all = readJsonDevices();
@@ -157,43 +184,30 @@ export async function getUserDevices(userId: string): Promise<UserDevice[]> {
 }
 
 /**
- * Check if a device is registered and approved for a user
+ * Check if a device is explicitly registered and approved by Admin for a user.
+ * NEVER auto-registers a device — Admin must explicitly register the Device ID in Admin Portal.
  */
 export async function isDeviceRegistered(userId: string, deviceId: string): Promise<boolean> {
+  const cleanDevId = String(deviceId || '').trim().toUpperCase();
+  if (!userId || !cleanDevId) return false;
+
   await ensureTableExists();
   try {
     const [rows]: any = await pool.execute(
-      'SELECT id FROM user_devices WHERE user_id = ? AND device_id = ? LIMIT 1',
-      [String(userId), String(deviceId)]
+      'SELECT id FROM user_devices WHERE user_id = ? AND UPPER(TRIM(device_id)) = ? LIMIT 1',
+      [String(userId), cleanDevId]
     );
-    if (Boolean(rows && rows.length > 0)) return true;
+    return Boolean(rows && rows.length > 0);
   } catch (err) {
-    // Fallback to JSON
+    // Fallback to JSON only when MySQL is unreachable
   }
 
   const all = readJsonDevices();
-  const found = all.some(
-    (d) => String(d.user_id) === String(userId) && String(d.device_id).toUpperCase() === String(deviceId).toUpperCase()
+  return all.some(
+    (d) =>
+      String(d.user_id) === String(userId) &&
+      String(d.device_id || '').trim().toUpperCase() === cleanDevId
   );
-
-  if (found) return true;
-
-  // If user has NO registered devices yet in JSON fallback, auto-register first device
-  const userDevices = all.filter((d) => String(d.user_id) === String(userId));
-  if (userDevices.length === 0) {
-    const newDev: UserDevice = {
-      id: Date.now(),
-      user_id: String(userId),
-      device_id: String(deviceId).toUpperCase(),
-      device_name: 'Primary Workstation',
-      created_at: new Date().toISOString(),
-    };
-    all.push(newDev);
-    writeJsonDevices(all);
-    return true;
-  }
-
-  return false;
 }
 
 /**

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserDevices, ensureTableExists } from '@/lib/db';
-import pool from '@/lib/db';
+import { getUserDevices, getAllDevices, ensureTableExists } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,13 +28,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, devices });
     }
 
-    // Return all devices flat list
-    const [rows]: any = await pool.execute(
-      'SELECT id, user_id, device_id, device_name, created_at FROM user_devices ORDER BY created_at DESC'
-    );
-    return NextResponse.json({ success: true, devices: rows || [] });
+    const devices = await getAllDevices();
+    return NextResponse.json({ success: true, devices });
   } catch (error: any) {
-    console.warn('MySQL unavailable, returning empty devices list fallback:', error.message);
+    console.warn('Error listing devices:', error.message);
     return NextResponse.json({ success: true, devices: [], fallback: true });
   }
 }

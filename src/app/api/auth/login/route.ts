@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Set auth cookie
+    // Set auth cookie (include bound device_id so /api/auth/me enforces device registration on every load)
+    const boundDeviceId = user.role === 'admin' ? 'ADMIN' : String(deviceId || '').trim().toUpperCase();
     const safeUser = {
       id: user.id,
       name: user.name,
@@ -91,7 +92,8 @@ export async function POST(req: NextRequest) {
       planType: user.planType,
       startDate: user.startDate,
       endDate: user.endDate,
-      status: user.status
+      status: user.status,
+      device_id: boundDeviceId
     };
 
     const sessionPayload = Buffer.from(JSON.stringify(safeUser)).toString('base64');

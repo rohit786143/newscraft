@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserById } from '@/lib/auth';
+import { isDeviceRegistered, ensureTableExists } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +23,13 @@ export async function GET(req: NextRequest) {
 
     const isImpersonating = Boolean(sessionData.is_impersonating);
 
-    // Dynamic expiry & block check (bypassed if admin is inspecting/impersonating)
+    // Dynamic expiry, block & device registration check (bypassed if admin or admin impersonation)
     const now = new Date();
     const expiryDate = new Date(user.endDate);
 
     if (user.role !== 'admin' && !isImpersonating) {
       if (user.status === 'blocked') {
-        return NextResponse.json(
+        const res = NextResponse.json(
           {
             authenticated: false,
             error: 'आपका खाता एडमिन द्वारा ब्लॉक कर दिया गया है।',
@@ -36,10 +37,12 @@ export async function GET(req: NextRequest) {
           },
           { status: 403 }
         );
+        res.cookies.delete('presscraft_session');
+        return res;
       }
 
       if (expiryDate < now) {
-        return NextResponse.json(
+        const res = NextResponse.json(
           {
             authenticated: false,
             error: 'आपकी सदस्यता समाप्त हो चुकी है।',
@@ -48,6 +51,30 @@ export async function GET(req: NextRequest) {
           },
           { status: 403 }
         );
+        res.cookies.delete('presscraft_session');
+        return res;
+      }
+
+      // Enforce live device registration check on every session verification
+      const queryDeviceId = req.nextUrl.searchParams.get('deviceId') || '';
+      const checkDeviceId = String(queryDeviceId || sessionData.device_id || '').trim().toUpperCase();
+
+      await ensureTableExists();
+      const registered = checkDeviceId ? await isDeviceRegistered(user.id, checkDeviceId) : false;
+
+      if (!registered) {
+        const res = NextResponse.json(
+          {
+            authenticated: false,
+            error: 'DEVICE_NOT_REGISTERED',
+            code: 'DEVICE_NOT_REGISTERED',
+            deviceId: checkDeviceId,
+            message: 'यह डिवाइस आपके सब्सक्रिप्शन में एक्टिवेट नहीं है। कृपया एडमिन से डिवाइस रजिस्टर करवाएं।'
+          },
+          { status: 403 }
+        );
+        res.cookies.delete('presscraft_session');
+        return res;
       }
     }
 

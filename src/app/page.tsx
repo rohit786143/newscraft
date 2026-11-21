@@ -35,6 +35,7 @@ function PressCraftStudioContent() {
   // ─────── Init: device ID + auth check ───────
   useEffect(() => {
     // 1. Persistent device ID
+    let activeDevId = '';
     try {
       let storedId = localStorage.getItem('presscraft_device_id');
       if (!storedId) {
@@ -43,13 +44,15 @@ function PressCraftStudioContent() {
         storedId = `DEV-${p1}-${p2}`;
         localStorage.setItem('presscraft_device_id', storedId);
       }
+      activeDevId = storedId;
       setDeviceId(storedId);
     } catch {
-      setDeviceId('DEV-PC-' + Math.floor(1000 + Math.random() * 9000));
+      activeDevId = 'DEV-PC-' + Math.floor(1000 + Math.random() * 9000);
+      setDeviceId(activeDevId);
     }
 
-    // 2. Check existing session
-    fetch('/api/auth/me')
+    // 2. Check existing session (with live device verification)
+    fetch(`/api/auth/me?deviceId=${encodeURIComponent(activeDevId)}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user) {
@@ -62,7 +65,16 @@ function PressCraftStudioContent() {
             setAuthChecked(true);
           }
         } else {
-          // Not logged in – show login form (authChecked stays false → login UI)
+          if (data.code === 'DEVICE_NOT_REGISTERED') {
+            setShowDeviceModal(true);
+            setErrorMsg(data.message || 'यह डिवाइस आपके सब्सक्रिप्शन में एक्टिवेट नहीं है।');
+          } else if (data.code === 'BLOCKED') {
+            setIsBlocked(true);
+            setErrorMsg(data.error || 'आपका खाता ब्लॉक कर दिया गया है।');
+          } else if (data.code === 'EXPIRED') {
+            setIsExpired(true);
+            setErrorMsg(data.error || 'आपकी सदस्यता समाप्त हो चुकी है।');
+          }
           setAuthChecked(true);
         }
       })
