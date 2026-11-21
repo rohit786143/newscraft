@@ -12,7 +12,7 @@
   <!-- Google Fonts Stack with All Requested Devanagari & Latin Typefaces -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
+  <link crossorigin="anonymous"
     href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@100..800&family=Arya:wght@400;700&family=Baloo+2:wght@400..800&family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@300;400;500;600;700;800&family=Martel:wght@300;400;600;700;800;900&family=Mukta:wght@200;300;400;500;600;700;800&family=Noto+Sans+Devanagari:wght@100..900&family=Noto+Serif+Devanagari:wght@100..900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Rozha+One&family=Tiro+Devanagari+Hindi:ital@0;1&family=Yatra+One&display=swap"
     rel="stylesheet">
 
@@ -20,7 +20,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- FontAwesome Icons CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link crossorigin="anonymous" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <!-- Export Libraries: html-to-image, jsPDF, html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
@@ -3881,13 +3881,11 @@
       showStudioToast('⏳ हाई-रेज़ोल्यूशन इमेज तैयार हो रही है...');
 
       try {
-        const canvas = await html2canvas(node, {
-          scale: 2.5,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          logging: false
-        });
+        await convertAllImagesToBase64(node);
+        if (document.fonts && document.fonts.ready) {
+          try { await document.fonts.ready; } catch (e) { }
+        }
+        const canvas = await captureElementToCanvas(node, 2.5, null);
 
         const dataUrl = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 0.95);
         const link = document.createElement('a');
@@ -9892,7 +9890,8 @@
                 cvs.height = tempImg.naturalHeight || 300;
                 const ctx = cvs.getContext('2d');
                 ctx.drawImage(tempImg, 0, 0);
-                img.src = cvs.toDataURL('image/jpeg', 0.92);
+                const keepAlpha = /\.png(\?|$)/i.test(img.src) || img.classList.contains('cutout-shape-img') || Boolean(img.closest('#headerCustomLogoWrapper'));
+                img.src = keepAlpha ? cvs.toDataURL('image/png') : cvs.toDataURL('image/jpeg', 0.94);
               } catch (e) {
                 // If canvas tainted, leave as is
               }
@@ -9905,6 +9904,204 @@
         }
       });
       await Promise.all(promises);
+    }
+
+    // CACHED EMBEDDED GOOGLE / FONTAWESOME FONT CSS FOR NATIVE BROWSER SVG <foreignObject> CAPTURE
+    // Guarantees client-side PDF/PNG (e.g. on Hostinger without Puppeteer) uses Chrome's REAL engine
+    // with exact Devanagari typography, zero badge/subheading vertical shift, and real CSS multi-columns.
+    const __presscraftFontDataUrlCache = new Map();
+    let __presscraftRawFontCssPromise = null;
+
+    async function getRawExternalFontCSS() {
+      if (__presscraftRawFontCssPromise) return __presscraftRawFontCssPromise;
+      __presscraftRawFontCssPromise = (async () => {
+        const blocks = [];
+        const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+        await Promise.all(links.map(async (link) => {
+          const href = link.href || '';
+          if (!href) return;
+          if (href.includes('fonts.googleapis.com') || href.includes('font-awesome')) {
+            try {
+              const res = await fetch(href, { mode: 'cors' });
+              if (res.ok) {
+                const cssText = await res.text();
+                blocks.push({ href, cssText });
+              }
+            } catch (e) {
+              console.warn('Font CSS fetch skipped:', href, e);
+            }
+          }
+        }));
+        return blocks;
+      })();
+      return __presscraftRawFontCssPromise;
+    }
+
+    async function fetchFontUrlAsDataUri(absUrl) {
+      if (__presscraftFontDataUrlCache.has(absUrl)) {
+        return __presscraftFontDataUrlCache.get(absUrl);
+      }
+      try {
+        const res = await fetch(absUrl, { mode: 'cors' });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const dataUri = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        __presscraftFontDataUrlCache.set(absUrl, dataUri);
+        return dataUri;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function buildEmbeddedFontsCSS(targetNode) {
+      const usedFamilies = new Set();
+      let usesIcons = false;
+      const collectFonts = (el) => {
+        const ff = window.getComputedStyle(el).fontFamily || '';
+        ff.split(',').forEach(part => {
+          const clean = part.replace(/['"]/g, '').trim().toLowerCase();
+          if (clean) usedFamilies.add(clean);
+        });
+        if (!usesIcons && el.classList && (el.classList.contains('fa-solid') || el.classList.contains('fa-regular') || el.classList.contains('fa-brands') || el.classList.contains('fas') || el.classList.contains('fa'))) {
+          usesIcons = true;
+        }
+      };
+      collectFonts(targetNode);
+      targetNode.querySelectorAll('*').forEach(collectFonts);
+
+      const cssBlocks = await getRawExternalFontCSS();
+      const matchedFaces = [];
+      let extraIconRules = '';
+      const faceRegex = /@font-face\s*\{[^}]*\}/gi;
+
+      for (const { href, cssText } of cssBlocks) {
+        if (usesIcons && href.includes('font-awesome')) {
+          // Keep FontAwesome icon utility rules (.fa-globe::before etc.) without external font URLs
+          extraIconRules += cssText.replace(faceRegex, '') + '\n';
+        }
+        const faces = cssText.match(faceRegex) || [];
+        for (const face of faces) {
+          const famMatch = face.match(/font-family\s*:\s*['"]?([^;'"]+)['"]?/i);
+          if (!famMatch) continue;
+          const fam = famMatch[1].trim().toLowerCase();
+          const isFA = fam.includes('font awesome');
+          if (!usedFamilies.has(fam) && !(usesIcons && isFA)) continue;
+          const urMatch = face.match(/unicode-range\s*:\s*([^;]+)/i);
+          if (urMatch) {
+            const ur = urMatch[1].toUpperCase();
+            // Keep Devanagari (U+0900..U+097F) and Basic Latin / Currency (U+0000..U+00FF); skip Latin-Ext/Cyrillic/Vietnamese
+            const isRelevant = ur.includes('U+09') || ur.includes('U+0000') || ur.includes('U+0020');
+            if (!isRelevant) continue;
+          }
+          matchedFaces.push({ href, face });
+        }
+      }
+
+      const inlinedFaces = await Promise.all(matchedFaces.map(async ({ href, face }) => {
+        const urlMatches = [...face.matchAll(/url\((['"]?)([^)'"]+)\1\)/gi)];
+        const hasWoff2 = urlMatches.some(m => /\.woff2(\?|$)/i.test(m[2]));
+        let out = face;
+        for (const m of urlMatches) {
+          const rawUrl = m[2].trim();
+          if (!rawUrl || rawUrl.startsWith('data:')) continue;
+          if (hasWoff2 && !/\.woff2(\?|$)/i.test(rawUrl)) continue;
+          let absUrl = rawUrl;
+          try { absUrl = new URL(rawUrl, href).href; } catch { }
+          const dataUri = await fetchFontUrlAsDataUri(absUrl);
+          if (dataUri) {
+            out = out.replace(m[0], `url("${dataUri}")`);
+          }
+        }
+        return out;
+      }));
+
+      return inlinedFaces.join('\n') + '\n' + extraIconRules;
+    }
+
+    // DIRECT NATIVE CHROME SVG <foreignObject> CAPTURE:
+    // Preserves natural CSS multi-column `height: auto` (NO 4th-column overflow like html-to-image),
+    // uses the real browser rendering engine (NO Devanagari vertical shift like html2canvas),
+    // and embeds active Tailwind styles + Devanagari woff2 fonts cleanly into a crisp 2x canvas.
+    async function captureViaDirectSVGForeignObject(targetNode, scaleFactor = 2, bgOverride = '#fcfbfa') {
+      const targetW = targetNode.offsetWidth || 1056;
+      const targetH = targetNode.offsetHeight || 1632;
+      const transparentPlaceholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+      const fontEmbedCSS = await buildEmbeddedFontsCSS(targetNode);
+      const { styles } = collectAllActiveStyles();
+
+      const clone = targetNode.cloneNode(true);
+      clone.style.margin = '0';
+      clone.style.boxShadow = 'none';
+      clone.style.transform = 'none';
+      clone.style.width = `${targetW}px`;
+      clone.style.height = `${targetH}px`;
+      clone.style.minHeight = `${targetH}px`;
+
+      // Remove editor-only overlays from clone
+      clone.querySelectorAll('.no-print, .ad-size-badge, .selection-ring').forEach(el => el.remove());
+
+      // Guarantee ZERO external/broken image URLs inside SVG (prevents canvas taint or load abort)
+      clone.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src') || '';
+        if (!src || !src.startsWith('data:')) {
+          img.setAttribute('src', transparentPlaceholder);
+        }
+      });
+
+      const resetCss = `
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        #newspaperCanvas, .newspaper-page {
+          margin: 0 !important;
+          box-shadow: none !important;
+          transform: none !important;
+          width: ${targetW}px !important;
+          height: ${targetH}px !important;
+          min-height: ${targetH}px !important;
+        }
+        .no-print, .ad-size-badge, .selection-ring {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+        }
+      `;
+      const combinedCss = `${fontEmbedCSS}\n${styles}\n${resetCss}`.replace(/\]\]>/g, ']]]]><![CDATA[>');
+      const serialized = new XMLSerializer().serializeToString(clone);
+      const bgStyle = bgOverride ? `background:${bgOverride};` : 'background:transparent;';
+
+      const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="${targetW}" height="${targetH}" viewBox="0 0 ${targetW} ${targetH}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" lang="hi" style="width:${targetW}px;height:${targetH}px;margin:0;padding:0;overflow:hidden;${bgStyle}"><style><![CDATA[${combinedCss}]]></style>${serialized}</div></foreignObject></svg>`;
+
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgMarkup);
+
+      const img = new Image();
+      img.decoding = 'async';
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('SVG foreignObject render timeout')), 12000);
+        img.onload = () => { clearTimeout(timer); resolve(); };
+        img.onerror = (e) => { clearTimeout(timer); reject(e || new Error('SVG foreignObject image error')); };
+        img.src = svgDataUrl;
+      });
+
+      const cvs = document.createElement('canvas');
+      cvs.width = Math.round(targetW * scaleFactor);
+      cvs.height = Math.round(targetH * scaleFactor);
+      const ctx = cvs.getContext('2d');
+      if (bgOverride) {
+        ctx.fillStyle = bgOverride;
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+      }
+      ctx.scale(scaleFactor, scaleFactor);
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      // Verify canvas is not tainted before returning
+      cvs.toDataURL('image/png');
+      return cvs;
     }
 
     // HELPER TO EXTRACT ALL ACTIVE STYLESHEETS & LINKS FOR SERVER-SIDE RENDERING
@@ -9926,9 +10123,79 @@
       return { styles, links };
     }
 
-    // BULLETPROOF CLIENT-SIDE CANVAS CAPTURE ENGINE (HTML2CANVAS + HTMLTOIMAGE FALLBACK)
-    async function captureElementToCanvas(targetNode, scaleFactor = 2) {
-      // 1. Try html2canvas first (bypasses cross-origin stylesheet cssRules security errors)
+    // BULLETPROOF CLIENT-SIDE CANVAS CAPTURE ENGINE
+    // 1. Primary: Direct Chrome SVG <foreignObject> (100% WYSIWYG parity with Puppeteer PDF, real multi-column & Devanagari)
+    // 2. Secondary: html-to-image
+    // 3. Fallback: html2canvas with Tailwind preflight baseline fix
+    async function captureElementToCanvas(targetNode, scaleFactor = 2, bgOverride = '#fcfbfa') {
+      const targetW = targetNode.offsetWidth || 1056;
+      const targetH = targetNode.offsetHeight || 1632;
+
+      // 1. Primary: Direct SVG <foreignObject> using native browser CSS & Devanagari engine
+      try {
+        const directCanvas = await captureViaDirectSVGForeignObject(targetNode, scaleFactor, bgOverride);
+        if (directCanvas && directCanvas.width > 0 && directCanvas.height > 0) {
+          return directCanvas;
+        }
+      } catch (svgErr) {
+        console.warn('Direct SVG foreignObject capture warning, trying htmlToImage:', svgErr);
+      }
+
+      // 2. Secondary: htmlToImage
+      const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
+      if (htmlToImageLib && (typeof htmlToImageLib.toCanvas === 'function' || typeof htmlToImageLib.toPng === 'function')) {
+        try {
+          const fontEmbedCSS = await buildEmbeddedFontsCSS(targetNode);
+          const transparentPlaceholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+          const opts = {
+            quality: 1.0,
+            pixelRatio: scaleFactor,
+            width: targetW,
+            height: targetH,
+            backgroundColor: bgOverride,
+            cacheBust: false,
+            skipAutoScale: true,
+            fontEmbedCSS: fontEmbedCSS || undefined,
+            imagePlaceholder: transparentPlaceholder,
+            style: {
+              margin: '0',
+              boxShadow: 'none',
+              transform: 'none'
+            },
+            filter: (domNode) => {
+              if (domNode && domNode.classList && (domNode.classList.contains('no-print') || domNode.classList.contains('ad-size-badge') || domNode.classList.contains('selection-ring'))) {
+                return false;
+              }
+              return true;
+            }
+          };
+
+          if (typeof htmlToImageLib.toCanvas === 'function') {
+            const cvs = await htmlToImageLib.toCanvas(targetNode, opts);
+            if (cvs && cvs.width > 0 && cvs.height > 0) {
+              return cvs;
+            }
+          } else {
+            const dataUrl = await htmlToImageLib.toPng(targetNode, opts);
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = dataUrl;
+            });
+            const cvs = document.createElement('canvas');
+            cvs.width = img.naturalWidth || Math.round(targetW * scaleFactor);
+            cvs.height = img.naturalHeight || Math.round(targetH * scaleFactor);
+            const ctx = cvs.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            if (cvs.width > 0 && cvs.height > 0) return cvs;
+          }
+        } catch (h2iErr) {
+          console.warn('htmlToImage capture warning, falling back to html2canvas:', h2iErr);
+        }
+      }
+
+      // 2. Fallback: html2canvas with Tailwind preflight img baseline patch
       const html2canvasLib = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
       if (html2canvasLib) {
         try {
@@ -9936,53 +10203,25 @@
             scale: scaleFactor,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#fcfbfa',
+            backgroundColor: bgOverride,
             logging: false,
             imageTimeout: 6000,
             scrollX: 0,
             scrollY: 0,
-            windowWidth: targetNode.offsetWidth || 1056,
-            windowHeight: targetNode.offsetHeight || 1632
+            windowWidth: targetW,
+            windowHeight: targetH,
+            onclone: (clonedDoc) => {
+              // Mitigate Tailwind preflight + html2canvas downward text baseline shift bug (#2775)
+              const fixStyle = clonedDoc.createElement('style');
+              fixStyle.textContent = 'img { display: inline-block; }';
+              clonedDoc.head.appendChild(fixStyle);
+            }
           });
           if (canvas && canvas.width > 0 && canvas.height > 0) {
             return canvas;
           }
         } catch (h2cErr) {
-          console.warn('html2canvas capture warning, trying htmlToImage:', h2cErr);
-        }
-      }
-
-      // 2. Fallback to htmlToImage (with safe options)
-      const htmlToImageLib = window.htmlToImage || (typeof htmlToImage !== 'undefined' ? htmlToImage : null);
-      if (htmlToImageLib) {
-        try {
-          const dataUrl = await htmlToImageLib.toPng(targetNode, {
-            quality: 1.0,
-            pixelRatio: scaleFactor,
-            cacheBust: true,
-            skipAutoScale: true,
-            backgroundColor: '#fcfbfa',
-            filter: (domNode) => {
-              if (domNode.classList && (domNode.classList.contains('no-print') || domNode.classList.contains('ad-size-badge') || domNode.classList.contains('selection-ring'))) {
-                return false;
-              }
-              return true;
-            }
-          });
-          const img = new Image();
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = dataUrl;
-          });
-          const cvs = document.createElement('canvas');
-          cvs.width = img.naturalWidth || (targetNode.offsetWidth * scaleFactor);
-          cvs.height = img.naturalHeight || (targetNode.offsetHeight * scaleFactor);
-          const ctx = cvs.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          return cvs;
-        } catch (h2iErr) {
-          console.warn('htmlToImage capture warning:', h2iErr);
+          console.warn('html2canvas capture warning:', h2cErr);
         }
       }
 
@@ -10013,13 +10252,16 @@
         const badges = node.querySelectorAll('.ad-size-badge, .no-print');
         badges.forEach(b => b.style.setProperty('display', 'none', 'important'));
 
+        balanceAllMultiColumnSections(node);
         runBroadsheetSpatial2DPacking();
         await convertAllImagesToBase64(node);
 
         if (document.fonts && document.fonts.ready) {
           try { await document.fonts.ready; } catch (e) { }
         }
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 220));
+        balanceAllMultiColumnSections(node);
+        runBroadsheetSpatial2DPacking();
 
         const curSizeCfg = PAGE_SIZES[studioState.paperMeta.pageSize || '11x17'] || PAGE_SIZES['11x17'];
         let downloaded = false;
@@ -10121,12 +10363,14 @@
           const badges = node.querySelectorAll('.ad-size-badge, .no-print');
           badges.forEach(b => b.style.setProperty('display', 'none', 'important'));
 
-          runBroadsheetSpatial2DPacking();
           await convertAllImagesToBase64(node);
           if (document.fonts && document.fonts.ready) {
             try { await document.fonts.ready; } catch (e) { }
           }
-          await new Promise(r => setTimeout(r, 180));
+          await new Promise(r => setTimeout(r, 250));
+          balanceAllMultiColumnSections(node);
+          runBroadsheetSpatial2DPacking();
+          await new Promise(r => requestAnimationFrame(r));
           pagesHTML.push(node.outerHTML);
         }
 
@@ -10186,11 +10430,16 @@
             const badges = node.querySelectorAll('.ad-size-badge, .no-print');
             badges.forEach(b => b.style.setProperty('display', 'none', 'important'));
 
-            runBroadsheetSpatial2DPacking();
             await convertAllImagesToBase64(node);
-            await new Promise(r => setTimeout(r, 180));
+            if (document.fonts && document.fonts.ready) {
+              try { await document.fonts.ready; } catch (e) { }
+            }
+            await new Promise(r => setTimeout(r, 250));
+            balanceAllMultiColumnSections(node);
+            runBroadsheetSpatial2DPacking();
+            await new Promise(r => requestAnimationFrame(r));
 
-            const canvas = await captureElementToCanvas(node, 2);
+            const canvas = await captureElementToCanvas(node, 2, '#fcfbfa');
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
             if (i > 0) {
