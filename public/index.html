@@ -119,6 +119,12 @@
       widows: 1 !important;
     }
 
+    /* Continuing paragraph split across column break (Col 2 Top / Col 3 Top): justify bottom line edge-to-edge */
+    .story-paragraph.story-cont-col {
+      text-align-last: justify !important;
+      margin-bottom: 0px !important;
+    }
+
     .story-paragraph+.story-paragraph {
       text-indent: 1.2em;
     }
@@ -5782,6 +5788,248 @@
       `;
     }
 
+    // ---- Shared word-flow helpers (used by splitter + live DOM baseline balancer) ----
+    function getBroadsheetAllWords(sec) {
+      const rawText = ((sec && sec.content) || '').trim();
+      const rawParas = rawText.split(/\n+/).map(p => p.trim()).filter(Boolean);
+      const allWords = [];
+      rawParas.forEach((para, pIdx) => {
+        const words = para.split(/\s+/).filter(Boolean);
+        words.forEach((w, wIdx) => {
+          allWords.push({ text: w, isParaEnd: (wIdx === words.length - 1 && pIdx < rawParas.length - 1) });
+        });
+      });
+      return allWords;
+    }
+
+    function formatBroadsheetColWordsHTML(sec, wordsSlice, isFirstCol, isLastCol = false) {
+      if (!wordsSlice || wordsSlice.length === 0) return '';
+      const font = sec.bodyFont || studioState.paperMeta?.defaultBodyFont || "'Martel', serif";
+      const size = sec.bodySize || '11px';
+      const color = sec.bodyColor || '#111111';
+      const align = sec.bodyAlign || 'justify';
+      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: left; line-height: 1.38; margin-bottom: 4px;`;
+      const contStyle = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: justify; line-height: 1.38; margin-bottom: 0px;`;
+      let html = '';
+      let curParaWords = [];
+      for (let i = 0; i < wordsSlice.length; i++) {
+        curParaWords.push(escapeHtml(wordsSlice[i].text));
+        const isAtSliceEnd = (i === wordsSlice.length - 1);
+        if (wordsSlice[i].isParaEnd || isAtSliceEnd) {
+          const pText = curParaWords.join(' ');
+          const isContinuingMidPara = (!isLastCol && isAtSliceEnd && !wordsSlice[i].isParaEnd);
+          const contClass = (isContinuingMidPara && align === 'justify') ? ' story-cont-col' : '';
+          const pStyle = isContinuingMidPara ? contStyle : styleStr;
+          if (html === '' && isFirstCol) {
+            let pContent = pText;
+            if (sec.location && sec.location.trim()) {
+              pContent = `<strong class="font-bold text-slate-900">${escapeHtml(sec.location.trim())}।</strong> ` + pContent;
+            } else if (sec.dropCap === true) {
+              const match = pContent.match(/^(\p{L}\p{M}*|\S)/u);
+              if (match) {
+                const firstChar = match[0];
+                const rest = pContent.slice(firstChar.length);
+                pContent = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>` + rest;
+              }
+            }
+            html += `<p class="story-paragraph${contClass}" style="${pStyle}">${pContent}</p>`;
+          } else {
+            html += `<p class="story-paragraph${contClass}" style="${pStyle}">${pText}</p>`;
+          }
+          curParaWords = [];
+        }
+      }
+      return html;
+    }
+
+    function findSectionByIdAnyPage(secId) {
+      if (!secId || typeof studioState === 'undefined' || !studioState.pages) return null;
+      for (const p of studioState.pages) {
+        const s = (p.sections || []).find(x => x.id === secId);
+        if (s) return s;
+      }
+      return null;
+    }
+
+    // LIVE DOM BALANCER FOR COL 2 TOP / COL 3 TOP:
+    // Zoom-invariant (unscaled CSS px), guarantees:
+    //  1) Photo stays at top of its chosen column (Col 2 or Col 3)
+    //  2) Every column ends on the exact same bottom baseline (<= 1.5px)
+    //  3) Pre-photo column ends on a TRUE FULL LINE-END (no half-empty bottom line or stretched gap)
+    const broadsheetSplitCache = new Map();
+    function balanceColTopSplitLayout(container, colCount, unscaledColW, gutter, lineHeight) {
+      const mode = container.dataset.splitMode;
+      if (mode !== 'col2' && mode !== 'col3') return false;
+      const sec = findSectionByIdAnyPage(container.dataset.secId);
+      if (!sec) return false;
+      const flow = container.querySelector('.bs-flow');
+      const photo = flow ? flow.querySelector(':scope > .col-top-photo-block') : null;
+      if (!flow || !photo) return false;
+
+      const words = getBroadsheetAllWords(sec);
+      const N = words.length;
+      if (N < 8) return false;
+
+      const preCount = mode === 'col2' ? 1 : 2;
+      if (preCount >= colCount) return false;
+      const preCols = [];
+      for (let c = 0; c < preCount; c++) preCols.push(c);
+      const postCols = [];
+      for (let c = preCount; c < colCount; c++) postCols.push(c);
+
+      const img = photo.querySelector('img');
+      const capEl = img ? photo.querySelector('div') : null;
+      const capH = capEl ? (capEl.offsetHeight || 15) : 0;
+      const baseH = img ? (parseFloat(img.getAttribute('data-base-height')) || parseFloat(img.style.height) || Math.round(unscaledColW * 10 / 16)) : 0;
+      if (img && !img.getAttribute('data-base-height')) img.setAttribute('data-base-height', String(baseH));
+
+      // Measure non-img overhead inside .col-top-photo-block (border, padding, caption & caption margins)
+      let photoOverhead = capH;
+      if (img) {
+        const curImgH = parseFloat(img.style.height) || baseH;
+        photo.style.marginBottom = '0px';
+        photoOverhead = Math.max(0, (photo.offsetHeight || curImgH) - curImgH);
+      }
+      const desiredMargin = 5;
+      const baseLines = img ? Math.max(3, Math.round((baseH + photoOverhead + desiredMargin) / lineHeight)) : 0;
+
+      const setPhotoToLines = (targetLines) => {
+        if (!img) return;
+        const targetTotal = targetLines * lineHeight;
+        const idealImgH = Math.max(45, Math.round(targetTotal - photoOverhead - desiredMargin));
+        img.style.height = `${idealImgH}px`;
+        img.style.maxHeight = `${idealImgH}px`;
+        photo.style.marginBottom = '0px';
+        const actualRaw = photo.offsetHeight || (idealImgH + photoOverhead);
+        const exactMargin = Math.max(2, targetTotal - actualRaw);
+        photo.style.marginBottom = `${exactMargin.toFixed(2)}px`;
+      };
+
+      const applySplit = (s) => {
+        Array.from(flow.children).forEach(ch => { if (ch !== photo) ch.remove(); });
+        photo.insertAdjacentHTML('beforebegin', formatBroadsheetColWordsHTML(sec, words.slice(0, s), true, false));
+        photo.insertAdjacentHTML('afterend', formatBroadsheetColWordsHTML(sec, words.slice(s), false, true));
+      };
+
+      const measure = () => {
+        const colR = container.getBoundingClientRect();
+        const scaleX = (container.offsetWidth > 0 && colR.width > 0) ? (colR.width / container.offsetWidth) : 1;
+        const scaleY = (container.offsetHeight > 0 && colR.height > 0) ? (colR.height / container.offsetHeight) : scaleX;
+
+        // Photo MUST sit exactly at the top of its chosen column (Col 2 => idx 1, Col 3 => idx 2)
+        const pr = photo.getBoundingClientRect();
+        const photoLeft = (pr.left - colR.left) / scaleX;
+        const photoIdx = Math.floor((photoLeft + 2) / (unscaledColW + gutter * 0.5));
+        if (photoIdx < preCount) return { g: -99999, diff: 99999, preTotal: 0, photoIdx, valid: false };
+        if (photoIdx > preCount) return { g: 99999, diff: 99999, preTotal: 99999, photoIdx, valid: false };
+
+        const bottoms = new Array(colCount).fill(0);
+        flow.querySelectorAll('.story-paragraph').forEach(p => {
+          const range = document.createRange();
+          range.selectNodeContents(p);
+          Array.from(range.getClientRects()).forEach(r => {
+            if (r.width <= 0 || r.height <= 0) return;
+            const x = (r.left - colR.left) / scaleX;
+            const b = (r.bottom - colR.top) / scaleY;
+            let idx = Math.floor((x + 2) / (unscaledColW + gutter * 0.5));
+            idx = Math.max(0, Math.min(colCount - 1, idx));
+            if (b > bottoms[idx]) bottoms[idx] = b;
+          });
+        });
+
+        const preBottoms = preCols.map(c => bottoms[c]);
+        const postBottoms = postCols.map(c => bottoms[c]);
+        const preTotal = preBottoms.reduce((a, b) => a + b, 0);
+        const postTotal = postBottoms.reduce((a, b) => a + b, 0);
+        const preAvg = preTotal / preCount;
+        const postAvg = postTotal / postCols.length;
+        const allFilled = bottoms.every(b => b > 0);
+        const active = bottoms.filter(b => b > 0);
+        const diff = active.length >= 2 ? (Math.max(...active) - Math.min(...active)) : 999;
+
+        return {
+          g: preAvg - postAvg,
+          diff: allFilled ? diff : diff + 500,
+          preTotal,
+          photoIdx,
+          valid: allFilled && photoIdx === preCount
+        };
+      };
+
+      const tol = 1.5;
+      const cacheKey = [
+        sec.id, mode, colCount, unscaledColW.toFixed(1), lineHeight.toFixed(2),
+        baseH, photoOverhead, img ? 1 : 0, sec.caption || '', sec.location || '',
+        sec.dropCap === true ? 1 : 0, sec.bodyFont || '', sec.bodySize || '', sec.bodyAlign || '',
+        sec.content || ''
+      ].join('|');
+
+      // Fast path: re-apply a previously verified optimal split
+      const cached = broadsheetSplitCache.get(cacheKey);
+      if (cached) {
+        if (img) setPhotoToLines(cached.targetLines);
+        applySplit(cached.s);
+        const m = measure();
+        if (m.valid && m.diff <= tol) return true;
+      }
+
+      // For a given photo height (targetLines), binary search the balance boundary
+      // and scan the local +/-12 word window to pick a TRUE FULL LINE-END split.
+      const searchSplitForHeight = (targetLines) => {
+        let lo = 1, hi = N - 1, s0 = 1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          applySplit(mid);
+          if (measure().g <= tol) { s0 = mid; lo = mid + 1; } else { hi = mid - 1; }
+        }
+
+        const winStart = Math.max(1, s0 - 12);
+        const winEnd = Math.min(N - 1, s0 + 12);
+        const stats = {};
+        for (let s = winStart; s <= Math.min(N - 1, winEnd + 1); s++) {
+          applySplit(s);
+          stats[s] = measure();
+        }
+
+        let bestCand = null;
+        for (let s = winStart; s <= winEnd; s++) {
+          const st = stats[s];
+          const nextSt = stats[s + 1];
+          const isLineEnd = words[s - 1].isParaEnd || !nextSt || (nextSt.preTotal > st.preTotal + 2) || (nextSt.photoIdx > st.photoIdx);
+          const alignErr = st.diff <= tol ? 0 : st.diff;
+          const score = st.valid
+            ? (alignErr * 1000 + (isLineEnd ? 0 : 100) + Math.abs(targetLines - baseLines) * 2)
+            : (1e6 + st.diff);
+          if (!bestCand || score < bestCand.score - 0.1 || (Math.abs(score - bestCand.score) <= 0.1 && s > bestCand.s)) {
+            bestCand = { s, targetLines, diff: st.diff, valid: st.valid, isLineEnd, score };
+          }
+        }
+        return bestCand;
+      };
+
+      const lineOffsets = img ? [0, 1, -1, 2, -2, 3, -3] : [0];
+      let overall = null;
+      for (const offset of lineOffsets) {
+        const targetLines = img ? Math.max(3, baseLines + offset) : 0;
+        if (img) setPhotoToLines(targetLines);
+        const cand = searchSplitForHeight(targetLines);
+        if (cand && (!overall || cand.score < overall.score)) {
+          overall = cand;
+        }
+        if (cand && cand.valid && cand.diff <= tol && cand.isLineEnd) {
+          break; // Exact sub-pixel alignment + full line-end achieved at closest photo height!
+        }
+      }
+
+      if (overall) {
+        if (img) setPhotoToLines(overall.targetLines);
+        applySplit(overall.s);
+        broadsheetSplitCache.set(cacheKey, { s: overall.s, targetLines: overall.targetLines });
+        if (broadsheetSplitCache.size > 300) broadsheetSplitCache.delete(broadsheetSplitCache.keys().next().value);
+      }
+      return true;
+    }
+
     // REAL DOM MEASURED MULTI-COLUMN TEXT SPLITTER (PERFECT VERTICAL BASELINE BALANCE)
     function splitBroadsheetContentForColumns(sec, effectiveCols, col1PhotoH, col2PhotoH, col3PhotoH, colW, isModal) {
       const rawText = (sec.content || '').trim();
@@ -5795,22 +6043,8 @@
 
       const font = sec.bodyFont || studioState.paperMeta?.defaultBodyFont || "'Martel', serif";
       const size = sec.bodySize || '11px';
-      const color = sec.bodyColor || '#111111';
-      const align = sec.bodyAlign || 'justify';
-      const styleStr = `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: left; line-height: 1.38; margin-bottom: 4px;`;
 
-      const rawParas = rawText.split(/\n+/).map(p => p.trim()).filter(Boolean);
-      const allWords = [];
-      rawParas.forEach((para, pIdx) => {
-        const words = para.split(/\s+/).filter(Boolean);
-        words.forEach((w, wIdx) => {
-          allWords.push({
-            text: w,
-            isParaEnd: (wIdx === words.length - 1 && pIdx < rawParas.length - 1)
-          });
-        });
-      });
-
+      const allWords = getBroadsheetAllWords(sec);
       if (allWords.length === 0) {
         return {
           col1: '<p class="story-paragraph text-slate-400 italic text-xs">[मुख्य समाचार का टेक्स्ट यहाँ दिखेगा...]</p>',
@@ -5820,41 +6054,7 @@
       }
 
       function formatColHTML(wordsSlice, isFirstCol, isLastCol = false) {
-        if (!wordsSlice || wordsSlice.length === 0) return '';
-        let html = '';
-        let curParaWords = [];
-
-        for (let i = 0; i < wordsSlice.length; i++) {
-          curParaWords.push(escapeHtml(wordsSlice[i].text));
-          const isAtSliceEnd = (i === wordsSlice.length - 1);
-          if (wordsSlice[i].isParaEnd || isAtSliceEnd) {
-            const pText = curParaWords.join(' ');
-            const isContinuingInterCol = (!isLastCol && isAtSliceEnd);
-            const pStyle = isContinuingInterCol
-              ? `font-family: ${font}; font-size: ${size}; color: ${color}; text-align: ${align}; text-justify: inter-word; text-align-last: justify; line-height: 1.38; margin-bottom: 0px;`
-              : styleStr;
-
-            if (html === '' && isFirstCol) {
-              let pContent = pText;
-              if (sec.location && sec.location.trim()) {
-                pContent = `<strong class="font-bold text-slate-900">${escapeHtml(sec.location.trim())}।</strong> ` + pContent;
-              }
-              if (sec.dropCap !== false) {
-                const match = pContent.match(/^(\p{L}\p{M}*|\S)/u);
-                if (match) {
-                  const firstChar = match[0];
-                  const rest = pContent.slice(firstChar.length);
-                  pContent = `<span style="float: left; font-size: 24px; line-height: 1; font-weight: 800; margin-right: 4px; font-family: 'Rozha One', 'Martel', serif; color: #111; display: inline-block;">${firstChar}</span>` + rest;
-                }
-              }
-              html += `<p class="story-paragraph" style="${pStyle}">${pContent}</p>`;
-            } else {
-              html += `<p class="story-paragraph" style="${pStyle}">${pText}</p>`;
-            }
-            curParaWords = [];
-          }
-        }
-        return html;
+        return formatBroadsheetColWordsHTML(sec, wordsSlice, isFirstCol, isLastCol);
       }
 
       let sandbox = document.getElementById('broadsheetColSandbox');
@@ -5952,7 +6152,8 @@
           col2: formatColHTML(allWords.slice(split1, split2), false, false),
           col3: formatColHTML(allWords.slice(split2), false, true),
           col12: formatColHTML(allWords.slice(0, split2), true, false),
-          col23: formatColHTML(allWords.slice(split1), false, true)
+          col23: formatColHTML(allWords.slice(split1), false, true),
+          split1, split2
         };
       }
 
@@ -6169,13 +6370,15 @@
         `;
       }
 
+      const splitMode = (targetCol1 === 2 && effectiveCols >= 2) ? 'col2' : ((targetCol1 === 3 && effectiveCols >= 3) ? 'col3' : '');
       return `
         ${bulletsHTML}
         <div id="${isModal ? 'modal-preview-columns-container' : `news-columns-${sec.id}`}"
+             data-split-mode="${splitMode}" data-sec-id="${sec.id}"
              class="font-martel leading-relaxed my-1 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10 rounded' : ''}"
              style="font-family: ${sec.bodyFont || "'Martel', serif"}; font-size: ${sec.bodySize || '11px'}; color: ${sec.bodyColor || '#111'}; text-align: ${sec.bodyAlign || 'justify'}; text-justify: inter-word; line-height: 1.38;"
              ${isModal ? `onclick="setModalActiveTarget('body', event)" title="क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें"` : ''}>
-          <div id="${isModal ? 'modal-preview-paragraphs' : ''}" style="display: contents;">
+          <div id="${isModal ? 'modal-preview-paragraphs' : ''}" class="bs-flow" style="display: contents;">
             ${bodyInnerHTML}
           </div>
         </div>
@@ -6207,16 +6410,28 @@
         if (colR.width <= 0) return;
 
         const gutter = parseFloat(compStyle.columnGap) || 14;
-        const colW = (colR.width - (colCount - 1) * gutter) / colCount;
+        const unscaledWidth = container.offsetWidth || colR.width;
+        const colW = (unscaledWidth - (colCount - 1) * gutter) / colCount;
+
+        // Col 2 Top / Col 3 Top: DOM-measured split so all column bottoms align exactly
+        let splitBalanced = false;
+        try {
+          splitBalanced = balanceColTopSplitLayout(container, colCount, colW, gutter, lineHeight);
+        } catch (e) {
+          console.warn('Col-top split balance failed:', e);
+        }
 
         const paras = Array.from(container.querySelectorAll('.story-paragraph'));
         if (paras.length === 0) return;
 
-        const pBlock = container.querySelector('.col-top-photo-block');
+        const pBlock = splitBalanced ? null : container.querySelector('.col-top-photo-block');
         const img = pBlock ? pBlock.querySelector('img') : null;
         const capEl = pBlock ? pBlock.querySelector('div') : null;
 
         function measureColBottoms() {
+          const curR = container.getBoundingClientRect();
+          const scaleX = (container.offsetWidth > 0 && curR.width > 0) ? (curR.width / container.offsetWidth) : 1;
+          const scaleY = (container.offsetHeight > 0 && curR.height > 0) ? (curR.height / container.offsetHeight) : scaleX;
           const bottoms = new Array(colCount).fill(0);
           paras.forEach(p => {
             const range = document.createRange();
@@ -6224,11 +6439,12 @@
             const rects = Array.from(range.getClientRects());
             rects.forEach(r => {
               if (r.width <= 0 || r.height <= 0) return;
-              const xOffset = r.left - colR.left;
-              let colIdx = Math.floor(xOffset / (colW + gutter * 0.5));
+              const xOffset = (r.left - curR.left) / scaleX;
+              const bottomY = (r.bottom - curR.top) / scaleY;
+              let colIdx = Math.floor((xOffset + 2) / (colW + gutter * 0.5));
               colIdx = Math.max(0, Math.min(colCount - 1, colIdx));
-              if (r.bottom > bottoms[colIdx]) {
-                bottoms[colIdx] = r.bottom;
+              if (bottomY > bottoms[colIdx]) {
+                bottoms[colIdx] = bottomY;
               }
             });
           });
@@ -6243,7 +6459,7 @@
           }
 
           let bestH = initialH;
-          let bestMargin = 0;
+          let bestMargin = 4;
           let minDiff = 999;
 
           // Test fine-tuning around initial photo height to find equal bottom lines
@@ -6252,10 +6468,11 @@
             img.style.height = `${testH}px`;
             img.style.maxHeight = `${testH}px`;
 
-            const totalRaw = testH + capH;
-            const targetLines = Math.round(totalRaw / lineHeight);
-            const extraMargin = Math.max(0, (targetLines * lineHeight) - totalRaw);
-            pBlock.style.marginBottom = `${extraMargin}px`;
+            pBlock.style.marginBottom = '0px';
+            const totalRaw = pBlock.offsetHeight || (testH + capH);
+            const targetLines = Math.max(1, Math.ceil((totalRaw + 3) / lineHeight - 0.02));
+            const extraMargin = Math.max(3, (targetLines * lineHeight) - totalRaw);
+            pBlock.style.marginBottom = `${extraMargin.toFixed(2)}px`;
 
             const b = measureColBottoms();
             const active = b.filter(val => val > 0);
@@ -6272,7 +6489,7 @@
 
           img.style.height = `${bestH}px`;
           img.style.maxHeight = `${bestH}px`;
-          pBlock.style.marginBottom = `${bestMargin}px`;
+          pBlock.style.marginBottom = `${bestMargin.toFixed(2)}px`;
         }
 
         // Micro-balance remaining discrepancy across columns if diff > 1.5px
@@ -6283,9 +6500,11 @@
           const minBottom = Math.min(...activeFinal);
           const finalDiff = maxBottom - minBottom;
           if (finalDiff >= 2 && finalDiff <= (lineHeight * 1.5) && paras.length > 1) {
+            const curR = container.getBoundingClientRect();
+            const scaleX = (container.offsetWidth > 0 && curR.width > 0) ? (curR.width / container.offsetWidth) : 1;
             paras.forEach(p => {
               const r = p.getBoundingClientRect();
-              const colIdx = Math.max(0, Math.min(colCount - 1, Math.floor((r.left - colR.left) / (colW + gutter * 0.5))));
+              const colIdx = Math.max(0, Math.min(colCount - 1, Math.floor(((r.left - curR.left) / scaleX + 2) / (colW + gutter * 0.5))));
               const colBottom = finalBottoms[colIdx];
               const shortage = maxBottom - colBottom;
               if (shortage >= 2 && shortage <= 25) {
@@ -7036,6 +7255,11 @@
       if (paperWrap) {
         paperWrap.innerHTML = renderModalSlotInnerHTML(sec);
         balanceAllMultiColumnSections(paperWrap);
+        paperWrap.querySelectorAll('img').forEach(imgEl => {
+          if (!imgEl.complete) {
+            imgEl.onload = () => balanceAllMultiColumnSections(paperWrap);
+          }
+        });
       }
 
       if (previewPane) {
