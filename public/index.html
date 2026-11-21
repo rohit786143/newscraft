@@ -4644,7 +4644,22 @@
           });
         }
 
-        renderActiveCanvasPage();
+        // Direct slot DOM update on canvas if present for zero-jitter typing
+        const canvasSlot = document.getElementById(`wrapper-${sec.id}`);
+        if (canvasSlot) {
+          canvasSlot.innerHTML = renderSingleSlotInnerHTML(sec);
+          balanceAllMultiColumnSections(canvasSlot);
+        }
+
+        if (isEditingText) {
+          if (typeof sidebarCanvasDebounceTimer !== 'undefined' && sidebarCanvasDebounceTimer) clearTimeout(sidebarCanvasDebounceTimer);
+          window.sidebarCanvasDebounceTimer = setTimeout(() => {
+            renderActiveCanvasPage();
+          }, 300);
+        } else {
+          renderActiveCanvasPage();
+        }
+
         autoSave();
       }
     }
@@ -4761,6 +4776,9 @@
     function renderSidebarSections() {
       const container = document.getElementById('sidebarSectionsContainer');
       if (!container) return;
+
+      const scrollParent = container.closest('.overflow-y-auto') || container.parentElement;
+      const savedScrollTop = scrollParent ? scrollParent.scrollTop : 0;
 
       const curPage = getCurrentPage();
 
@@ -5621,6 +5639,10 @@
         </div>
       `;
       }).join('');
+
+      if (scrollParent && savedScrollTop > 0) {
+        scrollParent.scrollTop = savedScrollTop;
+      }
     }
 
     // HELPER TO RENDER MULTIPLE PARAGRAPHS FROM SINGLE CONTENT TEXT
@@ -6545,6 +6567,13 @@
       const canvas = document.getElementById('newspaperCanvas');
       if (!canvas) return;
 
+      const viewport = document.getElementById('canvasViewport');
+      const prevScrollTop = viewport ? viewport.scrollTop : 0;
+      const prevScrollLeft = viewport ? viewport.scrollLeft : 0;
+
+      const prevSpatial = document.getElementById('broadsheetSpatialEngine');
+      const prevHeight = prevSpatial ? (prevSpatial.style.height || (prevSpatial.offsetHeight ? prevSpatial.offsetHeight + 'px' : null)) : null;
+
       const page = getCurrentPage();
       const meta = studioState.paperMeta;
       let headerHTML = '';
@@ -6676,7 +6705,7 @@
 
       // Render hidden initial cards into spatial container workspace
       const slotsContainerHTML = `
-        <div id="broadsheetSpatialEngine" class="relative w-full" style="min-height: 400px; display: block; overflow: visible;">
+        <div id="broadsheetSpatialEngine" class="relative w-full" style="min-height: ${prevHeight || '400px'}; height: ${prevHeight || 'auto'}; display: block; overflow: visible;">
           ${page.sections.map(sec => {
         const span = Math.min(12, Math.max(1, sec.colSpan || 6));
         const widthPct = (span / 12) * 100;
@@ -6703,23 +6732,34 @@
 
       canvas.innerHTML = headerHTML + slotsContainerHTML + footerHTML;
 
+      const restoreScroll = () => {
+        if (viewport && prevScrollTop > 0) {
+          viewport.scrollTop = prevScrollTop;
+          viewport.scrollLeft = prevScrollLeft;
+        }
+      };
+
       // Balance multi-column photos & run 2D Spatial Best-Fit Placement after DOM frame render
       requestAnimationFrame(() => {
         balanceAllMultiColumnSections(canvas);
         runBroadsheetSpatial2DPacking();
+        restoreScroll();
         setTimeout(() => {
           balanceAllMultiColumnSections(canvas);
           runBroadsheetSpatial2DPacking();
+          restoreScroll();
         }, 50);
         setTimeout(() => {
           balanceAllMultiColumnSections(canvas);
           runBroadsheetSpatial2DPacking();
+          restoreScroll();
         }, 200);
       });
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => {
           balanceAllMultiColumnSections(canvas);
           runBroadsheetSpatial2DPacking();
+          restoreScroll();
         });
       }
     }
@@ -6944,10 +6984,81 @@
       }
     }
 
+    function renderModalTabsHTML(activeTarget) {
+      const tabs = [
+        { id: 'heading', icon: '🔤', label: 'हेडिंग', activeClass: 'bg-red-600 text-white shadow-md ring-1 ring-red-400' },
+        { id: 'kicker', icon: '🏷️', label: 'किकर / टैग', activeClass: 'bg-orange-600 text-white shadow-md ring-1 ring-orange-400' },
+        { id: 'subheading', icon: '🔖', label: 'सबहेडिंग', activeClass: 'bg-amber-600 text-white shadow-md ring-1 ring-amber-400' },
+        { id: 'body', icon: '📄', label: 'मुख्य समाचार', activeClass: 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400' },
+        { id: 'image', icon: '🖼️', label: 'फोटो / लेआउट', activeClass: 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400' },
+        { id: 'bullets', icon: '📋', label: 'बुलेट्स', activeClass: 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400' },
+        { id: 'border', icon: '🔲', label: 'बॉर्डर व फ्रेम', activeClass: 'bg-cyan-600 text-white shadow-md ring-1 ring-cyan-400' },
+      ];
+
+      return tabs.map(t => `
+        <button type="button" onclick="setModalActiveTarget('${t.id}')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${activeTarget === t.id ? t.activeClass : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
+          <span>${t.icon}</span>
+          <span>${t.label}</span>
+        </button>
+      `).join('');
+    }
+
     function setModalActiveTarget(target, event) {
       if (event) event.stopPropagation();
       modalActiveTarget = target;
-      renderSectionModalContent();
+
+      const curPage = getCurrentPage();
+      if (!curPage || !curPage.sections) return;
+      const sec = curPage.sections.find(s => s.id === modalActiveSecId);
+      if (!sec) return;
+
+      const tabsStrip = document.getElementById('modalTabsStrip');
+      if (tabsStrip) {
+        tabsStrip.innerHTML = renderModalTabsHTML(modalActiveTarget);
+      }
+
+      const toolbarContainer = document.getElementById('modalToolbarScrollContainer');
+      if (toolbarContainer) {
+        toolbarContainer.innerHTML = renderModalActiveToolbar(sec, modalActiveTarget);
+        toolbarContainer.scrollTop = 0;
+      }
+
+      updateModalPreviewPaperSlot(sec);
+    }
+
+    function updateModalPreviewPaperSlot(sec) {
+      if (!sec) return;
+      const previewPane = document.getElementById('modalPreviewLeftPane');
+      const prevScrollTop = previewPane ? previewPane.scrollTop : 0;
+      const prevScrollLeft = previewPane ? previewPane.scrollLeft : 0;
+
+      const paperWrap = document.getElementById('modalSlotPaperWrap');
+      if (paperWrap) {
+        paperWrap.innerHTML = renderModalSlotInnerHTML(sec);
+        balanceAllMultiColumnSections(paperWrap);
+      }
+
+      if (previewPane) {
+        previewPane.scrollTop = prevScrollTop;
+        previewPane.scrollLeft = prevScrollLeft;
+      }
+    }
+
+    let modalCanvasDebounceTimer = null;
+    function debouncedRenderActiveCanvasPage() {
+      if (modalCanvasDebounceTimer) clearTimeout(modalCanvasDebounceTimer);
+      modalCanvasDebounceTimer = setTimeout(() => {
+        const viewport = document.getElementById('canvasViewport');
+        const prevScrollTop = viewport ? viewport.scrollTop : 0;
+        const prevScrollLeft = viewport ? viewport.scrollLeft : 0;
+
+        renderActiveCanvasPage();
+
+        if (viewport && prevScrollTop > 0) {
+          viewport.scrollTop = prevScrollTop;
+          viewport.scrollLeft = prevScrollLeft;
+        }
+      }, 250);
     }
 
     function updateModalSectionField(field, val, forceFullRerender = false) {
@@ -6978,117 +7089,40 @@
         if (val == 3 && (!sec.bodyCols || sec.bodyCols < 3)) sec.bodyCols = 3;
       }
 
-      const mustRerender = forceFullRerender || ['layout', 'imageCol', 'imageHeight', 'image', 'image2', 'image3', 'caption', 'caption2', 'caption3', 'bodyCols', 'bodySize', 'bodyFont', 'bodyAlign', 'content', 'dropCap', 'bullets'].includes(field);
+      // Check if user is typing in an input or textarea
+      const isEditingText = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
 
-      // 1. Update background broadsheet canvas
-      renderActiveCanvasPage();
+      // Toolbar buttons that should re-render the toolbar (to update active blue highlight or controls)
+      // NEVER re-render the toolbar while the user is actively typing in text fields!
+      const toolbarControlsRequiringSync = ['layout', 'imageCol', 'bodyCols', 'bodyAlign', 'dropCap', 'titleBold', 'titleItalic', 'titleUnderline', 'titleAlign', 'topLineBold', 'topLineItalic', 'topLineAlign', 'subtitleBold', 'subtitleItalic', 'subtitleAlign', 'bulletBold', 'bulletItalic', 'bulletAlign', 'imageFit', 'captionAlign', 'showCardBorder', 'cardBorderStyle'];
 
-      // 2. Update modal preview live
-      if (mustRerender) {
-        renderSectionModalContent();
-      } else {
-        syncModalPreviewElement(sec, field, val);
+      const shouldRerenderToolbar = !isEditingText && (forceFullRerender || toolbarControlsRequiringSync.includes(field));
+
+      if (shouldRerenderToolbar) {
+        const toolbarContainer = document.getElementById('modalToolbarScrollContainer');
+        if (toolbarContainer) {
+          const prevToolbarScroll = toolbarContainer.scrollTop;
+          toolbarContainer.innerHTML = renderModalActiveToolbar(sec, modalActiveTarget);
+          toolbarContainer.scrollTop = prevToolbarScroll;
+        }
       }
 
-      // 3. Keep sidebar in sync
-      if (['layout', 'imageCol', 'bodyCols'].includes(field)) {
+      // 1. Live update left preview paper slot without touching right toolbar or focus
+      updateModalPreviewPaperSlot(sec);
+
+      // 2. Keep sidebar in sync
+      if (!isEditingText && ['layout', 'imageCol', 'bodyCols'].includes(field)) {
         renderSidebarSections();
       }
+
+      // 3. Debounce background broadsheet canvas render (preserves scroll & focus)
+      debouncedRenderActiveCanvasPage();
 
       autoSave();
     }
 
     function syncModalPreviewElement(sec, field, val) {
-      if (field === 'title') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.textContent = val || 'मुख्य समाचार शीर्षक यहाँ लिखें';
-      } else if (field === 'titleFont') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.fontFamily = val;
-      } else if (field === 'fontSize') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.fontSize = val;
-      } else if (field === 'titleColor') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.color = val;
-      } else if (field === 'titleAlign') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.textAlign = val;
-      } else if (field === 'titleBold') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.fontWeight = val !== false ? '800' : 'normal';
-      } else if (field === 'titleItalic') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.fontStyle = val ? 'italic' : 'normal';
-      } else if (field === 'titleUnderline') {
-        const el = document.getElementById('modal-preview-title');
-        if (el) el.style.textDecoration = val ? 'underline' : 'none';
-      } else if (field === 'topLine') {
-        const el = document.getElementById('modal-preview-topline');
-        if (el) el.textContent = val;
-      } else if (field === 'topLineColor') {
-        const el = document.getElementById('modal-preview-topline-wrap');
-        if (el) el.style.color = val;
-      } else if (field === 'topLineSize') {
-        const el = document.getElementById('modal-preview-topline-wrap');
-        if (el) el.style.fontSize = val;
-      } else if (field === 'topLineFont') {
-        const el = document.getElementById('modal-preview-topline-wrap');
-        if (el) el.style.fontFamily = val;
-      } else if (field === 'topLineAlign') {
-        const el = document.getElementById('modal-preview-topline-wrap');
-        if (el) el.style.textAlign = val;
-      } else if (field === 'tag') {
-        const el = document.getElementById('modal-preview-tag');
-        if (el) el.textContent = val;
-      } else if (field === 'tagBgColor') {
-        const el = document.getElementById('modal-preview-tag');
-        if (el) el.style.backgroundColor = val;
-      } else if (field === 'tagTextColor') {
-        const el = document.getElementById('modal-preview-tag');
-        if (el) el.style.color = val;
-      } else if (field === 'tagFontSize') {
-        const el = document.getElementById('modal-preview-tag');
-        if (el) el.style.fontSize = val;
-      } else if (field === 'tagFont') {
-        const el = document.getElementById('modal-preview-tag');
-        if (el) el.style.fontFamily = val;
-      } else if (field === 'subtitle') {
-        const el = document.getElementById('modal-preview-subtitle');
-        if (el) el.textContent = val;
-      } else if (field === 'subtitleColor') {
-        const el = document.getElementById('modal-preview-subtitle');
-        if (el) el.style.color = val;
-      } else if (field === 'subtitleSize') {
-        const el = document.getElementById('modal-preview-subtitle');
-        if (el) el.style.fontSize = val;
-      } else if (field === 'subtitleFont') {
-        const el = document.getElementById('modal-preview-subtitle');
-        if (el) el.style.fontFamily = val;
-      } else if (field === 'subtitleAlign') {
-        const el = document.getElementById('modal-preview-subtitle');
-        if (el) el.style.textAlign = val;
-      } else if (field === 'content') {
-        const el = document.getElementById('modal-preview-paragraphs');
-        if (el) el.innerHTML = renderParagraphsHTML(sec, sec.dropCap !== false);
-      } else if (field === 'bodyFont' || field === 'bodySize' || field === 'bodyColor' || field === 'bodyAlign' || field === 'dropCap') {
-        const el = document.getElementById('modal-preview-paragraphs');
-        if (el) el.innerHTML = renderParagraphsHTML(sec, sec.dropCap !== false);
-      } else if (field === 'caption') {
-        const el = document.getElementById('modal-preview-caption');
-        if (el) el.innerHTML = renderCaptionHTML(sec, sec.captionAlign || 'left');
-      } else if (field === 'captionColor' || field === 'captionFont' || field === 'captionSize' || field === 'captionAlign') {
-        const el = document.getElementById('modal-preview-caption');
-        if (el) el.innerHTML = renderCaptionHTML(sec, sec.captionAlign || 'left');
-      } else if (field === 'caption2') {
-        const el = document.getElementById('modal-preview-caption2');
-        if (el) el.innerHTML = renderCaption2HTML(sec, 'center');
-      } else if (field === 'bullets' || field === 'bulletColor' || field === 'bulletBgColor' || field === 'bulletSize' || field === 'bulletFont') {
-        const el = document.getElementById('modal-preview-bullets');
-        if (el) el.innerHTML = renderBulletsHTML(sec);
-      } else {
-        renderSectionModalContent();
-      }
+      updateModalPreviewPaperSlot(sec);
     }
 
     async function pasteToModalContent() {
@@ -7262,45 +7296,12 @@
           <div class="w-full md:w-[440px] lg:w-[480px] shrink-0 bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col h-full overflow-hidden shadow-2xl">
             
             <!-- Quick Element Switcher Tabs Strip (Dedicated Separate Tabs for Kicker & Subheading) -->
-            <div class="px-3.5 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none custom-scrollbar">
-              <button type="button" onclick="setModalActiveTarget('heading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'heading' ? 'bg-red-600 text-white shadow-md ring-1 ring-red-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>🔤</span>
-                <span>हेडिंग</span>
-              </button>
-
-              <button type="button" onclick="setModalActiveTarget('kicker')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'kicker' ? 'bg-orange-600 text-white shadow-md ring-1 ring-orange-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>🏷️</span>
-                <span>किकर / टैग</span>
-              </button>
-
-              <button type="button" onclick="setModalActiveTarget('subheading')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'subheading' ? 'bg-amber-600 text-white shadow-md ring-1 ring-amber-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>🔖</span>
-                <span>सबहेडिंग</span>
-              </button>
-
-              <button type="button" onclick="setModalActiveTarget('body')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'body' ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>📄</span>
-                <span>मुख्य समाचार</span>
-              </button>
-
-              <button type="button" onclick="setModalActiveTarget('image')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'image' ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>🖼️</span>
-                <span>फोटो / लेआउट</span>
-              </button>
-
-              <button type="button" onclick="setModalActiveTarget('bullets')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'bullets' ? 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>📋</span>
-                <span>बुलेट्स</span>
-              </button>
-
-              <button type="button" onclick="setModalActiveTarget('border')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${modalActiveTarget === 'border' ? 'bg-cyan-600 text-white shadow-md ring-1 ring-cyan-400' : 'bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800'}">
-                <span>🔲</span>
-                <span>बॉर्डर व फ्रेम</span>
-              </button>
+            <div id="modalTabsStrip" class="px-3.5 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto shrink-0 select-none custom-scrollbar">
+              ${renderModalTabsHTML(modalActiveTarget)}
             </div>
 
             <!-- Active Dedicated Editor Body -->
-            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div id="modalToolbarScrollContainer" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
               ${renderModalActiveToolbar(sec, modalActiveTarget)}
             </div>
 
