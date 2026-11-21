@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserById } from '@/lib/auth';
+import { findUserByIdAsync } from '@/lib/auth';
 import { isDeviceRegistered, ensureTableExists } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    const user = findUserById(sessionData.id);
+    const user = await findUserByIdAsync(sessionData.id);
     if (!user) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }

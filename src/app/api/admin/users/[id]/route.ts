@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllUsers, saveUsers, calculateEndDate } from '@/lib/auth';
+import { getAllUsersAsync, upsertUserAsync, deleteUserAsync, calculateEndDate } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 function verifyAdminSession(req: NextRequest): boolean {
   const sessionCookie = req.cookies.get('presscraft_session')?.value;
@@ -23,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const body = await req.json();
     const { action, name, newspaperName, password, planType, extendMonths, newEndDate, status, notes } = body;
 
-    const users = getAllUsers();
+    const users = await getAllUsersAsync();
     const index = users.findIndex(u => u.id === id);
 
     if (index === -1) {
@@ -66,8 +68,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       if (planType) user.planType = planType;
     }
 
-    users[index] = user;
-    saveUsers(users);
+    await upsertUserAsync(user);
 
     const { password: _, ...safeUser } = user;
     return NextResponse.json({
@@ -87,7 +88,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 
   const { id } = params;
-  const users = getAllUsers();
+  const users = await getAllUsersAsync();
   const user = users.find(u => u.id === id);
 
   if (!user) {
@@ -98,8 +99,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'सुपर एडमिन अकाउंट को डिलीट नहीं किया जा सकता।' }, { status: 400 });
   }
 
-  const filtered = users.filter(u => u.id !== id);
-  saveUsers(filtered);
+  await deleteUserAsync(id);
 
   return NextResponse.json({ success: true, message: 'यूज़र सफलतापूर्वक हटा दिया गया।' });
 }

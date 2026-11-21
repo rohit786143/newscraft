@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByCredentials } from '@/lib/auth';
+import { findUserByCredentialsAsync } from '@/lib/auth';
 import { isDeviceRegistered, ensureTableExists } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = findUserByCredentials(loginUser);
+    const user = await findUserByCredentialsAsync(loginUser);
 
     if (!user || user.password !== password) {
       return NextResponse.json(

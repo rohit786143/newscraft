@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllUsers } from '@/lib/auth';
+import { getAllUsersAsync } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const sessionCookie = req.cookies.get('presscraft_session')?.value;
@@ -13,7 +15,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const users = getAllUsers().filter(u => u.role !== 'admin');
+    const users = (await getAllUsersAsync()).filter(u => u.role !== 'admin');
     const now = new Date();
     const threeDaysLater = new Date();
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);

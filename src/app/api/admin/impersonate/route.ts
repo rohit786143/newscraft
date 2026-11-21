@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserById } from '@/lib/auth';
+import { findUserByIdAsync } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const targetUser = findUserById(targetUserId);
+    const targetUser = await findUserByIdAsync(targetUserId);
     if (!targetUser) {
       return NextResponse.json(
         { error: 'उपयोगकर्ता नहीं मिला (Target user not found)' },

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllUsers, saveUsers, calculateEndDate, User } from '@/lib/auth';
+import { getAllUsersAsync, upsertUserAsync, calculateEndDate, User } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 function verifyAdminSession(req: NextRequest): boolean {
   const sessionCookie = req.cookies.get('presscraft_session')?.value;
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'अनधिकृत पहुंच (Unauthorized Admin Only)' }, { status: 401 });
   }
 
-  const users = getAllUsers();
+  const users = await getAllUsersAsync();
   // Filter out passwords
   const sanitized = users.map(({ password, ...rest }) => rest);
   return NextResponse.json({ users: sanitized });
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'नाम, यूज़रनेम और पासवर्ड अनिवार्य हैं।' }, { status: 400 });
     }
 
-    const users = getAllUsers();
+    const users = await getAllUsersAsync();
     const existing = users.find(
       u => u.username.toLowerCase() === username.trim().toLowerCase() ||
            (email && u.email.toLowerCase() === email.trim().toLowerCase())
@@ -73,8 +75,7 @@ export async function POST(req: NextRequest) {
       notes: notes?.trim() || ''
     };
 
-    users.push(newUser);
-    saveUsers(users);
+    await upsertUserAsync(newUser);
 
     const { password: _, ...safeUser } = newUser;
     return NextResponse.json({

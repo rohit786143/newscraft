@@ -139,9 +139,31 @@ export async function ensureTableExists(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `;
 
+  const createUsersTable = `
+    CREATE TABLE IF NOT EXISTS presscraft_users (
+      id VARCHAR(100) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      username VARCHAR(120) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'user',
+      newspaper_name VARCHAR(255) NOT NULL DEFAULT 'दैनिक समाचार',
+      plan_type VARCHAR(50) NOT NULL DEFAULT '1-month',
+      start_date VARCHAR(64) NOT NULL,
+      end_date VARCHAR(64) NOT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'active',
+      created_at VARCHAR(64) NOT NULL,
+      notes TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_pc_username (username),
+      INDEX idx_pc_email (email)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `;
+
   try {
     await pool.query(createUserDesignsTable);
     await pool.query(createUserDevicesTable);
+    await pool.query(createUsersTable);
     tableInitialized = true;
   } catch (error) {
     // MySQL not reachable locally, will fallback to file storage

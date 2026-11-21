@@ -7377,12 +7377,54 @@
       }
     }
 
-    function handleModalImageUpload(input) {
+    // Convert uploaded image file into a permanent compressed base64 Data URL
+    // so photos are permanently saved in MySQL user_designs and NEVER expire like blob: URLs
+    function readImageFileAsPersistentDataUrl(file, maxWidth = 1400, quality = 0.86) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.onload = (ev) => {
+          const rawDataUrl = ev.target && ev.target.result;
+          if (!rawDataUrl) return reject(new Error('Empty image data'));
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const origW = img.naturalWidth || 800;
+              const origH = img.naturalHeight || 600;
+              const scale = origW > maxWidth ? (maxWidth / origW) : 1;
+              const w = Math.max(1, Math.round(origW * scale));
+              const h = Math.max(1, Math.round(origH * scale));
+              const cvs = document.createElement('canvas');
+              cvs.width = w;
+              cvs.height = h;
+              const ctx = cvs.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              const isPng = file.type === 'image/png';
+              const out = isPng && file.size < 450 * 1024
+                ? cvs.toDataURL('image/png')
+                : cvs.toDataURL('image/jpeg', quality);
+              resolve(out);
+            } catch {
+              resolve(rawDataUrl);
+            }
+          };
+          img.onerror = () => resolve(rawDataUrl);
+          img.src = rawDataUrl;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleModalImageUpload(input) {
       const file = input.files && input.files[0];
       if (file) {
-        const objectUrl = URL.createObjectURL(file);
-        updateModalSectionField('image', objectUrl, true);
-        showStudioToast('फ़ोटो लोड की गई!');
+        try {
+          const dataUrl = await readImageFileAsPersistentDataUrl(file);
+          updateModalSectionField('image', dataUrl, true);
+          showStudioToast('फ़ोटो स्थायी रूप से लोड व सेव हो गई!');
+        } catch {
+          showStudioToast('फ़ोटो लोड करने में त्रुटि हुई।');
+        }
       }
     }
 
@@ -7392,12 +7434,16 @@
       showStudioToast('फ़ोटो हटा दी गई');
     }
 
-    function handleModalImage2Upload(input) {
+    async function handleModalImage2Upload(input) {
       const file = input.files && input.files[0];
       if (file) {
-        const objectUrl = URL.createObjectURL(file);
-        updateModalSectionField('image2', objectUrl, true);
-        showStudioToast('फ़ोटो 2 लोड की गई (कॉलम 2 टॉप पर सेट)!');
+        try {
+          const dataUrl = await readImageFileAsPersistentDataUrl(file);
+          updateModalSectionField('image2', dataUrl, true);
+          showStudioToast('फ़ोटो 2 स्थायी रूप से लोड व सेव हो गई (कॉलम 2 टॉप)!');
+        } catch {
+          showStudioToast('फ़ोटो 2 लोड करने में त्रुटि हुई।');
+        }
       }
     }
 
@@ -7407,12 +7453,16 @@
       showStudioToast('फ़ोटो 2 हटा दी गई');
     }
 
-    function handleModalImage3Upload(input) {
+    async function handleModalImage3Upload(input) {
       const file = input.files && input.files[0];
       if (file) {
-        const objectUrl = URL.createObjectURL(file);
-        updateModalSectionField('image3', objectUrl, true);
-        showStudioToast('फ़ोटो 3 लोड की गई (कॉलम 3 टॉप पर सेट)!');
+        try {
+          const dataUrl = await readImageFileAsPersistentDataUrl(file);
+          updateModalSectionField('image3', dataUrl, true);
+          showStudioToast('फ़ोटो 3 स्थायी रूप से लोड व सेव हो गई (कॉलम 3 टॉप)!');
+        } catch {
+          showStudioToast('फ़ोटो 3 लोड करने में त्रुटि हुई।');
+        }
       }
     }
 

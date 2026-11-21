@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserById } from '@/lib/auth';
+import { findUserByIdAsync } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         try {
           const current = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
           if (current?.original_admin_id) {
-            const adminUser = findUserById(current.original_admin_id);
+            const adminUser = await findUserByIdAsync(current.original_admin_id);
             if (adminUser && adminUser.role === 'admin') {
               adminSession = {
                 id: adminUser.id,
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     if (!adminSession) {
       // Default admin account fallback
-      const defaultAdmin = findUserById('usr-admin');
+      const defaultAdmin = await findUserByIdAsync('usr-admin');
       if (defaultAdmin) {
         adminSession = {
           id: defaultAdmin.id,
