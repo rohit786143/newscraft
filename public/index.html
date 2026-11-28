@@ -4601,9 +4601,7 @@
         if (field === 'layout') {
           if (val === 'col1-top') {
             sec.imageCol = 1;
-            if (!sec.imageHeight || sec.imageHeight > 130) {
-              sec.imageHeight = 110;
-            }
+            if (!sec.imageHeight) sec.imageHeight = 110;
             if (!sec.imageFit) sec.imageFit = 'cover';
           } else if (val === 'col2-top') {
             sec.imageCol = 2;
@@ -4611,6 +4609,8 @@
           } else if (val === 'col3-top') {
             sec.imageCol = 3;
             if (!sec.bodyCols || sec.bodyCols < 3) sec.bodyCols = 3;
+          } else {
+            sec.imageCol = null;
           }
         } else if (field === 'imageCol') {
           sec.layout = `col${val}-top`;
@@ -5750,14 +5750,13 @@
       return `<span class="block mt-0.5 leading-tight truncate" style="${style}">${sec.caption3}</span>`;
     }
 
-    // RENDER COLUMN PHOTO BLOCK HELPER (STRICTLY LANDSCAPE 16:10 FOR BROADSHEET)
+    // RENDER COLUMN PHOTO BLOCK HELPER (HONORS FULL USER HEIGHT SLIDER 60px-450px)
     function renderBroadsheetColumnPhotoBlock(photoObj, isModal, modalActiveTarget, colW, isColBreak = false) {
       if (!photoObj || !photoObj.src) return '';
       const isTargetActive = isModal && modalActiveTarget === 'image';
       const actualColW = colW || 160;
-      // Column top photos are strictly landscape (16:10 aspect ratio, not portrait)
       const landscapeH = Math.round(actualColW * (10 / 16));
-      const hVal = Math.min(Math.max(photoObj.h ? Math.min(photoObj.h, landscapeH + 15) : landscapeH, 65), landscapeH + 20);
+      const hVal = Math.min(Math.max(photoObj.h ? parseInt(photoObj.h, 10) : landscapeH, 60), 450);
       const fitVal = photoObj.fit || 'cover';
       const captionText = (photoObj.caption || '').trim();
 
@@ -5765,7 +5764,7 @@
         <div class="col-top-photo-block cursor-pointer transition rounded ${isTargetActive ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : 'hover:outline hover:outline-1 hover:outline-blue-400'}"
              style="break-inside: avoid !important; -webkit-column-break-inside: avoid !important; ${isColBreak ? 'break-before: column !important; -webkit-column-break-before: always !important;' : ''} display: block; width: 100%; box-sizing: border-box; margin-bottom: 5px;"
              ${isModal ? `onclick="setModalActiveTarget('image', event)" title="क्लिक करके फोटो एडिट करें"` : ''}>
-          <img src="${escapeHtml(photoObj.src)}" alt="Photo" class="w-full object-cover border border-black p-0.5 block col-top-photo-img" data-base-height="${hVal}" style="width: 100%; aspect-ratio: 16 / 10; height: ${hVal}px; max-height: ${hVal}px; object-fit: ${fitVal}; display: block;">
+          <img src="${escapeHtml(photoObj.src)}" alt="Photo" class="w-full object-cover border border-black p-0.5 block col-top-photo-img" data-base-height="${hVal}" style="width: 100%; height: ${hVal}px; max-height: ${hVal}px; object-fit: ${fitVal}; display: block;">
           ${captionText ? `
             <div class="pt-0.5 mt-0.5 overflow-hidden text-[9.5px] italic text-slate-700 truncate whitespace-nowrap text-ellipsis block max-w-full" style="font-family: ${photoObj.captionFont || "'Martel', serif"}; font-size: ${photoObj.captionSize || '9.5px'}; color: ${photoObj.captionColor || '#334155'}; text-align: ${photoObj.captionAlign || 'left'}; height: 15px; line-height: 15px;">
               ${escapeHtml(captionText)}
@@ -6213,10 +6212,11 @@
 
       // 3. Hero Feature
       if (sec.layout === 'hero-split') {
+        const heroH = Math.min(Math.max(parseInt(sec.imageHeight, 10) || 220, 60), 450);
         return `
           ${sec.image ? `
             <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="my-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
-              <img src="${sec.image}" alt="Photo" class="w-full max-h-56 object-cover border border-black p-0.5">
+              <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5" style="height: ${heroH}px; max-height: ${heroH}px; object-fit: ${sec.imageFit || 'cover'};">
               ${sec.caption ? `<div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">${renderCaptionHTML(sec, sec.captionAlign || 'left')}</div>` : ''}
             </div>
           ` : ''}
@@ -6231,6 +6231,7 @@
 
       // 4. Bottom Image
       if (sec.layout === 'bottom-img') {
+        const botH = Math.min(Math.max(parseInt(sec.imageHeight, 10) || 180, 60), 450);
         return `
           ${bulletsHTML}
           <div ${isModal ? `onclick="setModalActiveTarget('body', event)"` : ''} class="font-martel leading-relaxed my-0.5 ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}">
@@ -6240,7 +6241,7 @@
           </div>
           ${sec.image ? `
             <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="my-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
-              <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover border border-black p-0.5">
+              <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5" style="height: ${botH}px; max-height: ${botH}px; object-fit: ${sec.imageFit || 'cover'};">
               ${sec.caption ? `<div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">${renderCaptionHTML(sec, sec.captionAlign || 'left')}</div>` : ''}
             </div>
           ` : ''}
@@ -6248,12 +6249,13 @@
       }
 
       // 5. Left Float
-      if (sec.layout === 'left-img' && !sec.image2 && !sec.image3) {
+      if (sec.layout === 'left-img') {
+        const floatLH = Math.min(Math.max(parseInt(sec.imageHeight, 10) || 160, 60), 450);
         return `
           <div ${isModal ? `onclick="setModalActiveTarget('body', event)"` : ''} class="font-martel leading-relaxed clearfix my-1 cursor-pointer ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" title="${isModal ? 'क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें' : ''}">
             ${sec.image ? `
-              <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="float-left w-[44%] max-w-[220px] mr-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
-                <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
+              <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="float-left w-[44%] max-w-[240px] mr-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
+                <img src="${sec.image}" alt="Photo" class="w-full object-cover" style="height: ${floatLH}px; max-height: ${floatLH}px; object-fit: ${sec.imageFit || 'cover'};">
                 ${sec.caption ? `<div class="pt-0.5" style="text-align: ${sec.captionAlign || 'center'};">${renderCaptionHTML(sec, sec.captionAlign || 'center')}</div>` : ''}
               </div>
             ` : ''}
@@ -6266,12 +6268,13 @@
       }
 
       // 6. Right Float
-      if (sec.layout === 'right-img' && !sec.image2 && !sec.image3) {
+      if (sec.layout === 'right-img') {
+        const floatRH = Math.min(Math.max(parseInt(sec.imageHeight, 10) || 160, 60), 450);
         return `
           <div ${isModal ? `onclick="setModalActiveTarget('body', event)"` : ''} class="font-martel leading-relaxed clearfix my-1 cursor-pointer ${colsClass} ${isModal && modalActiveTarget === 'body' ? 'outline outline-2 outline-emerald-500 bg-emerald-500/10' : ''}" title="${isModal ? 'क्लिक करके मुख्य समाचार टेक्स्ट एडिट करें' : ''}">
             ${sec.image ? `
-              <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="float-right w-[44%] max-w-[220px] ml-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
-                <img src="${sec.image}" alt="Photo" class="w-full max-h-44 object-cover" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
+              <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="float-right w-[44%] max-w-[240px] ml-2 mb-1 border border-black p-0.5 bg-white cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
+                <img src="${sec.image}" alt="Photo" class="w-full object-cover" style="height: ${floatRH}px; max-height: ${floatRH}px; object-fit: ${sec.imageFit || 'cover'};">
                 ${sec.caption ? `<div class="pt-0.5" style="text-align: ${sec.captionAlign || 'center'};">${renderCaptionHTML(sec, sec.captionAlign || 'center')}</div>` : ''}
               </div>
             ` : ''}
@@ -6283,13 +6286,13 @@
         `;
       }
 
-      // 7. Full Span Top Image ('top-img') when no specific column photo is chosen
-      const isColLayout = sec.layout === 'col1-top' || sec.layout === 'col2-top' || sec.layout === 'col3-top' || !!sec.image2 || !!sec.image3;
-      if (sec.layout === 'top-img' && !sec.image2 && !sec.image3) {
+      // 7. Full Span Top Image ('top-img')
+      if (sec.layout === 'top-img') {
+        const topFullH = Math.min(Math.max(parseInt(sec.imageHeight, 10) || 200, 60), 450);
         return `
           ${sec.image ? `
             <div ${isModal ? `onclick="setModalActiveTarget('image', event)"` : ''} class="my-1 cursor-pointer transition rounded ${isModal && modalActiveTarget === 'image' ? 'outline outline-2 outline-blue-500 bg-blue-500/10' : ''}">
-              <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5" style="max-height: ${sec.imageHeight || 180}px; object-fit: ${sec.imageFit || 'cover'};">
+              <img src="${sec.image}" alt="Photo" class="w-full object-cover border border-black p-0.5" style="height: ${topFullH}px; max-height: ${topFullH}px; object-fit: ${sec.imageFit || 'cover'};">
               ${sec.caption ? `<div class="pt-0.5" style="text-align: ${sec.captionAlign || 'left'};">${renderCaptionHTML(sec, sec.captionAlign || 'left')}</div>` : ''}
             </div>
           ` : ''}
@@ -6337,11 +6340,11 @@
       const gutter = 14;
       const colW = Math.max(120, Math.floor((slotW - (effectiveCols - 1) * gutter) / effectiveCols));
 
-      // Strictly landscape photo height for column top (16:10 aspect ratio)
+      // Honor full user photo height slider (60px-450px) for column top photos
       const landscapeImgH = Math.round(colW * (10 / 16));
-      const col1PhotoH = col1Photo ? (Math.min(col1Photo.h ? Math.min(col1Photo.h, landscapeImgH + 15) : landscapeImgH, landscapeImgH + 20) + (col1Photo.caption ? 18 : 6)) : (isModal && targetCol1 === 1 && !col1Photo ? 60 : 0);
-      const col2PhotoH = col2Photo ? (Math.min(col2Photo.h ? Math.min(col2Photo.h, landscapeImgH + 15) : landscapeImgH, landscapeImgH + 20) + (col2Photo.caption ? 18 : 6)) : (isModal && targetCol1 === 2 && !col2Photo ? 60 : 0);
-      const col3PhotoH = col3Photo ? (Math.min(col3Photo.h ? Math.min(col3Photo.h, landscapeImgH + 15) : landscapeImgH, landscapeImgH + 20) + (col3Photo.caption ? 18 : 6)) : (isModal && targetCol1 === 3 && !col3Photo ? 60 : 0);
+      const col1PhotoH = col1Photo ? (Math.min(Math.max(col1Photo.h ? parseInt(col1Photo.h, 10) : landscapeImgH, 60), 450) + (col1Photo.caption ? 18 : 6)) : (isModal && targetCol1 === 1 && !col1Photo ? 60 : 0);
+      const col2PhotoH = col2Photo ? (Math.min(Math.max(col2Photo.h ? parseInt(col2Photo.h, 10) : landscapeImgH, 60), 450) + (col2Photo.caption ? 18 : 6)) : (isModal && targetCol1 === 2 && !col2Photo ? 60 : 0);
+      const col3PhotoH = col3Photo ? (Math.min(Math.max(col3Photo.h ? parseInt(col3Photo.h, 10) : landscapeImgH, 60), 450) + (col3Photo.caption ? 18 : 6)) : (isModal && targetCol1 === 3 && !col3Photo ? 60 : 0);
 
       const col1PhotoHTML = (targetCol1 === 1) ? (col1Photo ? renderBroadsheetColumnPhotoBlock(col1Photo, isModal, modalActiveTarget, colW, false) : (isModal ? renderBroadsheetColumnPhotoPlaceholder(1, isModal, modalActiveTarget, false) : '')) : '';
       const col2PhotoHTML = (targetCol1 === 2 && effectiveCols >= 2) ? (col2Photo ? renderBroadsheetColumnPhotoBlock(col2Photo, isModal, modalActiveTarget, colW, true) : (isModal ? renderBroadsheetColumnPhotoPlaceholder(2, isModal, modalActiveTarget, true) : '')) : '';
@@ -7295,9 +7298,7 @@
       if (field === 'layout') {
         if (val === 'col1-top') {
           sec.imageCol = 1;
-          if (!sec.imageHeight || sec.imageHeight > 130) {
-            sec.imageHeight = 110;
-          }
+          if (!sec.imageHeight) sec.imageHeight = 110;
           if (!sec.imageFit) sec.imageFit = 'cover';
         } else if (val === 'col2-top') {
           sec.imageCol = 2;
@@ -7305,6 +7306,9 @@
         } else if (val === 'col3-top') {
           sec.imageCol = 3;
           if (!sec.bodyCols || sec.bodyCols < 3) sec.bodyCols = 3;
+        } else {
+          // Non-column layouts (top-img, left-img, right-img, hero-split, bottom-img, text-only)
+          sec.imageCol = null;
         }
       } else if (field === 'imageCol') {
         sec.layout = `col${val}-top`;
@@ -8116,7 +8120,8 @@
     // 5. PHOTO & CAPTION TOOLBAR (PER-COLUMN TOP PHOTO CONTROLS)
     function renderImageToolbarHTML(sec) {
       const activePlacement = sec.layout || 'top-img';
-      const curCol1 = sec.imageCol || (sec.layout === 'col2-top' ? 2 : (sec.layout === 'col3-top' ? 3 : 1));
+      const isColTopMode = activePlacement === 'col1-top' || activePlacement === 'col2-top' || activePlacement === 'col3-top';
+      const curCol1 = isColTopMode ? (sec.imageCol || (activePlacement === 'col2-top' ? 2 : (activePlacement === 'col3-top' ? 3 : 1))) : 0;
 
       return `
         <div class="space-y-4 text-slate-100 text-xs select-none">
@@ -8187,9 +8192,9 @@
             <div>
               <div class="flex justify-between items-center mb-1">
                 <label class="text-slate-400 text-[10px] font-semibold">फ़ोटो 1 ऊंचाई (Height):</label>
-                <span class="text-blue-400 font-mono font-bold text-[10px]">${sec.imageHeight || 200}px</span>
+                <span id="lbl-modal-imageHeight" class="text-blue-400 font-mono font-bold text-[10px]">${sec.imageHeight || 200}px</span>
               </div>
-              <input type="range" min="60" max="450" step="10" value="${sec.imageHeight || 200}" oninput="updateModalSectionField('imageHeight', parseInt(this.value, 10), true)" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
+              <input type="range" min="60" max="450" step="5" value="${sec.imageHeight || 200}" oninput="const lbl=document.getElementById('lbl-modal-imageHeight'); if(lbl) lbl.textContent=this.value+'px'; updateModalSectionField('imageHeight', parseInt(this.value, 10), false)" class="w-full accent-blue-500 h-1.5 rounded cursor-pointer">
             </div>
 
             <div class="grid grid-cols-2 gap-2">
