@@ -20,7 +20,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- FontAwesome Icons CDN -->
-  <link crossorigin="anonymous" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link crossorigin="anonymous" rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <!-- Export Libraries: html-to-image, jsPDF, html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
@@ -6690,11 +6691,11 @@
             </div>
           ` : ''}
           
-          <h2 class="font-extrabold text-slate-950 leading-snug my-1" style="font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"}; font-size: ${sec.fontSize || '22px'}; color: ${sec.titleColor || '#111111'}; text-align: ${sec.titleAlign || 'left'}; letter-spacing: -0.01em; padding-top: ${!sec.topLine && !sec.tag ? '3px' : '0px'};">
+          <h2 class="text-slate-950 leading-snug my-1" style="font-family: ${sec.titleFont || studioState.paperMeta.defaultHeadlineFont || "'Rozha One', serif"}; font-size: ${sec.fontSize || '22px'}; color: ${sec.titleColor || '#111111'}; text-align: ${sec.titleAlign || 'left'}; font-weight: ${sec.titleBold !== false ? '800' : '400'}; font-style: ${sec.titleItalic ? 'italic' : 'normal'}; text-decoration: ${sec.titleUnderline ? 'underline' : 'none'}; letter-spacing: -0.01em; padding-top: ${!sec.topLine && !sec.tag ? '3px' : '0px'};">
             ${sec.title}
           </h2>
           
-          ${sec.subtitle ? `<h3 class="font-semibold italic my-1 leading-snug" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'};">${sec.subtitle}</h3>` : ''}
+          ${sec.subtitle ? `<h3 class="my-1 leading-snug" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'}; font-weight: ${sec.subtitleBold ? '800' : '600'}; font-style: ${sec.subtitleItalic !== false ? 'italic' : 'normal'};">${sec.subtitle}</h3>` : ''}
 
           <!-- BROADSHEET STORY & MULTI-COLUMN PHOTO RENDERER -->
           ${renderSectionStoryAndPhotosHTML(sec, false)}
@@ -7660,7 +7661,7 @@
         <!-- 3. SUBTITLE / SUB-HEADLINE -->
         ${(sec.subtitle || modalActiveTarget === 'subheading') ? `
           <div onclick="setModalActiveTarget('subheading', event)" class="cursor-pointer my-0.5 rounded transition ${modalActiveTarget === 'subheading' ? 'outline outline-2 outline-amber-500 bg-amber-500/10' : 'hover:outline hover:outline-1 hover:outline-amber-400'}" style="margin: 0; padding: 0;" title="क्लिक करके सबहेडिंग एडिट करें">
-            <h3 id="modal-preview-subtitle" class="font-semibold italic my-1 leading-snug" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'};">
+            <h3 id="modal-preview-subtitle" class="my-1 leading-snug" style="font-family: ${sec.subtitleFont || "'Martel', serif"}; font-size: ${sec.subtitleSize || '12.5px'}; color: ${sec.subtitleColor || '#334155'}; text-align: ${sec.subtitleAlign || 'left'}; font-weight: ${sec.subtitleBold ? '800' : '600'}; font-style: ${sec.subtitleItalic !== false ? 'italic' : 'normal'};">
               ${sec.subtitle || 'यहाँ उप-शीर्षक (सबहेडिंग) लिखें...'}
             </h3>
           </div>
@@ -7836,10 +7837,10 @@
               </div>
 
               <div class="flex items-center gap-1">
-                <button type="button" onclick="updateModalSectionField('topLineBold', sec.topLineBold === false, true)" class="px-2.5 py-1 rounded text-[11px] font-bold border ${sec.topLineBold !== false ? 'bg-orange-600 text-white border-orange-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
+                <button type="button" onclick="updateModalSectionField('topLineBold', ${sec.topLineBold === false}, true)" class="px-2.5 py-1 rounded text-[11px] font-bold border ${sec.topLineBold !== false ? 'bg-orange-600 text-white border-orange-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
                   B
                 </button>
-                <button type="button" onclick="updateModalSectionField('topLineItalic', !sec.topLineItalic, true)" class="px-2.5 py-1 rounded text-[11px] font-serif italic border ${sec.topLineItalic ? 'bg-orange-600 text-white border-orange-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
+                <button type="button" onclick="updateModalSectionField('topLineItalic', ${!sec.topLineItalic}, true)" class="px-2.5 py-1 rounded text-[11px] font-serif italic border ${sec.topLineItalic ? 'bg-orange-600 text-white border-orange-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
                   I
                 </button>
               </div>
@@ -7924,10 +7925,10 @@
               </div>
 
               <div class="flex items-center gap-1">
-                <button type="button" onclick="updateModalSectionField('subtitleBold', !sec.subtitleBold, true)" class="px-2.5 py-1 rounded text-[11px] font-bold border ${sec.subtitleBold ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
+                <button type="button" onclick="updateModalSectionField('subtitleBold', ${!sec.subtitleBold}, true)" class="px-2.5 py-1 rounded text-[11px] font-bold border ${sec.subtitleBold ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
                   B
                 </button>
-                <button type="button" onclick="updateModalSectionField('subtitleItalic', sec.subtitleItalic === false, true)" class="px-2.5 py-1 rounded text-[11px] font-serif italic border ${sec.subtitleItalic !== false ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
+                <button type="button" onclick="updateModalSectionField('subtitleItalic', ${sec.subtitleItalic === false}, true)" class="px-2.5 py-1 rounded text-[11px] font-serif italic border ${sec.subtitleItalic !== false ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-950 text-slate-400 border-slate-800'}">
                   I
                 </button>
               </div>
@@ -8012,13 +8013,13 @@
               </div>
 
               <div class="flex items-center gap-1">
-                <button type="button" onclick="updateModalSectionField('titleBold', sec.titleBold === false, true)" class="px-2.5 py-1 rounded text-[11px] font-bold border ${sec.titleBold !== false ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Bold">
+                <button type="button" onclick="updateModalSectionField('titleBold', ${sec.titleBold === false}, true)" class="px-2.5 py-1 rounded text-[11px] font-bold border ${sec.titleBold !== false ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Bold">
                   B
                 </button>
-                <button type="button" onclick="updateModalSectionField('titleItalic', !sec.titleItalic, true)" class="px-2.5 py-1 rounded text-[11px] font-serif italic border ${sec.titleItalic ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Italic">
+                <button type="button" onclick="updateModalSectionField('titleItalic', ${!sec.titleItalic}, true)" class="px-2.5 py-1 rounded text-[11px] font-serif italic border ${sec.titleItalic ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Italic">
                   I
                 </button>
-                <button type="button" onclick="updateModalSectionField('titleUnderline', !sec.titleUnderline, true)" class="px-2.5 py-1 rounded text-[11px] underline border ${sec.titleUnderline ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Underline">
+                <button type="button" onclick="updateModalSectionField('titleUnderline', ${!sec.titleUnderline}, true)" class="px-2.5 py-1 rounded text-[11px] underline border ${sec.titleUnderline ? 'bg-red-600 text-white border-red-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Underline">
                   U
                 </button>
               </div>
@@ -8103,7 +8104,7 @@
                 `).join('')}
               </div>
 
-              <button type="button" onclick="updateModalSectionField('dropCap', sec.dropCap !== true, true)" class="px-3 py-1 rounded text-[10.5px] font-bold border ${sec.dropCap ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Toggle Big First Letter">
+              <button type="button" onclick="updateModalSectionField('dropCap', ${sec.dropCap !== true}, true)" class="px-3 py-1 rounded text-[10.5px] font-bold border ${sec.dropCap ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-950 text-slate-400 border-slate-800'}" title="Toggle Big First Letter">
                 Drop Cap: ${sec.dropCap ? 'ON' : 'OFF'}
               </button>
             </div>
